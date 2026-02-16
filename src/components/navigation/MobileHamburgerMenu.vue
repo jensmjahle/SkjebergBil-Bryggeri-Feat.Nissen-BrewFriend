@@ -1,5 +1,5 @@
 <template>
-  <div class="sm:hidden fixed top-4 right-[11px] z-50">
+  <div class="sm:hidden relative z-50">
     <button
       ref="toggleRef"
       @click="menuOpen = !menuOpen"

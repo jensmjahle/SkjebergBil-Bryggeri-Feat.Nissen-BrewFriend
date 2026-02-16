@@ -3,7 +3,7 @@
     class="sticky top-0 z-40 w-full border-b border-border1 py-1 shadow-lg bg-cover bg-center bg-no-repeat"
     style="background-image: url('/assets/navbar_background.png')"
   >
-    <div class="grid w-full grid-cols-3 items-center gap-3 px-2">
+    <div class="grid w-full grid-cols-2 items-center gap-3 px-2 sm:grid-cols-3">
       <router-link to="/" class="flex items-center">
         <img
           src="/assets/logo.png"
@@ -12,7 +12,7 @@
         />
       </router-link>
 
-      <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+      <div class="hidden flex-wrap items-center justify-center gap-2 sm:flex sm:gap-3">
         <div v-for="group in navGroups" :key="group.label" class="relative">
           <button
             type="button"
@@ -47,8 +47,31 @@
         </div>
       </div>
 
-      <div class="flex items-center justify-end">
+      <div class="hidden items-center justify-end sm:flex">
         <SettingsWidget />
+      </div>
+
+      <div class="flex items-center justify-end sm:hidden">
+        <MobileHamburgerMenu>
+          <div class="flex flex-col gap-4 pt-12">
+            <div v-for="group in navGroups" :key="group.label" class="space-y-1">
+              <p class="text-sm font-semibold uppercase tracking-wide opacity-70">
+                {{ group.label }}
+              </p>
+              <router-link
+                v-for="item in group.items"
+                :key="item.to"
+                :to="item.to"
+                class="block rounded-md px-2 py-1 text-sm transition-colors hover:bg-bg2"
+              >
+                {{ item.label }}
+              </router-link>
+            </div>
+            <div class="pt-2 border-t border-border3">
+              <SettingsWidget />
+            </div>
+          </div>
+        </MobileHamburgerMenu>
       </div>
     </div>
   </nav>
@@ -59,6 +82,7 @@ import { ref, onMounted, onBeforeUnmount, watch } from "vue";
 import { useRoute } from "vue-router";
 import { ChevronDown } from "lucide-vue-next";
 import SettingsWidget from "@/components/settings/SettingsWidget.vue";
+import MobileHamburgerMenu from "@/components/navigation/MobileHamburgerMenu.vue";
 
 const route = useRoute();
 const openDropdown = ref(null);
