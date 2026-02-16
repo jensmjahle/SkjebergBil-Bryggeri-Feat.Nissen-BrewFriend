@@ -105,8 +105,9 @@ const navGroups = [
   {
     label: "Verktøy",
     items: [
-      { label: "Alkoholmåler", to: "/verktoy/alkoholmaler" },
+      { label: "Alkoholutregning", to: "/verktoy/alkoholmaler" },
       { label: "Co2 volumer", to: "/verktoy/co2-volumer" },
+      { label: "Hydrometer-korrigering", to: "/verktoy/hydrometer-korrigering" },
     ],
   },
 ];

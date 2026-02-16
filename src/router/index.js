@@ -10,6 +10,7 @@ import CreateNewRecipeView from "@/views/User/CreateNewRecipeView.vue";
 import RecipesView from "@/views/User/RecipesView.vue";
 import RecipeDetailView from "@/views/User/RecipeDetailView.vue";
 import EditRecipeView from "@/views/User/EditRecipeView.vue";
+import ToolsView from "@/views/User/ToolsView.vue";
 
 import AdminLoginView from "@/views/Admin/AdminLoginView.vue";
 import AdminHomeView from "@/views/Admin/AdminHomeView.vue";
@@ -83,20 +84,20 @@ const routes = [
       {
         path: "verktoy/alkoholmaler",
         name: "verktoy-alkoholmaler",
-        component: SectionPlaceholderView,
-        props: {
-          title: "Alkoholmåler",
-          description: "Beregn estimert alkoholprosent.",
-        },
+        component: ToolsView,
+        props: { initialTool: "alcohol" },
       },
       {
         path: "verktoy/co2-volumer",
         name: "verktoy-co2-volumer",
-        component: SectionPlaceholderView,
-        props: {
-          title: "Co2 volumer",
-          description: "Regn ut CO2-volumer for karbonering.",
-        },
+        component: ToolsView,
+        props: { initialTool: "co2" },
+      },
+      {
+        path: "verktoy/hydrometer-korrigering",
+        name: "verktoy-hydrometer-korrigering",
+        component: ToolsView,
+        props: { initialTool: "hydrometer" },
       },
     ],
   },

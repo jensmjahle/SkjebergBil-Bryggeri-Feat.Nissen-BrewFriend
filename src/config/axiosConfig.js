@@ -3,7 +3,9 @@ import { useToast } from "vue-toastification";
 import router from "@/router/index.js";
 
 const api = axios.create({
-  baseURL: window.env?.VITE_API_URL || "http://localhost:3000",
+  baseURL:
+    window.env?.VITE_API_URL ||
+    `${window.location.protocol}//${window.location.hostname}:3000`,
 });
 
 api.interceptors.request.use(
