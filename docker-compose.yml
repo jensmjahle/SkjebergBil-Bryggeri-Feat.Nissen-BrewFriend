@@ -3,8 +3,8 @@ version: "3.9"
 services:
 
   backend:
-    image: beer-exchange-backend
-    container_name: beer-exchange-backend
+    image: beer-friend-backend
+    container_name: beer-friend-backend
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -17,7 +17,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: beer-exchange-frontend
+    container_name: beer-friend-frontend
     environment:
       - VITE_API_URL
       - NODE_ENV=production

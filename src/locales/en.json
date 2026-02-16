@@ -5,7 +5,10 @@
     "search": "Search",
     "reset": "Reset",
     "cancel": "Cancel",
-    "all": "All"
+    "all": "All",
+    "filter": "Filter",
+    "apply": "Apply",
+    "close": "Close"
   },
   "home": {
     "live_exchanges_headline": "Live exchanges",
@@ -156,6 +159,102 @@
       "time": "Time",
       "minutes": "min",
       "ingredients_in_step": "Ingredients in this step"
+    }
+  },
+  "brews": {
+    "common": {
+      "no_recipe": "No linked recipe"
+    },
+    "status": {
+      "planned": "Planned",
+      "active": "Active",
+      "conditioning": "Conditioning",
+      "completed": "Completed",
+      "archived": "Archived"
+    },
+    "step_status": {
+      "pending": "Pending",
+      "paused": "Paused",
+      "active": "Active",
+      "completed": "Completed"
+    },
+    "fields": {
+      "status": "Status",
+      "updated": "Updated",
+      "steps": "Steps",
+      "current_step": "Current step",
+      "planned_start": "Planned start",
+      "brew_started_at": "Brew started",
+      "step_started_at": "Step started",
+      "step_completed_at": "Step completed",
+      "step_used_time": "Used time"
+    },
+    "actions": {
+      "new_brew": "Start new brew",
+      "continue": "Continue brew",
+      "create_plan": "Create planned brew",
+      "save_plan": "Save plan",
+      "start_brew_day": "Start brew day",
+      "back_to_list": "Back to brews",
+      "open_plan": "Open planning",
+      "open_brew": "Open brew",
+      "open_live": "Open live view",
+      "previous_step": "Previous step",
+      "next_step": "Next step",
+      "show_step": "Show step",
+      "start_step": "Start step",
+      "pause_step": "Pause step",
+      "resume_step": "Resume step",
+      "complete_step": "Complete step",
+      "reset_step": "Reset step",
+      "add_measurement": "Add measurement"
+    },
+    "list": {
+      "title": "Brews",
+      "subtitle": "View planned, active and completed brews.",
+      "current_brew": "Current brew",
+      "search_placeholder": "Search by brew name or notes",
+      "found": "{count} brews found",
+      "empty": "No brews found."
+    },
+    "plan": {
+      "title": "Plan Brew",
+      "subtitle": "Adjust the recipe before brew day and save as a planned brew.",
+      "create_from_recipe": "Create from recipe",
+      "select_recipe_help": "Select a recipe to create a planned brew.",
+      "select_recipe": "Select recipe",
+      "overview": "Overview",
+      "summary": "{steps} steps and {ingredients} ingredients",
+      "saved": "Plan saved."
+    },
+    "current": {
+      "progress_tab": "Progress",
+      "recipe_tab": "Recipe",
+      "step_label": "Step {current} of {total}",
+      "timer_remaining": "Time left",
+      "all_steps": "All steps",
+      "fermentation_title": "Fermentation",
+      "fermentation_remaining": "Fermentation remaining",
+      "step_details": "Step details",
+      "no_measurements": "No measurements yet.",
+      "latest_measurements": "Latest measurements",
+      "measurement_added": "Measurement added.",
+      "step_started": "Step started.",
+      "step_paused": "Step paused.",
+      "brew_started": "Brew day started."
+    },
+    "measurements": {
+      "gravity": "Gravity",
+      "temperature": "Temperature",
+      "ph": "pH"
+    },
+    "errors": {
+      "fetch_failed": "Could not fetch brews",
+      "create_failed": "Could not create planned brew",
+      "save_failed": "Could not save brew",
+      "start_failed": "Could not start brew",
+      "step_failed": "Could not update step",
+      "measurement_failed": "Could not save measurement"
     }
   }
 }

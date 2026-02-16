@@ -5,7 +5,7 @@
     >
       <!-- Venstre side -->
       <p class="text-sm opacity-80">
-        &copy; 2025 <strong>Beer Exchange</strong> — Alle rettigheter konsumert
+        &copy; 2026 <strong>Skjeberg Bil & Bryggeri Feat. Nissen</strong> — Alle rettigheter konsumert
         🍻
       </p>
 

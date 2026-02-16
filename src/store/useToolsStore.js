@@ -13,6 +13,7 @@ const defaultState = () => ({
     pressureBar: 0.83,
     co2Volumes: 2.4,
     lastChanged: "co2",
+    pressureUnit: "bar",
   },
   hydrometer: {
     observedGravity: "1.050",
@@ -25,7 +26,13 @@ function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultState();
-    return { ...defaultState(), ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    const defaults = defaultState();
+    return {
+      alcohol: { ...defaults.alcohol, ...(parsed?.alcohol || {}) },
+      co2: { ...defaults.co2, ...(parsed?.co2 || {}) },
+      hydrometer: { ...defaults.hydrometer, ...(parsed?.hydrometer || {}) },
+    };
   } catch {
     return defaultState();
   }

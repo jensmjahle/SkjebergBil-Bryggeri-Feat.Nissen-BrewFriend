@@ -1,11 +1,11 @@
-﻿<template>
+<template>
   <BaseCard class="space-y-4">
     <div>
       <h3>CO2 Volumer</h3>
       <p class="text-sm opacity-80">Fyll inn to felter, så regnes resten automatisk (temperatur + trykk eller CO2).</p>
     </div>
 
-    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <BaseInput
         :model-value="temperatureC"
         type="number"
@@ -13,20 +13,37 @@
         label="Temperatur (°C)"
         @update:model-value="onTemperatureChange"
       />
-      <BaseInput
-        :model-value="pressurePsi"
-        type="number"
-        step="0.1"
-        label="Trykk (PSI)"
-        @update:model-value="(v) => onPressureChange(v, 'psi')"
-      />
-      <BaseInput
-        :model-value="pressureBar"
-        type="number"
-        step="0.01"
-        label="Trykk (bar)"
-        @update:model-value="(v) => onPressureChange(v, 'bar')"
-      />
+
+      <div class="flex items-end gap-2">
+        <div class="flex-1">
+          <BaseInput
+            :model-value="displayPressure"
+            type="number"
+            :step="pressureStep"
+            :label="pressureLabel"
+            @update:model-value="onPressureInputChange"
+          />
+        </div>
+        <div class="mb-[2px] flex overflow-hidden rounded-lg border border-border4 bg-bg4">
+          <button
+            type="button"
+            class="px-3 py-2 text-sm font-semibold transition-colors"
+            :class="pressureUnit === 'bar' ? 'bg-button1 text-button1-meta' : 'text-text4 hover:bg-bg2'"
+            @click="setPressureUnit('bar')"
+          >
+            bar
+          </button>
+          <button
+            type="button"
+            class="px-3 py-2 text-sm font-semibold transition-colors"
+            :class="pressureUnit === 'psi' ? 'bg-button1 text-button1-meta' : 'text-text4 hover:bg-bg2'"
+            @click="setPressureUnit('psi')"
+          >
+            psi
+          </button>
+        </div>
+      </div>
+
       <BaseInput
         :model-value="co2Volumes"
         type="number"
@@ -50,6 +67,16 @@ const temperatureC = computed(() => store.co2.temperatureC);
 const pressurePsi = computed(() => store.co2.pressurePsi);
 const pressureBar = computed(() => store.co2.pressureBar);
 const co2Volumes = computed(() => store.co2.co2Volumes);
+const pressureUnit = computed(() =>
+  store.co2.pressureUnit === "psi" ? "psi" : "bar",
+);
+const displayPressure = computed(() =>
+  pressureUnit.value === "bar" ? pressureBar.value : pressurePsi.value,
+);
+const pressureStep = computed(() => (pressureUnit.value === "bar" ? 0.01 : 0.1));
+const pressureLabel = computed(() =>
+  pressureUnit.value === "bar" ? "Trykk (bar)" : "Trykk (PSI)",
+);
 
 function n(value) {
   const x = Number(value);
@@ -119,6 +146,7 @@ function onTemperatureChange(value) {
 function onPressureChange(value, unit) {
   const pressure = n(value);
   if (pressure === null) return;
+
   const psi = unit === "bar" ? barToPsi(pressure) : pressure;
   const bar = unit === "bar" ? pressure : psiToBar(psi);
   const volumes = volumesFromTempAndPressure(store.co2.temperatureC, psi);
@@ -129,6 +157,16 @@ function onPressureChange(value, unit) {
     co2Volumes: volumes === null ? store.co2.co2Volumes : Number(volumes.toFixed(2)),
     lastChanged: "pressure",
   });
+}
+
+function onPressureInputChange(value) {
+  onPressureChange(value, pressureUnit.value);
+}
+
+function setPressureUnit(unit) {
+  const next = unit === "psi" ? "psi" : "bar";
+  if (pressureUnit.value === next) return;
+  store.setCo2({ pressureUnit: next });
 }
 
 function onCo2Change(value) {

@@ -1,6 +1,5 @@
 ﻿<template>
   <section class="mx-auto w-full max-w-6xl px-4 py-8 space-y-6">
-    <BaseCard>
       <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1>{{ t("recipes.list.title") }}</h1>
@@ -10,9 +9,26 @@
           <BaseButton>{{ t("recipes.list.new_recipe") }}</BaseButton>
         </router-link>
       </div>
+
+    <BaseCard class="sm:hidden">
+      <form class="flex items-end gap-2" @submit.prevent="loadRecipes">
+        <div class="flex-1">
+          <BaseInput
+            v-model="filters.q"
+            :label="t('recipes.filters.search')"
+            :placeholder="t('recipes.filters.search_placeholder')"
+          />
+        </div>
+        <BaseButton type="button" variant="button3" @click="mobileFiltersOpen = true">
+          {{ t("common.filter") }}
+        </BaseButton>
+        <BaseButton type="submit" :disabled="loading">
+          {{ loading ? t("common.loading") : t("common.search") }}
+        </BaseButton>
+      </form>
     </BaseCard>
 
-    <BaseCard>
+    <BaseCard class="hidden sm:block">
       <form class="grid gap-4 md:grid-cols-2 xl:grid-cols-6" @submit.prevent="loadRecipes">
         <BaseInput v-model="filters.q" :label="t('recipes.filters.search')" :placeholder="t('recipes.filters.search_placeholder')" />
         <BaseDropdown v-model="filters.beerType" :label="t('recipes.filters.beer_type')" :options="beerTypeOptions" :placeholder="t('common.all')" />
@@ -27,6 +43,19 @@
         </div>
       </form>
     </BaseCard>
+
+    <RecipeFiltersModal
+      :open="mobileFiltersOpen"
+      :filters="filters"
+      :beer-type-options="beerTypeOptions"
+      :step-type-options="stepTypeOptions"
+      :ingredient-category-options="ingredientCategoryOptions"
+      :defaults-options="defaultsOptions"
+      :sort-options="sortOptions"
+      @close="mobileFiltersOpen = false"
+      @reset="resetFilters"
+      @apply="applyMobileFilters"
+    />
 
     <div v-if="error" class="rounded-xl border border-danger-border bg-danger p-4 text-text1">{{ error }}</div>
 
@@ -78,12 +107,14 @@ import BaseCard from "@/components/base/BaseCard.vue";
 import BaseInput from "@/components/base/BaseInput.vue";
 import BaseDropdown from "@/components/base/BaseDropdown.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
+import RecipeFiltersModal from "@/components/modals/RecipeFiltersModal.vue";
 import { STEP_TYPE_OPTIONS } from "@/components/recipe-steps/index.js";
 
 const { t } = useI18n();
 const loading = ref(false);
 const error = ref("");
 const recipes = ref([]);
+const mobileFiltersOpen = ref(false);
 
 const filters = reactive({
   q: "",
@@ -179,6 +210,12 @@ function resetFilters() {
   filters.ingredientCategory = "";
   filters.hasDefaults = "";
   filters.sort = "newest";
+  mobileFiltersOpen.value = false;
+  loadRecipes();
+}
+
+function applyMobileFilters() {
+  mobileFiltersOpen.value = false;
   loadRecipes();
 }
 

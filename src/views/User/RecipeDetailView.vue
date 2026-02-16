@@ -77,7 +77,7 @@
             <p v-if="step.description" class="mt-2 text-sm opacity-90">{{ step.description }}</p>
             <div class="mt-2 flex flex-wrap gap-4 text-xs opacity-80">
               <span v-if="step.temperatureC !== null && step.temperatureC !== undefined">{{ t("recipes.detail.temp") }}: {{ step.temperatureC }} °C</span>
-              <span v-if="step.durationMinutes !== null && step.durationMinutes !== undefined">{{ t("recipes.detail.time") }}: {{ step.durationMinutes }} {{ t("recipes.detail.minutes") }}</span>
+              <span v-if="step.durationMinutes !== null && step.durationMinutes !== undefined">{{ t("recipes.detail.time") }}: {{ stepDurationLabel(step) }}</span>
               <span v-if="step.co2Volumes !== null && step.co2Volumes !== undefined">{{ t("recipes.metrics.co2") }}: {{ step.co2Volumes }}</span>
             </div>
 
@@ -149,6 +149,21 @@ function ingredientsForStep(stepId) {
 
 function stepTypeLabel(value) {
   return t(`recipes.step_types.${value || "custom"}`);
+}
+
+function isDayBasedStep(step) {
+  const type = step?.stepType || "";
+  return type === "primary_fermentation" || type === "secondary_fermentation" || type === "cold_crash";
+}
+
+function stepDurationLabel(step) {
+  const minutes = Number(step?.durationMinutes);
+  if (!Number.isFinite(minutes) || minutes <= 0) return "-";
+  if (isDayBasedStep(step)) {
+    const days = minutes / 1440;
+    return Number.isInteger(days) ? `${days} d` : `${days.toFixed(1)} d`;
+  }
+  return `${Math.round(minutes)} ${t("recipes.detail.minutes")}`;
 }
 
 function formatMetric(value) {

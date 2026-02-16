@@ -11,6 +11,9 @@ import RecipesView from "@/views/User/RecipesView.vue";
 import RecipeDetailView from "@/views/User/RecipeDetailView.vue";
 import EditRecipeView from "@/views/User/EditRecipeView.vue";
 import ToolsView from "@/views/User/ToolsView.vue";
+import BrewsView from "@/views/User/BrewsView.vue";
+import BrewPlanningView from "@/views/User/BrewPlanningView.vue";
+import CurrentBrewView from "@/views/User/CurrentBrewView.vue";
 
 import AdminLoginView from "@/views/Admin/AdminLoginView.vue";
 import AdminHomeView from "@/views/Admin/AdminHomeView.vue";
@@ -40,20 +43,24 @@ const routes = [
       {
         path: "brygg/nytt",
         name: "brygg-nytt",
-        component: SectionPlaceholderView,
-        props: {
-          title: "Nytt Brygg",
-          description: "Opprett et nytt brygg.",
-        },
+        component: BrewPlanningView,
       },
       {
         path: "brygg/tidligere",
         name: "brygg-tidligere",
-        component: SectionPlaceholderView,
-        props: {
-          title: "Tidligere Brygg",
-          description: "Se tidligere brygg.",
-        },
+        component: BrewsView,
+      },
+      {
+        path: "brygg/:brewId/planlegging",
+        name: "brygg-planlegging",
+        component: BrewPlanningView,
+        props: true,
+      },
+      {
+        path: "brygg/:brewId",
+        name: "brygg-aktiv",
+        component: CurrentBrewView,
+        props: true,
       },
       {
         path: "oppskrifter/ny",

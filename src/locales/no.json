@@ -5,7 +5,10 @@
     "search": "Søk",
     "reset": "Nullstill",
     "cancel": "Avbryt",
-    "all": "Alle"
+    "all": "Alle",
+    "filter": "Filter",
+    "apply": "Bruk",
+    "close": "Lukk"
   },
   "home": {
     "live_exchanges_headline": "Live events",
@@ -156,6 +159,102 @@
       "time": "Tid",
       "minutes": "min",
       "ingredients_in_step": "Ingredienser i dette steget"
+    }
+  },
+  "brews": {
+    "common": {
+      "no_recipe": "Ingen oppskrift koblet"
+    },
+    "status": {
+      "planned": "Planlagt",
+      "active": "Aktiv",
+      "conditioning": "Modning",
+      "completed": "Fullført",
+      "archived": "Arkivert"
+    },
+    "step_status": {
+      "pending": "Venter",
+      "paused": "Pauset",
+      "active": "Pågår",
+      "completed": "Ferdig"
+    },
+    "fields": {
+      "status": "Status",
+      "updated": "Sist oppdatert",
+      "steps": "Steg",
+      "current_step": "Aktivt steg",
+      "planned_start": "Planlagt start",
+      "brew_started_at": "Brygg startet",
+      "step_started_at": "Steg startet",
+      "step_completed_at": "Steg fullført",
+      "step_used_time": "Brukt tid"
+    },
+    "actions": {
+      "new_brew": "Start nytt brygg",
+      "continue": "Fortsett brygg",
+      "create_plan": "Opprett planlagt brygg",
+      "save_plan": "Lagre plan",
+      "start_brew_day": "Start bryggedag",
+      "back_to_list": "Til bryggliste",
+      "open_plan": "Åpne planlegging",
+      "open_brew": "Åpne brygg",
+      "open_live": "Gå til bryggvisning",
+      "previous_step": "Forrige steg",
+      "next_step": "Neste steg",
+      "show_step": "Vis steg",
+      "start_step": "Start steg",
+      "pause_step": "Pause steg",
+      "resume_step": "Fortsett steg",
+      "complete_step": "Fullfør steg",
+      "reset_step": "Nullstill steg",
+      "add_measurement": "Legg til måling"
+    },
+    "list": {
+      "title": "Tidligere Brygg",
+      "subtitle": "Se planlagte, aktive og fullførte brygg.",
+      "current_brew": "Pågående brygg",
+      "search_placeholder": "Søk på bryggnavn eller notat",
+      "found": "{count} brygg funnet",
+      "empty": "Ingen brygg funnet."
+    },
+    "plan": {
+      "title": "Planlegg Brygg",
+      "subtitle": "Juster oppskriften før bryggedag og lagre som planlagt brygg.",
+      "create_from_recipe": "Opprett fra oppskrift",
+      "select_recipe_help": "Velg en oppskrift for å lage et planlagt brygg.",
+      "select_recipe": "Velg oppskrift",
+      "overview": "Oversikt",
+      "summary": "{steps} steg og {ingredients} ingredienser",
+      "saved": "Plan lagret."
+    },
+    "current": {
+      "progress_tab": "Fremdrift",
+      "recipe_tab": "Oppskrift",
+      "step_label": "Steg {current} av {total}",
+      "timer_remaining": "Tid igjen",
+      "all_steps": "Alle steg",
+      "fermentation_title": "Gjæring",
+      "fermentation_remaining": "Tid igjen på gjæring",
+      "step_details": "Stegdetaljer",
+      "no_measurements": "Ingen målinger registrert enda.",
+      "latest_measurements": "Siste målinger",
+      "measurement_added": "Måling lagt til.",
+      "step_started": "Steg startet.",
+      "step_paused": "Steg pauset.",
+      "brew_started": "Bryggedagen er startet."
+    },
+    "measurements": {
+      "gravity": "Gravity",
+      "temperature": "Temperatur",
+      "ph": "pH"
+    },
+    "errors": {
+      "fetch_failed": "Kunne ikke hente brygg",
+      "create_failed": "Kunne ikke opprette planlagt brygg",
+      "save_failed": "Kunne ikke lagre brygg",
+      "start_failed": "Kunne ikke starte brygg",
+      "step_failed": "Kunne ikke oppdatere steg",
+      "measurement_failed": "Kunne ikke lagre måling"
     }
   }
 }

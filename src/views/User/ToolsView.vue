@@ -1,6 +1,6 @@
 ﻿<template>
   <section class="mx-auto w-full max-w-6xl px-4 py-8 space-y-4">
-    <BaseCard>
+    <BaseCard class="hidden sm:block">
       <h1 class="mb-2">Verktøy</h1>
       <p class="text-sm opacity-80">Verktøyene lagrer siste verdier lokalt automatisk.</p>
 
