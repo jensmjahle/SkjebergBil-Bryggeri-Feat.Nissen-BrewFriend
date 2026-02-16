@@ -1,0 +1,161 @@
+﻿{
+  "common": {
+    "loading": "Laster...",
+    "saving": "Lagrer...",
+    "search": "Søk",
+    "reset": "Nullstill",
+    "cancel": "Avbryt",
+    "all": "Alle"
+  },
+  "home": {
+    "live_exchanges_headline": "Live events",
+    "live_exchanges_subtitle": "Se aktive eventer i sanntid.",
+    "no_live_events": "Ingen live events akkurat nå.",
+    "untitled_event": "Uten tittel",
+    "live_badge": "live",
+    "enter": "Gå inn",
+    "failed_to_load_events": "Kunne ikke laste eventer"
+  },
+  "recipes": {
+    "common": {
+      "unknown_type": "Ukjent type",
+      "step_count": "{count} steg"
+    },
+    "beer_type": {
+      "other": "Annet"
+    },
+    "ingredient_category": {
+      "fermentable": "Fermenterbart",
+      "hops": "Humle",
+      "other": "Annet"
+    },
+    "step_types": {
+      "preparation": "Forberedning",
+      "mash": "Mesking",
+      "boil": "Koking",
+      "primary_fermentation": "Gjæring",
+      "secondary_fermentation": "Sekundær Gjæring",
+      "cold_crash": "Cold Crash",
+      "carbonation": "Karbonering",
+      "conditioning": "Modning",
+      "custom": "Eget Steg"
+    },
+    "tabs": {
+      "steps": "Steg",
+      "ingredients": "Ingredienser"
+    },
+    "fields": {
+      "name": "Navn",
+      "beer_type": "Øltype",
+      "color": "Farge",
+      "image": "Bilde",
+      "image_url": "Bilde URL",
+      "flavor_profile": "Smaksprofil",
+      "defaults": "Standardverdier",
+      "og_from": "OG fra",
+      "og_to": "OG til",
+      "fg_from": "FG fra",
+      "fg_to": "FG til",
+      "add_step_type": "Legg til stegtype",
+      "category": "Kategori",
+      "amount": "Mengde",
+      "unit": "Enhet",
+      "notes": "Notater",
+      "link_to_steps": "Knytt til steg"
+    },
+    "metrics": {
+      "og": "OG",
+      "fg": "FG",
+      "co2": "CO2",
+      "ibu": "IBU",
+      "abv": "ABV",
+      "abv_estimated": "Estimert alkohol",
+      "abv_missing": "Legg inn OG/FG range for beregning"
+    },
+    "actions": {
+      "create": "Opprett oppskrift",
+      "save": "Lagre endringer",
+      "add_step": "Legg til steg",
+      "add_ingredient": "Legg til ingrediens",
+      "remove": "Fjern",
+      "remove_ingredient": "Fjern ingrediens",
+      "up": "Opp",
+      "down": "Ned"
+    },
+    "errors": {
+      "fetch_failed": "Kunne ikke hente oppskrifter",
+      "save_failed": "Kunne ikke lagre oppskrift",
+      "update_failed": "Kunne ikke oppdatere oppskrift",
+      "upload_failed": "Kunne ikke laste opp bilde",
+      "copy_load_failed": "Kunne ikke laste oppskrift for kopiering",
+      "gravity_format": "OG/FG må være i format 1.056"
+    },
+    "sort": {
+      "newest": "Nyeste først",
+      "oldest": "Eldste først",
+      "name_asc": "Navn A-Å",
+      "name_desc": "Navn Å-A",
+      "steps_desc": "Flest steg"
+    },
+    "filters": {
+      "search": "Søk",
+      "search_placeholder": "Navn, smakprofil, ingrediens",
+      "beer_type": "Øltype",
+      "step_type": "Stegtype",
+      "ingredient_category": "Ingrediens",
+      "defaults": "Standardverdier",
+      "sort": "Sortering",
+      "has_defaults": "Har standardverdier",
+      "no_defaults": "Ingen standardverdier"
+    },
+    "list": {
+      "title": "Oppskrifter",
+      "subtitle": "Søk og filtrer oppskrifter på øltype, steg og ingredienser.",
+      "new_recipe": "Ny Oppskrift",
+      "found": "{count} oppskrift(er) funnet",
+      "no_results": "Ingen oppskrifter matcher filtrene."
+    },
+    "create": {
+      "title": "Ny Oppskrift",
+      "subtitle": "Opprett en oppskrift med standardverdier, steg og ingredienser.",
+      "saved": "Oppskrift lagret.",
+      "copy_loading": "Henter oppskrift for kopiering...",
+      "copy_suffix": "kopi",
+      "name_placeholder": "f.eks. Sommer IPA",
+      "select_beer_type": "Velg øltype",
+      "color_placeholder": "f.eks. Gylden",
+      "image_url_placeholder": "Lages automatisk ved opplasting",
+      "flavor_placeholder": "Beskriv smak, aroma og munnfølelse",
+      "select_step": "Velg steg",
+      "select_category": "Velg kategori",
+      "ingredient_name_placeholder": "f.eks. Pilsnermalt",
+      "amount_placeholder": "f.eks. 4.2",
+      "unit_placeholder": "kg, g, l",
+      "no_steps": "Ingen steg lagt til enda.",
+      "no_ingredients": "Ingen ingredienser lagt til.",
+      "add_steps_first": "Legg til steg først.",
+      "image_uploading": "Laster opp bilde...",
+      "image_uploaded": "Bilde lastet opp."
+    },
+    "edit": {
+      "title": "Rediger Oppskrift",
+      "subtitle": "Oppdater oppskriften og lagre endringer.",
+      "saved": "Oppskrift oppdatert."
+    },
+    "detail": {
+      "edit": "Rediger",
+      "copy": "Kopier Oppskrift",
+      "start_brew": "Start Brygg",
+      "image_alt": "Oppskriftsbilde",
+      "flavor_profile": "Smaksprofil",
+      "defaults": "Standardverdier",
+      "ingredients": "Ingredienser",
+      "no_ingredients": "Ingen ingredienser registrert.",
+      "steps": "Steg",
+      "temp": "Temp",
+      "time": "Tid",
+      "minutes": "min",
+      "ingredients_in_step": "Ingredienser i dette steget"
+    }
+  }
+}

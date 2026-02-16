@@ -1,7 +1,7 @@
 ﻿<template>
   <section class="mx-auto w-full max-w-5xl px-4 py-8 space-y-6">
     <BaseCard v-if="loading">
-      <p>Laster oppskrift...</p>
+      <p>{{ t("common.loading") }}</p>
     </BaseCard>
 
     <BaseCard v-else-if="error">
@@ -13,48 +13,48 @@
         <div class="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1>{{ recipe.name }}</h1>
-            <p class="mt-1 opacity-80">{{ recipe.beerType || "Ukjent type" }}</p>
+            <p class="mt-1 opacity-80">{{ recipe.beerType || t("recipes.common.unknown_type") }}</p>
           </div>
 
           <div class="flex flex-wrap gap-2">
             <router-link :to="`/oppskrifter/${recipe._id}/rediger`">
-              <BaseButton variant="button3">Rediger</BaseButton>
+              <BaseButton variant="button3">{{ t("recipes.detail.edit") }}</BaseButton>
             </router-link>
             <router-link :to="{ path: '/oppskrifter/ny', query: { copyFrom: recipe._id } }">
-              <BaseButton variant="button2">Kopier Oppskrift</BaseButton>
+              <BaseButton variant="button2">{{ t("recipes.detail.copy") }}</BaseButton>
             </router-link>
           </div>
         </div>
 
         <router-link :to="{ path: '/brygg/nytt', query: { recipeId: recipe._id } }" class="mt-5 block">
-          <BaseButton class="w-full py-3 text-base" variant="button1">Start Brygg</BaseButton>
+          <BaseButton class="w-full py-3 text-base" variant="button1">{{ t("recipes.detail.start_brew") }}</BaseButton>
         </router-link>
       </BaseCard>
 
       <BaseCard v-if="resolvedImageSrc">
-        <img :src="resolvedImageSrc" alt="Recipe image" class="max-h-72 rounded-lg border border-border3 object-cover" />
+        <img :src="resolvedImageSrc" :alt="t('recipes.detail.image_alt')" class="max-h-72 rounded-lg border border-border3 object-cover" />
       </BaseCard>
 
       <BaseCard v-if="recipe.flavorProfile">
-        <h3>Smaksprofil</h3>
+        <h3>{{ t("recipes.detail.flavor_profile") }}</h3>
         <p class="mt-2 whitespace-pre-line">{{ recipe.flavorProfile }}</p>
       </BaseCard>
 
       <BaseCard>
-        <h3>Standardverdier</h3>
+        <h3>{{ t("recipes.detail.defaults") }}</h3>
         <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 text-sm">
-          <div>OG: {{ recipe.defaults?.ogFrom || '-' }} - {{ recipe.defaults?.ogTo || '-' }}</div>
-          <div>FG: {{ recipe.defaults?.fgFrom || '-' }} - {{ recipe.defaults?.fgTo || '-' }}</div>
-          <div>CO2: {{ formatMetric(recipe.defaults?.co2Volumes) }}</div>
-          <div>IBU: {{ formatMetric(recipe.defaults?.ibu) }}</div>
-          <div>ABV: {{ abvText }}</div>
+          <div>{{ t("recipes.metrics.og") }}: {{ recipe.defaults?.ogFrom || '-' }} - {{ recipe.defaults?.ogTo || '-' }}</div>
+          <div>{{ t("recipes.metrics.fg") }}: {{ recipe.defaults?.fgFrom || '-' }} - {{ recipe.defaults?.fgTo || '-' }}</div>
+          <div>{{ t("recipes.metrics.co2") }}: {{ formatMetric(recipe.defaults?.co2Volumes) }}</div>
+          <div>{{ t("recipes.metrics.ibu") }}: {{ formatMetric(recipe.defaults?.ibu) }}</div>
+          <div>{{ t("recipes.metrics.abv") }}: {{ abvText }}</div>
         </div>
       </BaseCard>
 
       <BaseCard>
-        <h3>Ingredienser</h3>
+        <h3>{{ t("recipes.detail.ingredients") }}</h3>
         <div class="mt-3 space-y-2">
-          <div v-if="!recipe.ingredients?.length" class="text-sm opacity-70">Ingen ingredienser registrert.</div>
+          <div v-if="!recipe.ingredients?.length" class="text-sm opacity-70">{{ t("recipes.detail.no_ingredients") }}</div>
           <div v-for="ing in recipe.ingredients || []" :key="ing.ingredientId" class="rounded-lg border border-border3 p-3">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <h4>{{ ing.name }}</h4>
@@ -67,7 +67,7 @@
       </BaseCard>
 
       <BaseCard>
-        <h3>Steg</h3>
+        <h3>{{ t("recipes.detail.steps") }}</h3>
         <div class="mt-3 space-y-3">
           <div v-for="step in recipe.steps || []" :key="`${step.stepId}-${step.order}`" class="rounded-lg border border-border3 p-3">
             <div class="flex flex-wrap items-center justify-between gap-2">
@@ -76,13 +76,13 @@
             </div>
             <p v-if="step.description" class="mt-2 text-sm opacity-90">{{ step.description }}</p>
             <div class="mt-2 flex flex-wrap gap-4 text-xs opacity-80">
-              <span v-if="step.temperatureC !== null && step.temperatureC !== undefined">Temp: {{ step.temperatureC }} °C</span>
-              <span v-if="step.durationMinutes !== null && step.durationMinutes !== undefined">Tid: {{ step.durationMinutes }} min</span>
-              <span v-if="step.co2Volumes !== null && step.co2Volumes !== undefined">CO2: {{ step.co2Volumes }}</span>
+              <span v-if="step.temperatureC !== null && step.temperatureC !== undefined">{{ t("recipes.detail.temp") }}: {{ step.temperatureC }} °C</span>
+              <span v-if="step.durationMinutes !== null && step.durationMinutes !== undefined">{{ t("recipes.detail.time") }}: {{ step.durationMinutes }} {{ t("recipes.detail.minutes") }}</span>
+              <span v-if="step.co2Volumes !== null && step.co2Volumes !== undefined">{{ t("recipes.metrics.co2") }}: {{ step.co2Volumes }}</span>
             </div>
 
             <div class="mt-3" v-if="ingredientsForStep(step.stepId).length">
-              <p class="text-xs font-semibold uppercase opacity-70">Ingredienser i dette steget</p>
+              <p class="text-xs font-semibold uppercase opacity-70">{{ t("recipes.detail.ingredients_in_step") }}</p>
               <div class="mt-1 flex flex-wrap gap-2">
                 <span
                   v-for="ing in ingredientsForStep(step.stepId)"
@@ -103,12 +103,14 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
+import { useI18n } from "vue-i18n";
 import BaseCard from "@/components/base/BaseCard.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
 import { getRecipe } from "@/services/recipes.service.js";
 import { STEP_TYPE_OPTIONS } from "@/components/recipe-steps/index.js";
 
 const route = useRoute();
+const { t } = useI18n();
 const loading = ref(true);
 const error = ref("");
 const recipe = ref(null);
@@ -136,9 +138,9 @@ const abvText = computed(() => {
 });
 
 function ingredientCategoryLabel(category) {
-  if (category === "fermentable") return "Fermenterbart";
-  if (category === "hops") return "Humle";
-  return "Annet";
+  if (category === "fermentable") return t("recipes.ingredient_category.fermentable");
+  if (category === "hops") return t("recipes.ingredient_category.hops");
+  return t("recipes.ingredient_category.other");
 }
 
 function ingredientsForStep(stepId) {
@@ -146,7 +148,7 @@ function ingredientsForStep(stepId) {
 }
 
 function stepTypeLabel(value) {
-  return STEP_TYPE_OPTIONS.find((s) => s.value === value)?.label || value || "Eget";
+  return t(`recipes.step_types.${value || "custom"}`);
 }
 
 function formatMetric(value) {
@@ -159,7 +161,7 @@ async function loadRecipe() {
   try {
     recipe.value = await getRecipe(route.params.recipeId);
   } catch (err) {
-    error.value = err?.response?.data?.error || err?.message || "Kunne ikke hente oppskrift";
+    error.value = err?.response?.data?.error || err?.message || t("recipes.errors.fetch_failed");
   } finally {
     loading.value = false;
   }

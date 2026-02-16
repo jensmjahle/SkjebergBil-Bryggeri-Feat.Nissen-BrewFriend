@@ -1,0 +1,161 @@
+﻿{
+  "common": {
+    "loading": "Loading...",
+    "saving": "Saving...",
+    "search": "Search",
+    "reset": "Reset",
+    "cancel": "Cancel",
+    "all": "All"
+  },
+  "home": {
+    "live_exchanges_headline": "Live exchanges",
+    "live_exchanges_subtitle": "See active events in real time.",
+    "no_live_events": "No live events right now.",
+    "untitled_event": "Untitled Event",
+    "live_badge": "live",
+    "enter": "Enter",
+    "failed_to_load_events": "Failed to load events"
+  },
+  "recipes": {
+    "common": {
+      "unknown_type": "Unknown type",
+      "step_count": "{count} steps"
+    },
+    "beer_type": {
+      "other": "Other"
+    },
+    "ingredient_category": {
+      "fermentable": "Fermentable",
+      "hops": "Hops",
+      "other": "Other"
+    },
+    "step_types": {
+      "preparation": "Preparation",
+      "mash": "Mash",
+      "boil": "Boil",
+      "primary_fermentation": "Primary Fermentation",
+      "secondary_fermentation": "Secondary Fermentation",
+      "cold_crash": "Cold Crash",
+      "carbonation": "Carbonation",
+      "conditioning": "Conditioning",
+      "custom": "Custom Step"
+    },
+    "tabs": {
+      "steps": "Steps",
+      "ingredients": "Ingredients"
+    },
+    "fields": {
+      "name": "Name",
+      "beer_type": "Beer type",
+      "color": "Color",
+      "image": "Image",
+      "image_url": "Image URL",
+      "flavor_profile": "Flavor profile",
+      "defaults": "Default values",
+      "og_from": "OG from",
+      "og_to": "OG to",
+      "fg_from": "FG from",
+      "fg_to": "FG to",
+      "add_step_type": "Add step type",
+      "category": "Category",
+      "amount": "Amount",
+      "unit": "Unit",
+      "notes": "Notes",
+      "link_to_steps": "Link to steps"
+    },
+    "metrics": {
+      "og": "OG",
+      "fg": "FG",
+      "co2": "CO2",
+      "ibu": "IBU",
+      "abv": "ABV",
+      "abv_estimated": "Estimated alcohol",
+      "abv_missing": "Enter OG/FG range to calculate"
+    },
+    "actions": {
+      "create": "Create recipe",
+      "save": "Save changes",
+      "add_step": "Add step",
+      "add_ingredient": "Add ingredient",
+      "remove": "Remove",
+      "remove_ingredient": "Remove ingredient",
+      "up": "Up",
+      "down": "Down"
+    },
+    "errors": {
+      "fetch_failed": "Could not fetch recipes",
+      "save_failed": "Could not save recipe",
+      "update_failed": "Could not update recipe",
+      "upload_failed": "Could not upload image",
+      "copy_load_failed": "Could not load recipe for copying",
+      "gravity_format": "OG/FG must be in format 1.056"
+    },
+    "sort": {
+      "newest": "Newest first",
+      "oldest": "Oldest first",
+      "name_asc": "Name A-Z",
+      "name_desc": "Name Z-A",
+      "steps_desc": "Most steps"
+    },
+    "filters": {
+      "search": "Search",
+      "search_placeholder": "Name, flavor profile, ingredient",
+      "beer_type": "Beer type",
+      "step_type": "Step type",
+      "ingredient_category": "Ingredient",
+      "defaults": "Default values",
+      "sort": "Sort",
+      "has_defaults": "Has default values",
+      "no_defaults": "No default values"
+    },
+    "list": {
+      "title": "Recipes",
+      "subtitle": "Search and filter recipes by beer type, steps and ingredients.",
+      "new_recipe": "New Recipe",
+      "found": "{count} recipe(s) found",
+      "no_results": "No recipes match the filters."
+    },
+    "create": {
+      "title": "New Recipe",
+      "subtitle": "Create a recipe with defaults, steps and ingredients.",
+      "saved": "Recipe saved.",
+      "copy_loading": "Loading recipe for copy...",
+      "copy_suffix": "copy",
+      "name_placeholder": "e.g. Summer IPA",
+      "select_beer_type": "Select beer type",
+      "color_placeholder": "e.g. Golden",
+      "image_url_placeholder": "Generated automatically after upload",
+      "flavor_placeholder": "Describe flavor, aroma and mouthfeel",
+      "select_step": "Select step",
+      "select_category": "Select category",
+      "ingredient_name_placeholder": "e.g. Pilsner malt",
+      "amount_placeholder": "e.g. 4.2",
+      "unit_placeholder": "kg, g, l",
+      "no_steps": "No steps added yet.",
+      "no_ingredients": "No ingredients added.",
+      "add_steps_first": "Add steps first.",
+      "image_uploading": "Uploading image...",
+      "image_uploaded": "Image uploaded."
+    },
+    "edit": {
+      "title": "Edit Recipe",
+      "subtitle": "Update the recipe and save your changes.",
+      "saved": "Recipe updated."
+    },
+    "detail": {
+      "edit": "Edit",
+      "copy": "Copy Recipe",
+      "start_brew": "Start Brew",
+      "image_alt": "Recipe image",
+      "flavor_profile": "Flavor profile",
+      "defaults": "Default values",
+      "ingredients": "Ingredients",
+      "no_ingredients": "No ingredients registered.",
+      "steps": "Steps",
+      "temp": "Temp",
+      "time": "Time",
+      "minutes": "min",
+      "ingredients_in_step": "Ingredients in this step"
+    }
+  }
+}

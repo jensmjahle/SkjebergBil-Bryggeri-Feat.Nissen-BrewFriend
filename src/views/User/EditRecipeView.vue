@@ -1,66 +1,66 @@
-﻿<template>
+<template>
   <section class="mx-auto w-full max-w-5xl px-4 py-8">
     <BaseCard>
       <div class="mb-6">
-        <h1>Rediger Oppskrift</h1>
-        <p class="mt-2 opacity-80">Oppdater oppskriften og lagre endringer.</p>
+        <h1>{{ t("recipes.edit.title") }}</h1>
+        <p class="mt-2 opacity-80">{{ t("recipes.edit.subtitle") }}</p>
       </div>
 
-      <div v-if="loading" class="py-4">Laster...</div>
+      <div v-if="loading" class="py-4">{{ t("common.loading") }}</div>
       <p v-else-if="loadError" class="text-sm text-red-600">{{ loadError }}</p>
 
       <form v-else class="space-y-6" @submit.prevent="handleSubmit">
         <div class="grid gap-4 md:grid-cols-2">
-          <BaseInput v-model="form.name" label="Navn" required />
-          <BaseDropdown v-model="form.beerType" label="Øltype" :options="beerTypeOptions" placeholder="Velg øltype" />
-          <BaseInput v-model="form.color" label="Farge" />
-          <BaseInput v-model="form.imageUrl" label="Bilde URL" />
+          <BaseInput v-model="form.name" :label="t('recipes.fields.name')" required />
+          <BaseDropdown v-model="form.beerType" :label="t('recipes.fields.beer_type')" :options="beerTypeOptions" :placeholder="t('recipes.create.select_beer_type')" />
+          <BaseInput v-model="form.color" :label="t('recipes.fields.color')" />
+          <BaseInput v-model="form.imageUrl" :label="t('recipes.fields.image_url')" />
         </div>
 
         <div class="space-y-3 rounded-lg border border-border3 p-4">
-          <h3>Bilde</h3>
+          <h3>{{ t("recipes.fields.image") }}</h3>
           <input type="file" accept="image/*" @change="handleImageUpload" class="block w-full text-sm" />
           <p v-if="imageUploadMessage" class="text-sm opacity-80">{{ imageUploadMessage }}</p>
-          <img v-if="resolvedImageSrc" :src="resolvedImageSrc" alt="Recipe image" class="max-h-56 rounded-lg border border-border3 object-cover" />
+          <img v-if="resolvedImageSrc" :src="resolvedImageSrc" :alt="t('recipes.detail.image_alt')" class="max-h-56 rounded-lg border border-border3 object-cover" />
         </div>
 
         <div>
-          <label class="mb-1 block text-sm font-medium text-[var(--color-text1)]">Smaksprofil</label>
+          <label class="mb-1 block text-sm font-medium text-[var(--color-text1)]">{{ t("recipes.fields.flavor_profile") }}</label>
           <textarea v-model="form.flavorProfile" rows="3" class="w-full rounded-lg border border-border4 bg-bg4 px-3 py-2 text-text4 focus:outline-none focus:ring-2 focus:ring-button1" />
         </div>
 
         <div class="space-y-2">
-          <h3>Standardverdier</h3>
+          <h3>{{ t("recipes.fields.defaults") }}</h3>
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <BaseInput v-model="form.defaults.ogFrom" label="OG fra" placeholder="1.056" />
-            <BaseInput v-model="form.defaults.ogTo" label="OG til" placeholder="1.062" />
-            <BaseInput v-model="form.defaults.fgFrom" label="FG fra" placeholder="1.010" />
-            <BaseInput v-model="form.defaults.fgTo" label="FG til" placeholder="1.014" />
-            <BaseInput v-model.number="form.defaults.co2Volumes" :model-modifiers="{ number: true }" type="number" step="0.1" label="CO2" />
-            <BaseInput v-model.number="form.defaults.ibu" :model-modifiers="{ number: true }" type="number" step="1" label="IBU" />
+            <BaseInput v-model="form.defaults.ogFrom" :label="t('recipes.fields.og_from')" placeholder="1.056" />
+            <BaseInput v-model="form.defaults.ogTo" :label="t('recipes.fields.og_to')" placeholder="1.062" />
+            <BaseInput v-model="form.defaults.fgFrom" :label="t('recipes.fields.fg_from')" placeholder="1.010" />
+            <BaseInput v-model="form.defaults.fgTo" :label="t('recipes.fields.fg_to')" placeholder="1.014" />
+            <BaseInput v-model.number="form.defaults.co2Volumes" :model-modifiers="{ number: true }" type="number" step="0.1" :label="t('recipes.metrics.co2')" />
+            <BaseInput v-model.number="form.defaults.ibu" :model-modifiers="{ number: true }" type="number" step="1" :label="t('recipes.metrics.ibu')" />
           </div>
-          <p class="text-sm opacity-80">Estimert alkohol: {{ abvText }}</p>
+          <p class="text-sm opacity-80">{{ t("recipes.metrics.abv_estimated") }}: {{ abvText }}</p>
         </div>
 
         <div class="flex gap-2">
-          <BaseButton type="button" :variant="activeTab === 'steps' ? 'button1' : 'button3'" @click="activeTab = 'steps'">Steg</BaseButton>
-          <BaseButton type="button" :variant="activeTab === 'ingredients' ? 'button1' : 'button3'" @click="activeTab = 'ingredients'">Ingredienser</BaseButton>
+          <BaseButton type="button" :variant="activeTab === 'steps' ? 'button1' : 'button3'" @click="activeTab = 'steps'">{{ t("recipes.tabs.steps") }}</BaseButton>
+          <BaseButton type="button" :variant="activeTab === 'ingredients' ? 'button1' : 'button3'" @click="activeTab = 'ingredients'">{{ t("recipes.tabs.ingredients") }}</BaseButton>
         </div>
 
         <div v-if="activeTab === 'steps'" class="space-y-3">
           <div class="flex flex-wrap items-end gap-3">
             <div class="w-full sm:max-w-xs">
-              <BaseDropdown v-model="selectedStepType" label="Legg til stegtype" :options="stepTypeOptions" placeholder="Velg steg" />
+              <BaseDropdown v-model="selectedStepType" :label="t('recipes.fields.add_step_type')" :options="stepTypeOptions" :placeholder="t('recipes.create.select_step')" />
             </div>
-            <BaseButton type="button" variant="button2" @click="addStepByType">Legg til steg</BaseButton>
+            <BaseButton type="button" variant="button2" @click="addStepByType">{{ t("recipes.actions.add_step") }}</BaseButton>
           </div>
 
           <div v-for="(step, idx) in form.steps" :key="step.stepId || idx" class="space-y-2">
             <component :is="resolveStepComponent(step.stepType)" :model-value="step" :step-number="idx + 1" @update:model-value="updateStep(idx, $event)" />
             <div class="flex flex-wrap justify-end gap-2">
-              <BaseButton type="button" variant="button3" :disabled="idx === 0" @click="moveStep(idx, -1)">Opp</BaseButton>
-              <BaseButton type="button" variant="button3" :disabled="idx === form.steps.length - 1" @click="moveStep(idx, 1)">Ned</BaseButton>
-              <BaseButton type="button" variant="button4" @click="removeStep(idx)">Fjern</BaseButton>
+              <BaseButton type="button" variant="button3" :disabled="idx === 0" @click="moveStep(idx, -1)">{{ t("recipes.actions.up") }}</BaseButton>
+              <BaseButton type="button" variant="button3" :disabled="idx === form.steps.length - 1" @click="moveStep(idx, 1)">{{ t("recipes.actions.down") }}</BaseButton>
+              <BaseButton type="button" variant="button4" @click="removeStep(idx)">{{ t("recipes.actions.remove") }}</BaseButton>
             </div>
           </div>
         </div>
@@ -68,23 +68,23 @@
         <div v-else class="space-y-3">
           <div class="flex flex-wrap items-end gap-3">
             <div class="w-full sm:max-w-xs">
-              <BaseDropdown v-model="selectedIngredientCategory" label="Kategori" :options="ingredientCategoryOptions" placeholder="Velg kategori" />
+              <BaseDropdown v-model="selectedIngredientCategory" :label="t('recipes.fields.category')" :options="ingredientCategoryOptions" :placeholder="t('recipes.create.select_category')" />
             </div>
-            <BaseButton type="button" variant="button2" @click="addIngredient">Legg til ingrediens</BaseButton>
+            <BaseButton type="button" variant="button2" @click="addIngredient">{{ t("recipes.actions.add_ingredient") }}</BaseButton>
           </div>
 
           <BaseCard v-for="(ingredient, idx) in form.ingredients" :key="ingredient.ingredientId" class="space-y-3">
             <div class="grid gap-3 md:grid-cols-2">
-              <BaseInput v-model="ingredient.name" label="Navn" />
-              <BaseDropdown v-model="ingredient.category" label="Kategori" :options="ingredientCategoryOptions" placeholder="Velg kategori" />
-              <BaseInput v-model="ingredient.amount" label="Mengde" />
-              <BaseInput v-model="ingredient.unit" label="Enhet" />
+              <BaseInput v-model="ingredient.name" :label="t('recipes.fields.name')" />
+              <BaseDropdown v-model="ingredient.category" :label="t('recipes.fields.category')" :options="ingredientCategoryOptions" :placeholder="t('recipes.create.select_category')" />
+              <BaseInput v-model="ingredient.amount" :label="t('recipes.fields.amount')" />
+              <BaseInput v-model="ingredient.unit" :label="t('recipes.fields.unit')" />
             </div>
-            <BaseInput v-model="ingredient.notes" label="Notater" />
+            <BaseInput v-model="ingredient.notes" :label="t('recipes.fields.notes')" />
 
             <div>
-              <p class="mb-2 text-sm font-medium">Knytt til steg</p>
-              <div v-if="!form.steps.length" class="text-sm opacity-70">Legg til steg først.</div>
+              <p class="mb-2 text-sm font-medium">{{ t("recipes.fields.link_to_steps") }}</p>
+              <div v-if="!form.steps.length" class="text-sm opacity-70">{{ t("recipes.create.add_steps_first") }}</div>
               <div v-else class="grid gap-2 sm:grid-cols-2">
                 <label v-for="step in form.steps" :key="`${ingredient.ingredientId}-${step.stepId}`" class="flex items-center gap-2 text-sm">
                   <input type="checkbox" :checked="ingredient.stepIds.includes(step.stepId)" @change="toggleIngredientStep(ingredient, step.stepId)" />
@@ -94,15 +94,15 @@
             </div>
 
             <div class="flex justify-end">
-              <BaseButton type="button" variant="button4" @click="removeIngredient(idx)">Fjern ingrediens</BaseButton>
+              <BaseButton type="button" variant="button4" @click="removeIngredient(idx)">{{ t("recipes.actions.remove_ingredient") }}</BaseButton>
             </div>
           </BaseCard>
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
-          <BaseButton type="submit" :disabled="isSubmitting || !isGravityValid">{{ isSubmitting ? "Lagrer..." : "Lagre Endringer" }}</BaseButton>
+          <BaseButton type="submit" :disabled="isSubmitting || !isGravityValid">{{ isSubmitting ? t("common.saving") : t("recipes.actions.save") }}</BaseButton>
           <router-link :to="`/oppskrifter/${route.params.recipeId}`">
-            <BaseButton type="button" variant="button3">Avbryt</BaseButton>
+            <BaseButton type="button" variant="button3">{{ t("common.cancel") }}</BaseButton>
           </router-link>
           <p v-if="successMessage" class="text-sm text-green-600">{{ successMessage }}</p>
           <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
@@ -115,6 +115,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute } from "vue-router";
+import { useI18n } from "vue-i18n";
 import BaseCard from "@/components/base/BaseCard.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
 import BaseInput from "@/components/base/BaseInput.vue";
@@ -123,6 +124,7 @@ import { getRecipe, updateRecipe, uploadRecipeImage } from "@/services/recipes.s
 import { STEP_COMPONENTS, STEP_TYPE_OPTIONS, createDefaultStep } from "@/components/recipe-steps/index.js";
 
 const route = useRoute();
+const { t } = useI18n();
 const gravityPattern = /^1\.\d{3}$/;
 
 const loading = ref(true);
@@ -135,7 +137,7 @@ const activeTab = ref("steps");
 const selectedStepType = ref("mash");
 const selectedIngredientCategory = ref("fermentable");
 
-const beerTypeOptions = [
+const beerTypeOptions = computed(() => [
   { label: "IPA", value: "IPA" },
   { label: "Pale Ale", value: "Pale Ale" },
   { label: "Lager", value: "Lager" },
@@ -144,16 +146,18 @@ const beerTypeOptions = [
   { label: "Porter", value: "Porter" },
   { label: "Wheat", value: "Wheat" },
   { label: "Sour", value: "Sour" },
-  { label: "Annet", value: "Annet" },
-];
+  { label: t("recipes.beer_type.other"), value: "Annet" },
+]);
 
-const ingredientCategoryOptions = [
-  { label: "Fermenterbart", value: "fermentable" },
-  { label: "Humle", value: "hops" },
-  { label: "Annet", value: "other" },
-];
+const ingredientCategoryOptions = computed(() => [
+  { label: t("recipes.ingredient_category.fermentable"), value: "fermentable" },
+  { label: t("recipes.ingredient_category.hops"), value: "hops" },
+  { label: t("recipes.ingredient_category.other"), value: "other" },
+]);
 
-const stepTypeOptions = STEP_TYPE_OPTIONS;
+const stepTypeOptions = computed(() =>
+  STEP_TYPE_OPTIONS.map((step) => ({ label: t(`recipes.step_types.${step.value}`), value: step.value })),
+);
 
 function newIngredientId() {
   if (globalThis.crypto?.randomUUID) return `ingredient-${globalThis.crypto.randomUUID()}`;
@@ -194,7 +198,7 @@ const abvText = computed(() => {
   const fgTo = parseGravity(form.defaults.fgTo);
 
   if (ogFrom === null || ogTo === null || fgFrom === null || fgTo === null) {
-    return "Legg inn OG/FG range for beregning";
+    return t("recipes.metrics.abv_missing");
   }
 
   const min = Math.max(0, (ogFrom - fgTo) * 131.25);
@@ -210,7 +214,7 @@ const isGravityValid = computed(() => {
 });
 
 function stepTypeLabel(value) {
-  return STEP_TYPE_OPTIONS.find((s) => s.value === value)?.label || value || "Eget";
+  return t(`recipes.step_types.${value || "custom"}`);
 }
 function resolveStepComponent(stepType) { return STEP_COMPONENTS[stepType] || STEP_COMPONENTS.custom; }
 function addStepByType() { form.steps.push(createDefaultStep(selectedStepType.value || "custom")); }
@@ -292,7 +296,7 @@ async function loadRecipe() {
     const recipe = await getRecipe(route.params.recipeId);
     hydrateForm(recipe);
   } catch (err) {
-    loadError.value = err?.response?.data?.error || err?.message || "Kunne ikke laste oppskrift";
+    loadError.value = err?.response?.data?.error || err?.message || t("recipes.errors.fetch_failed");
   } finally {
     loading.value = false;
   }
@@ -301,19 +305,19 @@ async function loadRecipe() {
 async function handleImageUpload(event) {
   const file = event?.target?.files?.[0];
   if (!file) return;
-  imageUploadMessage.value = "Laster opp bilde...";
+  imageUploadMessage.value = t("recipes.create.image_uploading");
   try {
     const data = await uploadRecipeImage(file);
     form.imageUrl = data.url;
-    imageUploadMessage.value = "Bilde lastet opp.";
+    imageUploadMessage.value = t("recipes.create.image_uploaded");
   } catch (err) {
-    imageUploadMessage.value = err?.response?.data?.error || err?.message || "Kunne ikke laste opp bilde.";
+    imageUploadMessage.value = err?.response?.data?.error || err?.message || t("recipes.errors.upload_failed");
   }
 }
 
 async function handleSubmit() {
   if (!isGravityValid.value) {
-    errorMessage.value = "OG/FG må være i format 1.056";
+    errorMessage.value = t("recipes.errors.gravity_format");
     return;
   }
 
@@ -360,9 +364,9 @@ async function handleSubmit() {
         }))
         .filter((ing) => ing.name),
     });
-    successMessage.value = "Oppskrift oppdatert.";
+    successMessage.value = t("recipes.edit.saved");
   } catch (err) {
-    errorMessage.value = err?.response?.data?.error || err?.message || "Kunne ikke oppdatere oppskrift";
+    errorMessage.value = err?.response?.data?.error || err?.message || t("recipes.errors.update_failed");
   } finally {
     isSubmitting.value = false;
   }

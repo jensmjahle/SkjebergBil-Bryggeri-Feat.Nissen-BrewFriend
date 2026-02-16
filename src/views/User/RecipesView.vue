@@ -3,27 +3,27 @@
     <BaseCard>
       <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1>Oppskrifter</h1>
-          <p class="mt-2 opacity-80">Søk og filtrer oppskrifter på øltype, steg og ingredienser.</p>
+          <h1>{{ t("recipes.list.title") }}</h1>
+          <p class="mt-2 opacity-80">{{ t("recipes.list.subtitle") }}</p>
         </div>
         <router-link to="/oppskrifter/ny">
-          <BaseButton>Ny Oppskrift</BaseButton>
+          <BaseButton>{{ t("recipes.list.new_recipe") }}</BaseButton>
         </router-link>
       </div>
     </BaseCard>
 
     <BaseCard>
       <form class="grid gap-4 md:grid-cols-2 xl:grid-cols-6" @submit.prevent="loadRecipes">
-        <BaseInput v-model="filters.q" label="Søk" placeholder="Navn, smakprofil, ingrediens" />
-        <BaseDropdown v-model="filters.beerType" label="Øltype" :options="beerTypeOptions" placeholder="Alle" />
-        <BaseDropdown v-model="filters.stepType" label="Stegtype" :options="stepTypeOptions" placeholder="Alle" />
-        <BaseDropdown v-model="filters.ingredientCategory" label="Ingrediens" :options="ingredientCategoryOptions" placeholder="Alle" />
-        <BaseDropdown v-model="filters.hasDefaults" label="Standardverdier" :options="defaultsOptions" placeholder="Alle" />
-        <BaseDropdown v-model="filters.sort" label="Sortering" :options="sortOptions" placeholder="Nyeste først" />
+        <BaseInput v-model="filters.q" :label="t('recipes.filters.search')" :placeholder="t('recipes.filters.search_placeholder')" />
+        <BaseDropdown v-model="filters.beerType" :label="t('recipes.filters.beer_type')" :options="beerTypeOptions" :placeholder="t('common.all')" />
+        <BaseDropdown v-model="filters.stepType" :label="t('recipes.filters.step_type')" :options="stepTypeOptions" :placeholder="t('common.all')" />
+        <BaseDropdown v-model="filters.ingredientCategory" :label="t('recipes.filters.ingredient_category')" :options="ingredientCategoryOptions" :placeholder="t('common.all')" />
+        <BaseDropdown v-model="filters.hasDefaults" :label="t('recipes.filters.defaults')" :options="defaultsOptions" :placeholder="t('common.all')" />
+        <BaseDropdown v-model="filters.sort" :label="t('recipes.filters.sort')" :options="sortOptions" :placeholder="t('recipes.sort.newest')" />
 
         <div class="xl:col-span-6 flex flex-wrap gap-3">
-          <BaseButton type="submit" :disabled="loading">{{ loading ? "Laster..." : "Søk" }}</BaseButton>
-          <BaseButton type="button" variant="button3" :disabled="loading" @click="resetFilters">Nullstill</BaseButton>
+          <BaseButton type="submit" :disabled="loading">{{ loading ? t("common.loading") : t("common.search") }}</BaseButton>
+          <BaseButton type="button" variant="button3" :disabled="loading" @click="resetFilters">{{ t("common.reset") }}</BaseButton>
         </div>
       </form>
     </BaseCard>
@@ -31,11 +31,11 @@
     <div v-if="error" class="rounded-xl border border-danger-border bg-danger p-4 text-text1">{{ error }}</div>
 
     <BaseCard>
-      <p class="text-sm opacity-80">{{ recipes.length }} oppskrift(er) funnet</p>
+      <p class="text-sm opacity-80">{{ t("recipes.list.found", { count: recipes.length }) }}</p>
     </BaseCard>
 
     <div v-if="!loading && !recipes.length" class="rounded-xl border border-dashed border-border3 p-8 text-center opacity-70">
-      Ingen oppskrifter matcher filtrene.
+      {{ t("recipes.list.no_results") }}
     </div>
 
     <div v-else class="grid gap-4 md:grid-cols-2">
@@ -44,19 +44,19 @@
           <div class="flex items-start justify-between gap-3">
             <div>
               <h3>{{ recipe.name }}</h3>
-              <p class="text-sm opacity-80">{{ recipe.beerType || "Ukjent type" }}</p>
+              <p class="text-sm opacity-80">{{ recipe.beerType || t("recipes.common.unknown_type") }}</p>
             </div>
-            <span class="rounded-full bg-bg4 px-2 py-1 text-xs">{{ recipe.steps?.length || 0 }} steg</span>
+            <span class="rounded-full bg-bg4 px-2 py-1 text-xs">{{ t("recipes.common.step_count", { count: recipe.steps?.length || 0 }) }}</span>
           </div>
 
           <p v-if="recipe.flavorProfile" class="text-sm opacity-90">{{ recipe.flavorProfile }}</p>
 
           <div class="grid grid-cols-2 gap-2 text-sm">
-            <div>OG: {{ recipe.defaults?.ogFrom || '-' }} - {{ recipe.defaults?.ogTo || '-' }}</div>
-            <div>FG: {{ recipe.defaults?.fgFrom || '-' }} - {{ recipe.defaults?.fgTo || '-' }}</div>
-            <div>CO2: {{ formatMetric(recipe.defaults?.co2Volumes) }}</div>
-            <div>IBU: {{ formatMetric(recipe.defaults?.ibu) }}</div>
-            <div class="col-span-2">ABV: {{ abvText(recipe) }}</div>
+            <div>{{ t("recipes.metrics.og") }}: {{ recipe.defaults?.ogFrom || '-' }} - {{ recipe.defaults?.ogTo || '-' }}</div>
+            <div>{{ t("recipes.metrics.fg") }}: {{ recipe.defaults?.fgFrom || '-' }} - {{ recipe.defaults?.fgTo || '-' }}</div>
+            <div>{{ t("recipes.metrics.co2") }}: {{ formatMetric(recipe.defaults?.co2Volumes) }}</div>
+            <div>{{ t("recipes.metrics.ibu") }}: {{ formatMetric(recipe.defaults?.ibu) }}</div>
+            <div class="col-span-2">{{ t("recipes.metrics.abv") }}: {{ abvText(recipe) }}</div>
           </div>
 
           <div class="flex flex-wrap gap-2">
@@ -71,7 +71,8 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { listRecipes } from "@/services/recipes.service.js";
 import BaseCard from "@/components/base/BaseCard.vue";
 import BaseInput from "@/components/base/BaseInput.vue";
@@ -79,6 +80,7 @@ import BaseDropdown from "@/components/base/BaseDropdown.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
 import { STEP_TYPE_OPTIONS } from "@/components/recipe-steps/index.js";
 
+const { t } = useI18n();
 const loading = ref(false);
 const error = ref("");
 const recipes = ref([]);
@@ -92,7 +94,7 @@ const filters = reactive({
   sort: "newest",
 });
 
-const beerTypeOptions = [
+const beerTypeOptions = computed(() => [
   { label: "IPA", value: "IPA" },
   { label: "Pale Ale", value: "Pale Ale" },
   { label: "Lager", value: "Lager" },
@@ -101,30 +103,34 @@ const beerTypeOptions = [
   { label: "Porter", value: "Porter" },
   { label: "Wheat", value: "Wheat" },
   { label: "Sour", value: "Sour" },
-  { label: "Annet", value: "Annet" },
-];
+  { label: t("recipes.beer_type.other"), value: "Annet" },
+]);
 
-const stepTypeOptions = STEP_TYPE_OPTIONS;
-const ingredientCategoryOptions = [
-  { label: "Fermenterbart", value: "fermentable" },
-  { label: "Humle", value: "hops" },
-  { label: "Annet", value: "other" },
-];
-const defaultsOptions = [
-  { label: "Har standardverdier", value: "true" },
-  { label: "Ingen standardverdier", value: "false" },
-];
+const stepTypeOptions = computed(() =>
+  STEP_TYPE_OPTIONS.map((step) => ({ label: t(`recipes.step_types.${step.value}`), value: step.value })),
+);
 
-const sortOptions = [
-  { label: "Nyeste først", value: "newest" },
-  { label: "Eldste først", value: "oldest" },
-  { label: "Navn A-Å", value: "name_asc" },
-  { label: "Navn Å-A", value: "name_desc" },
-  { label: "Flest steg", value: "steps_desc" },
-];
+const ingredientCategoryOptions = computed(() => [
+  { label: t("recipes.ingredient_category.fermentable"), value: "fermentable" },
+  { label: t("recipes.ingredient_category.hops"), value: "hops" },
+  { label: t("recipes.ingredient_category.other"), value: "other" },
+]);
+
+const defaultsOptions = computed(() => [
+  { label: t("recipes.filters.has_defaults"), value: "true" },
+  { label: t("recipes.filters.no_defaults"), value: "false" },
+]);
+
+const sortOptions = computed(() => [
+  { label: t("recipes.sort.newest"), value: "newest" },
+  { label: t("recipes.sort.oldest"), value: "oldest" },
+  { label: t("recipes.sort.name_asc"), value: "name_asc" },
+  { label: t("recipes.sort.name_desc"), value: "name_desc" },
+  { label: t("recipes.sort.steps_desc"), value: "steps_desc" },
+]);
 
 function stepTypeLabel(value) {
-  return STEP_TYPE_OPTIONS.find((s) => s.value === value)?.label || value || "Eget";
+  return t(`recipes.step_types.${value || "custom"}`);
 }
 
 function formatMetric(value) {
@@ -160,7 +166,7 @@ async function loadRecipes() {
     };
     recipes.value = await listRecipes(params);
   } catch (err) {
-    error.value = err?.response?.data?.error || err?.message || "Kunne ikke hente oppskrifter";
+    error.value = err?.response?.data?.error || err?.message || t("recipes.errors.fetch_failed");
   } finally {
     loading.value = false;
   }
