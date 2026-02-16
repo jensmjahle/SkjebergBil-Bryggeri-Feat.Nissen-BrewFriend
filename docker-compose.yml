@@ -1,0 +1,31 @@
+version: "3.9"
+
+services:
+
+  backend:
+    image: beer-exchange-backend
+    container_name: beer-exchange-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      - beer_uploads:/app/uploads
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: beer-exchange-frontend
+    environment:
+      - VITE_API_URL
+      - NODE_ENV=production
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  beer_uploads:

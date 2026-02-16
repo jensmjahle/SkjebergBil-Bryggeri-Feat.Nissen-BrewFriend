@@ -1,0 +1,77 @@
+<script setup>
+import BaseButton from "@/components/base/BaseButton.vue";
+
+const props = defineProps({
+  beer: { type: Object, required: true },
+  currency: { type: String, default: "NOK" },
+});
+const emit = defineEmits(["buy", "open"]);
+
+function fmt(n) {
+  if (n == null || Number.isNaN(n)) return "";
+  return Number(n).toFixed(1);
+}
+function pctOfRange(b) {
+  const min = Number(b.min_price ?? 0);
+  const max = Number(b.max_price ?? 0);
+  const cur = Number(b.current_price ?? 0);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return 0;
+  return Math.max(0, Math.min(100, ((cur - min) / (max - min)) * 100));
+}
+
+const onBuy = (e) => {
+  e.stopPropagation();
+  emit("buy", props.beer);
+};
+</script>
+
+<template>
+  <article
+    class="rounded-xl border bg-bg3 p-3 flex flex-col text-tex3 gap-2 cursor-pointer hover:shadow-sm transition"
+    @click="$emit('open', beer)"
+  >
+    <div class="flex items-start justify-between gap-3">
+      <div class="min-w-0">
+        <h3 class="font-semibold truncate">{{ beer.name ?? beer.beer_id }}</h3>
+        <div class="text-xs opacity-70">
+          {{ fmt(beer.abv) }}% · {{ beer.style }}
+        </div>
+      </div>
+      <div class="text-right">
+        <div class="text-xl font-extrabold tabular-nums">
+          {{ fmt(beer.current_price) }} {{ currency }}/L
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-1">
+      <div class="h-2 rounded bg-bg3 overflow-hidden">
+        <div
+          class="h-full"
+          :style="{ width: pctOfRange(beer) + '%' }"
+          :class="[
+            pctOfRange(beer) < 20
+              ? 'bg-red-500'
+              : pctOfRange(beer) < 40
+                ? 'bg-orange-400'
+                : pctOfRange(beer) < 60
+                  ? 'bg-yellow-300'
+                  : pctOfRange(beer) < 80
+                    ? 'bg-lime-400'
+                    : 'bg-green-500',
+          ]"
+        ></div>
+      </div>
+      <div class="flex justify-between text-[10px] opacity-70 mt-1">
+        <span>{{ fmt(beer.min_price) }}</span>
+        <span>{{ fmt(beer.max_price) }}</span>
+      </div>
+    </div>
+
+    <div class="mt-2">
+      <BaseButton class="w-full" variant="button1" @click="onBuy">
+        Kjøp Nå
+      </BaseButton>
+    </div>
+  </article>
+</template>
