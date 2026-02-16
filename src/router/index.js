@@ -19,6 +19,9 @@ import CustomersDetailView from "@/views/User/CustomersDetailView.vue";
 import BACDemoView from "@/views/BACDemoView.vue";
 import SectionPlaceholderView from "@/views/User/SectionPlaceholderView.vue";
 import CreateNewRecipeView from "@/views/User/CreateNewRecipeView.vue";
+import RecipesView from "@/views/User/RecipesView.vue";
+import RecipeDetailView from "@/views/User/RecipeDetailView.vue";
+import EditRecipeView from "@/views/User/EditRecipeView.vue";
 
 const routes = [
   {
@@ -88,13 +91,25 @@ const routes = [
         component: CreateNewRecipeView,
       },
       {
+        path: "oppskrifter",
+        name: "oppskrifter",
+        component: RecipesView,
+      },
+      {
         path: "oppskrifter/tidligere",
-        name: "oppskrift-tidligere",
-        component: SectionPlaceholderView,
-        props: {
-          title: "Tidligere Oppskrifter",
-          description: "Bla gjennom tidligere oppskrifter.",
-        },
+        redirect: "/oppskrifter",
+      },
+      {
+        path: "oppskrifter/:recipeId",
+        name: "oppskrift-detalj",
+        component: RecipeDetailView,
+        props: true,
+      },
+      {
+        path: "oppskrifter/:recipeId/rediger",
+        name: "oppskrift-rediger",
+        component: EditRecipeView,
+        props: true,
       },
       {
         path: "verktoy/alkoholmaler",

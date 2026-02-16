@@ -4,6 +4,7 @@
       <div class="mb-6">
         <h1>Ny Oppskrift</h1>
         <p class="mt-2 opacity-80">Opprett en oppskrift med standardverdier og valgbare standardsteg.</p>
+        <p v-if="isPrefillingCopy" class="mt-2 text-sm opacity-70">Henter oppskrift for kopiering...</p>
       </div>
 
       <form class="space-y-6" @submit.prevent="handleSubmit">
@@ -74,6 +75,7 @@
           </BaseButton>
           <BaseButton type="button" variant="button3" :disabled="isSubmitting" @click="resetForm">Nullstill</BaseButton>
           <p v-if="successMessage" class="text-sm text-green-600">{{ successMessage }}</p>
+          <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
         </div>
       </form>
     </BaseCard>
@@ -81,12 +83,13 @@
 </template>
 
 <script setup>
-import { reactive, ref } from "vue";
+import { onMounted, reactive, ref } from "vue";
+import { useRoute } from "vue-router";
 import BaseCard from "@/components/base/BaseCard.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
 import BaseInput from "@/components/base/BaseInput.vue";
 import BaseDropdown from "@/components/base/BaseDropdown.vue";
-import { createRecipe } from "@/services/recipes.service.js";
+import { createRecipe, getRecipe } from "@/services/recipes.service.js";
 import {
   STEP_COMPONENTS,
   STEP_TYPE_OPTIONS,
@@ -106,6 +109,7 @@ const beerTypeOptions = [
 ];
 
 const stepTypeOptions = STEP_TYPE_OPTIONS;
+const route = useRoute();
 
 const initialState = () => ({
   name: "",
@@ -127,6 +131,8 @@ const form = reactive(initialState());
 const selectedStepType = ref("mash");
 const isSubmitting = ref(false);
 const successMessage = ref("");
+const errorMessage = ref("");
+const isPrefillingCopy = ref(false);
 
 function resolveStepComponent(stepType) {
   return STEP_COMPONENTS[stepType] || STEP_COMPONENTS.custom;
@@ -156,6 +162,33 @@ function resetForm() {
   Object.assign(form, initialState());
   selectedStepType.value = "mash";
   successMessage.value = "";
+  errorMessage.value = "";
+}
+
+function hydrateForm(recipe) {
+  form.name = recipe?.name ? `${recipe.name} (kopi)` : "";
+  form.beerType = recipe?.beerType || "";
+  form.flavorProfile = recipe?.flavorProfile || "";
+  form.color = recipe?.color || "";
+  form.imageUrl = recipe?.imageUrl || "";
+  form.defaults = {
+    og: recipe?.defaults?.og ?? null,
+    fg: recipe?.defaults?.fg ?? null,
+    sg: recipe?.defaults?.sg ?? null,
+    co2Volumes: recipe?.defaults?.co2Volumes ?? null,
+    ibu: recipe?.defaults?.ibu ?? null,
+  };
+  form.steps = Array.isArray(recipe?.steps)
+    ? recipe.steps.map((s) => ({
+        stepType: s.stepType || "custom",
+        title: s.title || "",
+        description: s.description || "",
+        durationMinutes: s.durationMinutes ?? null,
+        temperatureC: s.temperatureC ?? null,
+        co2Volumes: s.co2Volumes ?? null,
+        data: s.data || {},
+      }))
+    : [];
 }
 
 function sanitizeNumber(value) {
@@ -167,6 +200,7 @@ async function handleSubmit() {
 
   isSubmitting.value = true;
   successMessage.value = "";
+  errorMessage.value = "";
 
   try {
     const payload = {
@@ -197,10 +231,32 @@ async function handleSubmit() {
     };
 
     await createRecipe(payload);
-    successMessage.value = "Oppskrift lagret.";
     resetForm();
+    successMessage.value = "Oppskrift lagret.";
+  } catch (err) {
+    errorMessage.value =
+      err?.response?.data?.error || err?.message || "Kunne ikke lagre oppskrift.";
   } finally {
     isSubmitting.value = false;
   }
 }
+
+async function prefillFromCopySource() {
+  const copyFrom = route.query.copyFrom;
+  if (!copyFrom) return;
+
+  isPrefillingCopy.value = true;
+  errorMessage.value = "";
+  try {
+    const recipe = await getRecipe(copyFrom);
+    hydrateForm(recipe);
+  } catch (err) {
+    errorMessage.value =
+      err?.response?.data?.error || err?.message || "Kunne ikke laste oppskrift for kopiering.";
+  } finally {
+    isPrefillingCopy.value = false;
+  }
+}
+
+onMounted(prefillFromCopySource);
 </script>

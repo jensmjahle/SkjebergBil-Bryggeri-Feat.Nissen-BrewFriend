@@ -75,7 +75,7 @@ const navGroups = [
     label: "Oppskrifter",
     items: [
       { label: "Ny Oppskrift", to: "/oppskrifter/ny" },
-      { label: "Tidligere", to: "/oppskrifter/tidligere" },
+      { label: "Oppskrifter", to: "/oppskrifter" },
     ],
   },
   {

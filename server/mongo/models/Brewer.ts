@@ -19,7 +19,5 @@ const brewerSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-brewerSchema.index({ username: 1 }, { unique: true });
-
 export const Brewer: any =
   mongoose.models.Brewer || mongoose.model("Brewer", brewerSchema);

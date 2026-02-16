@@ -9,8 +9,8 @@ export async function createRecipe(payload) {
   return data;
 }
 
-export async function listRecipes() {
-  const { data } = await api.get(BASE);
+export async function listRecipes(filters = {}) {
+  const { data } = await api.get(BASE, { params: filters });
   return data;
 }
 
