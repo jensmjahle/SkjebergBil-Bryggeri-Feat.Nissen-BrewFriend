@@ -18,6 +18,7 @@ import BeerStockView from "@/views/User/BeerStockView.vue";
 import CustomersDetailView from "@/views/User/CustomersDetailView.vue";
 import BACDemoView from "@/views/BACDemoView.vue";
 import SectionPlaceholderView from "@/views/User/SectionPlaceholderView.vue";
+import CreateNewRecipeView from "@/views/User/CreateNewRecipeView.vue";
 
 const routes = [
   {
@@ -84,11 +85,7 @@ const routes = [
       {
         path: "oppskrifter/ny",
         name: "oppskrift-ny",
-        component: SectionPlaceholderView,
-        props: {
-          title: "Ny Oppskrift",
-          description: "Lag en ny oppskrift.",
-        },
+        component: CreateNewRecipeView,
       },
       {
         path: "oppskrifter/tidligere",

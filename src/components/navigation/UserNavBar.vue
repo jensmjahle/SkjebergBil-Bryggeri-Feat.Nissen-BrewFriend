@@ -1,0 +1,130 @@
+﻿<template>
+  <nav
+    class="sticky top-0 z-40 w-full border-b border-border1 py-1 shadow-lg bg-cover bg-center bg-no-repeat"
+    style="background-image: url('/assets/navbar_background.png')"
+  >
+    <div class="grid w-full grid-cols-3 items-center gap-3 px-2">
+      <router-link to="/" class="flex items-center">
+        <img
+          src="/assets/logo.png"
+          alt="GuttaBrew logo"
+          class="h-12 w-auto object-contain"
+        />
+      </router-link>
+
+      <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+        <div v-for="group in navGroups" :key="group.label" class="relative">
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 rounded-md border border-border2 bg-bg2 px-3 py-2 text-sm font-semibold text-text2 transition-colors hover:bg-bg4"
+            :aria-expanded="openDropdown === group.label"
+            @click="toggleDropdown(group.label)"
+          >
+            {{ group.label }}
+            <ChevronDown
+              class="h-4 w-4 transition-transform"
+              :class="{ 'rotate-180': openDropdown === group.label }"
+            />
+          </button>
+
+          <transition name="dropdown-fade">
+            <div
+              v-if="openDropdown === group.label"
+              class="absolute right-0 mt-2 min-w-[220px] rounded-lg border border-border2 bg-bg2 p-1 shadow-2xl"
+            >
+              <router-link
+                v-for="item in group.items"
+                :key="item.to"
+                :to="item.to"
+                class="block rounded-md px-3 py-2 text-sm text-text2 transition-colors hover:bg-bg4"
+                :class="{ 'bg-bg4 font-semibold text-button1': route.path === item.to }"
+                @click="closeDropdown"
+              >
+                {{ item.label }}
+              </router-link>
+            </div>
+          </transition>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end">
+        <SettingsWidget />
+      </div>
+    </div>
+  </nav>
+</template>
+
+<script setup>
+import { ref, onMounted, onBeforeUnmount, watch } from "vue";
+import { useRoute } from "vue-router";
+import { ChevronDown } from "lucide-vue-next";
+import SettingsWidget from "@/components/settings/SettingsWidget.vue";
+
+const route = useRoute();
+const openDropdown = ref(null);
+
+const navGroups = [
+  {
+    label: "Brygg",
+    items: [
+      { label: "Nytt Brygg", to: "/brygg/nytt" },
+      { label: "Tidligere Brygg", to: "/brygg/tidligere" },
+    ],
+  },
+  {
+    label: "Oppskrifter",
+    items: [
+      { label: "Ny Oppskrift", to: "/oppskrifter/ny" },
+      { label: "Tidligere", to: "/oppskrifter/tidligere" },
+    ],
+  },
+  {
+    label: "Verktøy",
+    items: [
+      { label: "Alkoholmåler", to: "/verktoy/alkoholmaler" },
+      { label: "Co2 volumer", to: "/verktoy/co2-volumer" },
+    ],
+  },
+];
+
+const toggleDropdown = (label) => {
+  openDropdown.value = openDropdown.value === label ? null : label;
+};
+
+const closeDropdown = () => {
+  openDropdown.value = null;
+};
+
+const onClickOutside = (event) => {
+  if (!event.target.closest("nav")) {
+    closeDropdown();
+  }
+};
+
+watch(
+  () => route.path,
+  () => {
+    closeDropdown();
+  },
+);
+
+onMounted(() => {
+  document.addEventListener("click", onClickOutside);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("click", onClickOutside);
+});
+</script>
+
+<style scoped>
+.dropdown-fade-enter-active,
+.dropdown-fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.dropdown-fade-enter-from,
+.dropdown-fade-leave-to {
+  opacity: 0;
+}
+</style>

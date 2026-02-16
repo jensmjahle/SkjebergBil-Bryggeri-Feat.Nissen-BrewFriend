@@ -4,9 +4,7 @@ import cors from "cors";
 import http from "node:http";
 import path from "node:path";
 import fs from "node:fs";
-import { fileURLToPath } from "node:url";
-import { runMigrations } from "./db/migrate.js";
-import db from "./db/index.js";
+import { connectMongo, mongoStatus } from "./mongo/connection.js";
 
 process.on("unhandledRejection", (e) =>
   console.error("[server] UnhandledRejection:", e),
@@ -15,7 +13,6 @@ process.on("uncaughtException", (e) =>
   console.error("[server] UncaughtException:", e),
 );
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const server = http.createServer(app);
 
@@ -27,38 +24,39 @@ const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 app.use("/uploads", express.static(uploadsDir));
 
-app.get("/api/health", (_req, res) => res.json({ ok: true, db: db.kind }));
-
-// migrations (skip in memory)
-if (db.kind !== "memory" && process.env.SKIP_MIGRATIONS !== "1") {
-  await runMigrations();
+const mongoConnected = await connectMongo();
+if (mongoConnected) {
+  console.log("[server] MongoDB connected");
+} else {
+  console.log("[server] MONGODB_URI not set, Mongo routes disabled");
 }
 
+app.get("/api/health", (_req, res) =>
+  res.json({
+    ok: true,
+    mongo: mongoStatus(),
+  }),
+);
+
 // mount routers (ESM .js imports)
-const { events } = await import("./api/events.js");
-const { beers } = await import("./api/beers.js");
-const { customers } = await import("./api/customers.js");
-const { transactions } = await import("./api/transactions.js");
-const { analytics } = await import("./api/analytics.js");
-const { admin } = await import("./api/admin.js");
-const { live } = await import("./api/live.js");
-const { leaderboard } = await import("./api/leaderboard.js");
+const { authRouter } = await import("./api/auth.js");
+const { brewersRouter } = await import("./api/brewers.js");
+const { recipesRouter } = await import("./api/recipes.js");
+const { brewsRouter } = await import("./api/brews.js");
 
-app.use("/api/events", events);
-app.use("/api/beers", beers);
-app.use("/api/customers", customers);
-app.use("/api/transactions", transactions);
-app.use("/api/analytics", analytics);
-app.use("/api/admin", admin);
-app.use("/api/live", live);
-app.use("/api/leaderboard", leaderboard);
-
-
-
-
+if (mongoConnected) {
+  app.use("/api/auth", authRouter);
+  app.use("/api/brewers", brewersRouter);
+  app.use("/api/recipes", recipesRouter);
+  app.use("/api/brews", brewsRouter);
+} else {
+  app.use("/api", (_req, res) =>
+    res.status(503).json({ error: "MongoDB is not configured (set MONGODB_URI)" }),
+  );
+}
 
 const PORT = Number(process.env.PORT || 3000);
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`API listening on http://0.0.0.0:${PORT} (db=${db.kind})`);
+  console.log(`API listening on http://0.0.0.0:${PORT}`);
 });
 
