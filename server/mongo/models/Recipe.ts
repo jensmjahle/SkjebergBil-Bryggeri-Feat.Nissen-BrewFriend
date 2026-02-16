@@ -2,6 +2,7 @@
 
 const recipeStepSchema = new mongoose.Schema(
   {
+    stepId: { type: String, required: true, trim: true, maxlength: 80 },
     order: { type: Number, required: true, min: 1 },
     stepType: { type: String, required: true, default: "custom" },
     title: { type: String, required: true, trim: true, maxlength: 120 },
@@ -13,6 +14,26 @@ const recipeStepSchema = new mongoose.Schema(
   },
   { _id: false },
 );
+
+const recipeIngredientSchema = new mongoose.Schema(
+  {
+    ingredientId: { type: String, required: true, trim: true, maxlength: 80 },
+    name: { type: String, required: true, trim: true, maxlength: 160 },
+    category: {
+      type: String,
+      required: true,
+      enum: ["fermentable", "hops", "other"],
+      default: "other",
+    },
+    amount: { type: String, trim: true, maxlength: 80 },
+    unit: { type: String, trim: true, maxlength: 40 },
+    notes: { type: String, trim: true, maxlength: 1000 },
+    stepIds: { type: [String], default: [] },
+  },
+  { _id: false },
+);
+
+const gravityPattern = /^1\.\d{3}$/;
 
 const recipeSchema = new mongoose.Schema(
   {
@@ -28,13 +49,15 @@ const recipeSchema = new mongoose.Schema(
     color: { type: String, trim: true, maxlength: 120 },
     imageUrl: { type: String, trim: true, maxlength: 500 },
     defaults: {
-      og: { type: Number },
-      fg: { type: Number },
-      sg: { type: Number },
+      ogFrom: { type: String, trim: true, match: gravityPattern },
+      ogTo: { type: String, trim: true, match: gravityPattern },
+      fgFrom: { type: String, trim: true, match: gravityPattern },
+      fgTo: { type: String, trim: true, match: gravityPattern },
       co2Volumes: { type: Number },
       ibu: { type: Number },
     },
     steps: { type: [recipeStepSchema], default: [] },
+    ingredients: { type: [recipeIngredientSchema], default: [] },
   },
   { timestamps: true },
 );

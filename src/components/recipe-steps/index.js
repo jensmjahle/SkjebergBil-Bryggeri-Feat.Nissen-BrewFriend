@@ -32,8 +32,14 @@ export const STEP_COMPONENTS = {
   custom: CustomStepForm,
 };
 
+function newStepId() {
+  if (globalThis.crypto?.randomUUID) return `step-${globalThis.crypto.randomUUID()}`;
+  return `step-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export function createDefaultStep(stepType) {
   const base = {
+    stepId: newStepId(),
     stepType,
     title: "",
     description: "",

@@ -9,6 +9,13 @@ export async function createRecipe(payload) {
   return data;
 }
 
+export async function uploadRecipeImage(file) {
+  const formData = new FormData();
+  formData.append("image", file);
+  const { data } = await api.post("/api/uploads/image", formData);
+  return data;
+}
+
 export async function listRecipes(filters = {}) {
   const { data } = await api.get(BASE, { params: filters });
   return data;
