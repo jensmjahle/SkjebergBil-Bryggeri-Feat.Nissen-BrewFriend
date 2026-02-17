@@ -88,34 +88,6 @@
         </div>
       </div>
 
-      <BaseCard class="space-y-3">
-        <h3>{{ t("brews.current.actual_metrics_title") }}</h3>
-        <div class="grid gap-2 text-sm opacity-90 sm:grid-cols-3">
-          <p>{{ t("brews.fields.target_og") }}: {{ targetOgRangeText }}</p>
-          <p>{{ t("brews.fields.target_fg") }}: {{ targetFgRangeText }}</p>
-          <p>{{ t("brews.fields.actual_abv") }}: {{ actualAbvText }}</p>
-        </div>
-        <div class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-          <BaseInput
-            v-model="actualOgInput"
-            :label="t('brews.fields.actual_og')"
-            placeholder="1.056"
-          />
-          <BaseInput
-            v-model="actualFgInput"
-            :label="t('brews.fields.actual_fg')"
-            placeholder="1.012"
-          />
-          <BaseButton
-            type="button"
-            :disabled="savingActualMetrics"
-            @click="saveActualMetrics"
-          >
-            {{ savingActualMetrics ? t("common.saving") : t("brews.actions.save_actual_metrics") }}
-          </BaseButton>
-        </div>
-      </BaseCard>
-
       <template v-if="activePanel === 'progress'">
         <BaseCard v-if="currentStep" class="space-y-5">
           <div class="flex flex-wrap items-start justify-between gap-3">
@@ -173,6 +145,29 @@
             </div>
           </div>
 
+          <div class="space-y-2 rounded-lg border border-border3 p-4">
+            <label class="block text-sm font-medium">
+              {{ t("brews.current.step_note_label") }}
+            </label>
+            <textarea
+              v-model="stepNoteInput"
+              class="w-full rounded-lg border border-border4 bg-bg4 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-button1"
+              rows="3"
+              :placeholder="t('brews.current.step_note_placeholder')"
+            />
+            <div class="flex flex-wrap items-center gap-2">
+              <BaseButton
+                type="button"
+                variant="button3"
+                :disabled="savingStepNote"
+                @click="saveCurrentStepNote"
+              >
+                {{ savingStepNote ? t("common.saving") : t("brews.actions.save_step_note") }}
+              </BaseButton>
+              <p v-if="stepNoteMessage" class="text-sm opacity-80">{{ stepNoteMessage }}</p>
+            </div>
+          </div>
+
           <div class="space-y-2">
             <div class="grid grid-cols-3 gap-2">
               <BaseButton type="button" variant="button3" :disabled="currentStepIndex <= 0" @click="previousStep">
@@ -225,6 +220,9 @@
                 >
                   {{ t("brews.fields.step_used_time") }}: {{ formatDuration(stepProgress(step.stepId)?.loggedDurationSeconds) }}
                 </p>
+                <p v-if="stepProgress(step.stepId)?.note" class="text-xs opacity-75">
+                  {{ t("brews.current.step_note_label") }}: {{ stepProgress(step.stepId)?.note }}
+                </p>
               </div>
               <div class="flex items-center gap-2">
                 <span class="rounded-full bg-bg4 px-2 py-1 text-xs">
@@ -238,54 +236,9 @@
           </div>
         </BaseCard>
 
-        <BaseCard v-if="showFermentationPanel" class="space-y-4">
-          <h3>{{ t("brews.current.fermentation_title") }}</h3>
-          <p class="text-sm opacity-80">
-            {{ t("brews.current.fermentation_remaining") }}:
-            <strong>{{ formatDuration(fermentationRemainingSeconds) }}</strong>
-          </p>
-
-          <div class="flex flex-wrap items-center gap-3">
-            <BaseButton type="button" :disabled="addingMeasurement" @click="measurementModalOpen = true">
-              {{ t("brews.actions.add_measurement") }}
-            </BaseButton>
-            <p v-if="measurementMessage" class="text-sm opacity-80">{{ measurementMessage }}</p>
-          </div>
-
-          <GravityProgressChart
-            :measurements="measurementSeries"
-            :target-fg="targetFg"
-            :empty-text="t('brews.current.no_measurements')"
-          />
-
-          <div class="space-y-2">
-            <h4>{{ t("brews.current.latest_measurements") }}</h4>
-            <div
-              v-if="!measurementSeries.length"
-              class="rounded-lg border border-dashed border-border3 p-3 text-sm opacity-70"
-            >
-              {{ t("brews.current.no_measurements") }}
-            </div>
-            <div v-else class="space-y-2">
-              <div
-                v-for="measurement in latestMeasurements"
-                :key="measurement._id || measurement.takenAt"
-                class="rounded-lg border border-border3 p-3 text-sm"
-              >
-                <p class="font-medium">{{ formatDateTime(measurement.takenAt) }}</p>
-                <p class="opacity-80">
-                  {{ t("brews.measurements.gravity") }}: {{ formatValue(measurement.gravity) }} |
-                  {{ t("brews.measurements.temperature") }}: {{ formatValue(measurement.temperatureC) }} °C |
-                  {{ t("brews.measurements.ph") }}: {{ formatValue(measurement.ph) }}
-                </p>
-                <p v-if="measurement.note" class="opacity-80">{{ measurement.note }}</p>
-              </div>
-            </div>
-          </div>
-        </BaseCard>
       </template>
 
-      <template v-else>
+      <template v-else-if="activePanel === 'recipe'">
         <BaseCard>
           <h3>{{ t("recipes.detail.defaults") }}</h3>
           <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 text-sm">
@@ -293,6 +246,21 @@
             <div>{{ t("recipes.metrics.fg") }}: {{ brew.recipeSnapshot?.defaults?.fgFrom || "-" }} - {{ brew.recipeSnapshot?.defaults?.fgTo || "-" }}</div>
             <div>{{ t("recipes.metrics.co2") }}: {{ formatValue(brew.recipeSnapshot?.defaults?.co2Volumes) }}</div>
             <div>{{ t("recipes.metrics.ibu") }}: {{ formatValue(brew.recipeSnapshot?.defaults?.ibu) }}</div>
+            <div>{{ t("recipes.fields.batch_size_liters") }}: {{ formatValue(brew.recipeSnapshot?.defaults?.batchSizeLiters) }}</div>
+          </div>
+        </BaseCard>
+
+        <BaseCard>
+          <h3>{{ t("recipes.detail.cost_summary") }}</h3>
+          <div class="mt-3 grid gap-2 sm:grid-cols-2 text-sm">
+            <p>
+              {{ t("recipes.detail.total_ingredients_cost") }}:
+              <strong>{{ formatCurrency(recipeTotalIngredientCost) }}</strong>
+            </p>
+            <p>
+              {{ t("recipes.detail.liter_price") }}:
+              <strong>{{ recipeLiterPrice !== null ? formatCurrency(recipeLiterPrice) : "-" }}</strong>
+            </p>
           </div>
         </BaseCard>
 
@@ -310,6 +278,10 @@
                 <span class="rounded-full bg-bg4 px-2 py-1 text-xs">{{ ingredientCategoryLabel(ingredient.category) }}</span>
               </div>
               <p class="mt-1 text-sm opacity-90">{{ [ingredient.amount, ingredient.unit].filter(Boolean).join(" ") || "-" }}</p>
+              <p class="mt-1 text-sm opacity-85">
+                {{ t("recipes.fields.price") }}:
+                {{ ingredient.price !== null && ingredient.price !== undefined ? formatCurrency(ingredient.price) : "-" }}
+              </p>
               <p v-if="ingredient.notes" class="mt-1 text-sm opacity-80">{{ ingredient.notes }}</p>
               <div v-if="ingredientStepTags(ingredient).length" class="mt-2 space-y-1">
                 <p class="text-xs font-semibold uppercase opacity-70">{{ t("recipes.detail.used_in_steps") }}</p>
@@ -362,6 +334,114 @@
         </BaseCard>
       </template>
 
+      <template v-else>
+        <BaseCard class="space-y-4">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3>{{ t("brews.current.measurements_tab") }}</h3>
+              <p
+                v-if="showFermentationPanel"
+                class="mt-1 text-sm opacity-80"
+              >
+                {{ t("brews.current.fermentation_remaining") }}:
+                <strong>{{ formatDuration(fermentationRemainingSeconds) }}</strong>
+              </p>
+            </div>
+            <BaseButton type="button" :disabled="addingMeasurement" @click="measurementModalOpen = true">
+              {{ t("brews.actions.add_measurement") }}
+            </BaseButton>
+          </div>
+
+          <div class="grid gap-2 text-sm opacity-90 sm:grid-cols-2 lg:grid-cols-3">
+            <p>{{ t("brews.fields.target_og") }}: {{ targetOgRangeText }}</p>
+            <p>{{ t("brews.fields.target_fg") }}: {{ targetFgRangeText }}</p>
+            <p>{{ t("brews.fields.target_gravity") }}: {{ formatValue(targetGravityValue) }}</p>
+            <p>{{ t("brews.fields.target_sg") }}: {{ formatValue(targetSgValue) }}</p>
+            <p>{{ t("brews.fields.target_ph") }}: {{ formatValue(targetPhValue) }}</p>
+            <p>{{ t("brews.fields.target_co2") }}: {{ formatValue(targetCo2Value) }}</p>
+            <p>{{ t("brews.fields.target_ibu") }}: {{ formatValue(targetIbuValue) }}</p>
+            <p>{{ t("brews.fields.actual_abv") }}: {{ actualAbvText }}</p>
+          </div>
+
+          <div class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            <BaseInput
+              v-model="actualOgInput"
+              :label="t('brews.fields.actual_og')"
+              placeholder="1.056"
+            />
+            <BaseInput
+              v-model="actualFgInput"
+              :label="t('brews.fields.actual_fg')"
+              placeholder="1.012"
+            />
+            <BaseButton
+              type="button"
+              :disabled="savingActualMetrics"
+              @click="saveActualMetrics"
+            >
+              {{ savingActualMetrics ? t("common.saving") : t("brews.actions.save_actual_metrics") }}
+            </BaseButton>
+          </div>
+
+          <p v-if="measurementMessage" class="text-sm opacity-80">{{ measurementMessage }}</p>
+        </BaseCard>
+
+        <BaseCard class="space-y-4">
+          <h3>{{ t("brews.current.measurement_graph") }}</h3>
+          <div class="flex flex-wrap gap-2">
+            <BaseButton
+              v-for="series in measurementSeriesToggleOptions"
+              :key="series.key"
+              type="button"
+              :variant="seriesVisibility[series.key] ? 'button1' : 'button3'"
+              @click="toggleMeasurementSeries(series.key)"
+            >
+              {{ series.label }}
+            </BaseButton>
+          </div>
+
+          <GravityProgressChart
+            :labels="measurementChartLabels"
+            :datasets="measurementChartDatasets"
+            :empty-text="t('brews.current.no_measurements')"
+          />
+        </BaseCard>
+
+        <BaseCard class="space-y-2">
+          <h4>{{ t("brews.current.latest_measurements") }}</h4>
+          <div
+            v-if="!measurementSeries.length"
+            class="rounded-lg border border-dashed border-border3 p-3 text-sm opacity-70"
+          >
+            {{ t("brews.current.no_measurements") }}
+          </div>
+          <div v-else class="space-y-2">
+            <div
+              v-for="measurement in latestMeasurements"
+              :key="measurement._id || measurement.takenAt"
+              class="rounded-lg border border-border3 p-3 text-sm"
+            >
+              <p class="font-medium">{{ formatDateTime(measurement.takenAt) }}</p>
+              <p class="opacity-80">
+                {{ t("brews.measurements.gravity") }}: {{ formatValue(measurement.gravity) }} |
+                {{ t("brews.measurements.temperature") }}: {{ formatValue(measurement.temperatureC) }} °C |
+                {{ t("brews.measurements.ph") }}: {{ formatValue(measurement.ph) }}
+              </p>
+              <p class="opacity-80">
+                {{ t("brews.measurements.og") }}: {{ formatValue(measurement.og) }} |
+                {{ t("brews.measurements.fg") }}: {{ formatValue(measurement.fg) }} |
+                {{ t("brews.measurements.sg") }}: {{ formatValue(measurement.sg) }}
+              </p>
+              <p class="opacity-80">
+                {{ t("brews.measurements.co2_volumes") }}: {{ formatValue(measurement.co2Volumes) }} |
+                {{ t("brews.measurements.ibu") }}: {{ formatValue(measurement.ibu) }}
+              </p>
+              <p v-if="measurement.note" class="opacity-80">{{ measurement.note }}</p>
+            </div>
+          </div>
+        </BaseCard>
+      </template>
+
       <BrewMeasurementModal
         :open="measurementModalOpen"
         :loading="addingMeasurement"
@@ -391,6 +471,7 @@ import {
   getBrew,
   pauseBrewStep,
   resetBrewStep,
+  saveBrewStepNote,
   setCurrentBrewStep,
   startBrew,
   startBrewStep,
@@ -405,7 +486,7 @@ import {
 
 const route = useRoute();
 const router = useRouter();
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 const loading = ref(true);
 const error = ref("");
@@ -419,8 +500,18 @@ const lastAlarmKey = ref("");
 const actualOgInput = ref("");
 const actualFgInput = ref("");
 const savingActualMetrics = ref(false);
+const stepNoteInput = ref("");
+const savingStepNote = ref(false);
+const stepNoteMessage = ref("");
 const headerMenuOpen = ref(false);
 const headerMenuRoot = ref(null);
+const seriesVisibility = ref({
+  gravity: true,
+  expectedGravity: true,
+  temperature: false,
+  expectedTemperature: false,
+  ph: false,
+});
 
 let clockInterval = null;
 
@@ -529,7 +620,17 @@ const latestMeasurements = computed(() => [...measurementSeries.value].reverse()
 const panelToggleOptions = computed(() => [
   { label: t("brews.current.progress_tab"), value: "progress" },
   { label: t("brews.current.recipe_tab"), value: "recipe" },
+  { label: t("brews.current.measurements_tab"), value: "measurements" },
 ]);
+
+const measurementSeriesToggleOptions = computed(() => [
+  { key: "gravity", label: t("brews.current.series_gravity") },
+  { key: "expectedGravity", label: t("brews.current.series_expected_gravity") },
+  { key: "temperature", label: t("brews.current.series_temperature") },
+  { key: "expectedTemperature", label: t("brews.current.series_expected_temperature") },
+  { key: "ph", label: t("brews.current.series_ph") },
+]);
+
 const brewDayElapsedSeconds = computed(() => {
   const startedAt = brew.value?.progress?.brewStartedAt
     ? new Date(brew.value.progress.brewStartedAt).getTime()
@@ -555,12 +656,73 @@ const targetFgRangeText = computed(() => {
   const defaults = brew.value?.recipeSnapshot?.defaults || {};
   return `${defaults.fgFrom || "-"} - ${defaults.fgTo || "-"}`;
 });
+
+const targetGravityValue = computed(() => {
+  const value = Number(brew.value?.targetMetrics?.gravity);
+  return Number.isFinite(value) ? Number(value.toFixed(3)) : "-";
+});
+
+const targetSgValue = computed(() => {
+  const value = Number(brew.value?.targetMetrics?.sg);
+  return Number.isFinite(value) ? Number(value.toFixed(3)) : "-";
+});
+
+const targetPhValue = computed(() => {
+  const value = Number(brew.value?.targetMetrics?.ph);
+  return Number.isFinite(value) ? Number(value.toFixed(2)) : "-";
+});
+
+const targetCo2Value = computed(() => {
+  const fromMetrics = Number(brew.value?.targetMetrics?.co2Volumes);
+  if (Number.isFinite(fromMetrics)) return Number(fromMetrics.toFixed(2));
+  const fromDefaults = Number(brew.value?.recipeSnapshot?.defaults?.co2Volumes);
+  return Number.isFinite(fromDefaults) ? Number(fromDefaults.toFixed(2)) : "-";
+});
+
+const targetIbuValue = computed(() => {
+  const fromMetrics = Number(brew.value?.targetMetrics?.ibu);
+  if (Number.isFinite(fromMetrics)) return Number(fromMetrics.toFixed(1));
+  const fromDefaults = Number(brew.value?.recipeSnapshot?.defaults?.ibu);
+  return Number.isFinite(fromDefaults) ? Number(fromDefaults.toFixed(1)) : "-";
+});
+
+const recipeTotalIngredientCost = computed(() => {
+  const backendTotal = Number(brew.value?.recipeCostSummary?.totalIngredientCost);
+  if (Number.isFinite(backendTotal)) return backendTotal;
+  return (ingredients.value || []).reduce((sum, ingredient) => {
+    const price = Number(ingredient?.price);
+    if (!Number.isFinite(price) || price < 0) return sum;
+    return sum + price;
+  }, 0);
+});
+
+const recipeLiterPrice = computed(() => {
+  const backendLiterPrice = Number(brew.value?.recipeCostSummary?.literPrice);
+  if (Number.isFinite(backendLiterPrice)) return backendLiterPrice;
+  const liters = Number(brew.value?.recipeSnapshot?.defaults?.batchSizeLiters);
+  if (!Number.isFinite(liters) || liters <= 0) return null;
+  return recipeTotalIngredientCost.value / liters;
+});
+
 const actualAbvText = computed(() => {
   const og = parseGravityValue(actualOgInput.value);
   const fg = parseGravityValue(actualFgInput.value);
   if (og === null || fg === null) return "-";
   const abv = Math.max(0, (og - fg) * 131.25);
   return `${abv.toFixed(2)}%`;
+});
+
+const targetOg = computed(() => {
+  const defaults = brew.value?.recipeSnapshot?.defaults || {};
+  const ogFrom = Number(defaults.ogFrom);
+  const ogTo = Number(defaults.ogTo);
+  if (Number.isFinite(ogFrom) && Number.isFinite(ogTo)) {
+    return Number(((ogFrom + ogTo) / 2).toFixed(3));
+  }
+  if (Number.isFinite(ogFrom)) return ogFrom;
+  if (Number.isFinite(ogTo)) return ogTo;
+  const target = Number(brew.value?.targetMetrics?.og);
+  return Number.isFinite(target) ? target : null;
 });
 
 const targetFg = computed(() => {
@@ -575,6 +737,311 @@ const targetFg = computed(() => {
   const target = Number(brew.value?.targetMetrics?.fg);
   return Number.isFinite(target) ? target : null;
 });
+
+const fermentationSteps = computed(() =>
+  (steps.value || []).filter((step) => graphStepTypes.includes(step?.stepType || "")),
+);
+
+const fermentationStartMs = computed(() => {
+  const timelineStart = brew.value?.timeline?.fermentationStartAt
+    ? new Date(brew.value.timeline.fermentationStartAt).getTime()
+    : NaN;
+  if (Number.isFinite(timelineStart)) return timelineStart;
+
+  const brewStart = brew.value?.progress?.brewStartedAt
+    ? new Date(brew.value.progress.brewStartedAt).getTime()
+    : NaN;
+  if (Number.isFinite(brewStart)) return brewStart;
+
+  const firstMeasurement = measurementSeries.value[0]?.takenAt
+    ? new Date(measurementSeries.value[0].takenAt).getTime()
+    : NaN;
+  return Number.isFinite(firstMeasurement) ? firstMeasurement : NaN;
+});
+
+const fermentationDurationMs = computed(() => {
+  const durationMinutes = fermentationSteps.value.reduce((sum, step) => {
+    const minutes = Number(step?.durationMinutes);
+    if (!Number.isFinite(minutes) || minutes <= 0) return sum;
+    return sum + minutes;
+  }, 0);
+
+  if (durationMinutes > 0) return durationMinutes * 60 * 1000;
+
+  const first = measurementSeries.value[0]?.takenAt
+    ? new Date(measurementSeries.value[0].takenAt).getTime()
+    : NaN;
+  const last = measurementSeries.value.length
+    ? new Date(measurementSeries.value[measurementSeries.value.length - 1].takenAt).getTime()
+    : NaN;
+  if (Number.isFinite(first) && Number.isFinite(last) && last > first) return last - first;
+
+  return 7 * 24 * 60 * 60 * 1000;
+});
+
+const fermentationEndMs = computed(() => {
+  if (!Number.isFinite(fermentationStartMs.value)) return NaN;
+  return fermentationStartMs.value + fermentationDurationMs.value;
+});
+
+const expectedTemperatureSegments = computed(() => {
+  if (!Number.isFinite(fermentationStartMs.value)) return [];
+
+  let cursor = fermentationStartMs.value;
+  let previousTemperature = null;
+  const segments = [];
+
+  for (const step of fermentationSteps.value) {
+    const minutes = Number(step?.durationMinutes);
+    if (!Number.isFinite(minutes) || minutes <= 0) continue;
+    const durationMs = minutes * 60 * 1000;
+    const rawTemp = Number(step?.temperatureC);
+    const temperature = Number.isFinite(rawTemp) ? rawTemp : previousTemperature;
+    segments.push({
+      from: cursor,
+      to: cursor + durationMs,
+      temperature,
+    });
+    if (Number.isFinite(rawTemp)) previousTemperature = rawTemp;
+    cursor += durationMs;
+  }
+
+  return segments;
+});
+
+const measurementChartTimes = computed(() => {
+  const points = new Set();
+
+  for (const measurement of measurementSeries.value) {
+    const ts = new Date(measurement?.takenAt).getTime();
+    if (Number.isFinite(ts)) points.add(ts);
+  }
+
+  if (Number.isFinite(fermentationStartMs.value)) {
+    points.add(fermentationStartMs.value);
+  }
+  if (Number.isFinite(fermentationEndMs.value)) {
+    points.add(fermentationEndMs.value);
+  }
+
+  if (
+    Number.isFinite(fermentationStartMs.value) &&
+    Number.isFinite(fermentationEndMs.value) &&
+    fermentationEndMs.value > fermentationStartMs.value
+  ) {
+    const extraPoints = 12;
+    const stepSize = (fermentationEndMs.value - fermentationStartMs.value) / (extraPoints - 1);
+    for (let idx = 0; idx < extraPoints; idx += 1) {
+      points.add(Math.round(fermentationStartMs.value + stepSize * idx));
+    }
+  }
+
+  return [...points].sort((a, b) => a - b);
+});
+
+const measurementChartLabels = computed(() =>
+  measurementChartTimes.value.map((ts) =>
+    new Date(ts).toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+  ),
+);
+
+const gravityByTime = computed(() => {
+  const map = new Map();
+  for (const measurement of measurementSeries.value) {
+    const ts = new Date(measurement?.takenAt).getTime();
+    if (!Number.isFinite(ts)) continue;
+    map.set(ts, measurementGravityValue(measurement));
+  }
+  return map;
+});
+
+const temperatureByTime = computed(() => {
+  const map = new Map();
+  for (const measurement of measurementSeries.value) {
+    const ts = new Date(measurement?.takenAt).getTime();
+    const value = Number(measurement?.temperatureC);
+    if (!Number.isFinite(ts)) continue;
+    map.set(ts, Number.isFinite(value) ? value : null);
+  }
+  return map;
+});
+
+const phByTime = computed(() => {
+  const map = new Map();
+  for (const measurement of measurementSeries.value) {
+    const ts = new Date(measurement?.takenAt).getTime();
+    const value = Number(measurement?.ph);
+    if (!Number.isFinite(ts)) continue;
+    map.set(ts, Number.isFinite(value) ? value : null);
+  }
+  return map;
+});
+
+const actualGravitySeries = computed(() =>
+  measurementChartTimes.value.map((ts) => {
+    const value = gravityByTime.value.get(ts);
+    return Number.isFinite(value) ? value : null;
+  }),
+);
+
+const actualTemperatureSeries = computed(() =>
+  measurementChartTimes.value.map((ts) => {
+    const value = temperatureByTime.value.get(ts);
+    return Number.isFinite(value) ? value : null;
+  }),
+);
+
+const actualPhSeries = computed(() =>
+  measurementChartTimes.value.map((ts) => {
+    const value = phByTime.value.get(ts);
+    return Number.isFinite(value) ? value : null;
+  }),
+);
+
+const expectedGravitySeries = computed(() =>
+  measurementChartTimes.value.map((ts) => expectedGravityAt(ts)),
+);
+
+const expectedTemperatureSeries = computed(() =>
+  measurementChartTimes.value.map((ts) => expectedTemperatureAt(ts)),
+);
+
+const measurementChartDatasets = computed(() => {
+  const datasets = [];
+
+  if (seriesVisibility.value.gravity) {
+    datasets.push({
+      label: t("brews.current.series_gravity"),
+      data: actualGravitySeries.value,
+      borderColor: "rgb(16, 185, 129)",
+      backgroundColor: "rgba(16, 185, 129, 0.15)",
+      fill: false,
+      pointRadius: 3,
+      pointHoverRadius: 4,
+      yAxisID: "yGravity",
+    });
+  }
+
+  if (seriesVisibility.value.expectedGravity) {
+    datasets.push({
+      label: t("brews.current.series_expected_gravity"),
+      data: expectedGravitySeries.value,
+      borderColor: "rgb(245, 158, 11)",
+      borderDash: [6, 6],
+      fill: false,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      yAxisID: "yGravity",
+      tension: 0,
+    });
+  }
+
+  if (seriesVisibility.value.temperature) {
+    datasets.push({
+      label: t("brews.current.series_temperature"),
+      data: actualTemperatureSeries.value,
+      borderColor: "rgb(59, 130, 246)",
+      fill: false,
+      pointRadius: 3,
+      pointHoverRadius: 4,
+      yAxisID: "yTemperature",
+    });
+  }
+
+  if (seriesVisibility.value.expectedTemperature) {
+    datasets.push({
+      label: t("brews.current.series_expected_temperature"),
+      data: expectedTemperatureSeries.value,
+      borderColor: "rgb(147, 197, 253)",
+      borderDash: [5, 5],
+      fill: false,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      yAxisID: "yTemperature",
+      tension: 0,
+    });
+  }
+
+  if (seriesVisibility.value.ph) {
+    datasets.push({
+      label: t("brews.current.series_ph"),
+      data: actualPhSeries.value,
+      borderColor: "rgb(236, 72, 153)",
+      fill: false,
+      pointRadius: 3,
+      pointHoverRadius: 4,
+      yAxisID: "yPh",
+    });
+  }
+
+  return datasets;
+});
+
+function measurementGravityValue(measurement) {
+  const candidates = [
+    measurement?.gravity,
+    measurement?.sg,
+    measurement?.og,
+    measurement?.fg,
+  ];
+  for (const value of candidates) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric;
+  }
+  return null;
+}
+
+function expectedGravityAt(timestampMs) {
+  const og = Number(targetOg.value);
+  const fg = Number(targetFg.value);
+  const start = Number(fermentationStartMs.value);
+  const end = Number(fermentationEndMs.value);
+  const ts = Number(timestampMs);
+
+  if (!Number.isFinite(og) || !Number.isFinite(fg)) return null;
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+  if (!Number.isFinite(ts)) return null;
+  if (ts <= start) return og;
+  if (ts >= end) return fg;
+
+  const ratio = (ts - start) / (end - start);
+  const steepness = 4.5;
+  const normalized = (1 - Math.exp(-steepness * ratio)) / (1 - Math.exp(-steepness));
+  return Number((og - (og - fg) * normalized).toFixed(3));
+}
+
+function expectedTemperatureAt(timestampMs) {
+  const ts = Number(timestampMs);
+  if (!Number.isFinite(ts)) return null;
+
+  const segments = expectedTemperatureSegments.value;
+  if (!segments.length) return null;
+
+  const firstWithTemperature = segments.find((segment) =>
+    Number.isFinite(Number(segment?.temperature)),
+  );
+  if (!firstWithTemperature) return null;
+
+  if (ts <= segments[0].from) return Number(firstWithTemperature.temperature);
+
+  for (const segment of segments) {
+    if (ts >= segment.from && ts <= segment.to) {
+      const temperature = Number(segment.temperature);
+      return Number.isFinite(temperature) ? Number(temperature.toFixed(2)) : null;
+    }
+  }
+
+  const lastWithTemperature = [...segments]
+    .reverse()
+    .find((segment) => Number.isFinite(Number(segment?.temperature)));
+  if (!lastWithTemperature) return null;
+  return Number(Number(lastWithTemperature.temperature).toFixed(2));
+}
 
 function statusLabel(status) {
   return t(`brews.status.${status || "planned"}`);
@@ -670,6 +1137,18 @@ function formatValue(value) {
   return value;
 }
 
+function formatCurrency(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "-";
+  const localeCode = locale.value === "no" ? "nb-NO" : "en-US";
+  return new Intl.NumberFormat(localeCode, {
+    style: "currency",
+    currency: "NOK",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
 function parseGravityValue(value) {
   const text = String(value || "").trim();
   if (!gravityPattern.test(text)) return null;
@@ -725,8 +1204,28 @@ function hydrateActualMetricsInputs() {
   actualFgInput.value = formatGravityValue(brew.value?.actualMetrics?.fg);
 }
 
+function hydrateCurrentStepNote() {
+  stepNoteInput.value = String(currentStepProgress.value?.note || "");
+}
+
+function toggleMeasurementSeries(seriesKey) {
+  if (!Object.prototype.hasOwnProperty.call(seriesVisibility.value, seriesKey)) return;
+  seriesVisibility.value = {
+    ...seriesVisibility.value,
+    [seriesKey]: !seriesVisibility.value[seriesKey],
+  };
+}
+
 function setActivePanel(value) {
-  activePanel.value = value === "recipe" ? "recipe" : "progress";
+  if (value === "recipe") {
+    activePanel.value = "recipe";
+    return;
+  }
+  if (value === "measurements") {
+    activePanel.value = "measurements";
+    return;
+  }
+  activePanel.value = "progress";
 }
 
 function toggleHeaderMenu() {
@@ -807,6 +1306,27 @@ async function saveActualMetrics() {
     error.value = err?.response?.data?.error || err?.message || t("brews.errors.save_failed");
   } finally {
     savingActualMetrics.value = false;
+  }
+}
+
+async function saveCurrentStepNote() {
+  if (!brew.value?._id || !currentStep.value?.stepId) return;
+
+  savingStepNote.value = true;
+  stepNoteMessage.value = "";
+  error.value = "";
+  try {
+    brew.value = await saveBrewStepNote(
+      brew.value._id,
+      currentStep.value.stepId,
+      stepNoteInput.value,
+    );
+    stepNoteMessage.value = t("brews.current.step_note_saved");
+  } catch (err) {
+    stepNoteMessage.value =
+      err?.response?.data?.error || err?.message || t("brews.errors.step_failed");
+  } finally {
+    savingStepNote.value = false;
   }
 }
 
@@ -962,8 +1482,17 @@ watch(
   () => brew.value,
   () => {
     hydrateActualMetricsInputs();
+    hydrateCurrentStepNote();
   },
   { immediate: true },
+);
+
+watch(
+  () => currentStep.value?.stepId,
+  () => {
+    hydrateCurrentStepNote();
+    stepNoteMessage.value = "";
+  },
 );
 
 watch(

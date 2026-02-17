@@ -50,6 +50,30 @@ function gravityToNumber(value?: string) {
   return Number.isFinite(n) ? n : undefined;
 }
 
+function computeCostSummary(defaults: any = {}, ingredients: any[] = []) {
+  const totalIngredientCost = (Array.isArray(ingredients) ? ingredients : []).reduce(
+    (sum, ingredient) => {
+      const price = toNumberOrUndefined(ingredient?.price);
+      if (price === undefined || price < 0) return sum;
+      return sum + price;
+    },
+    0,
+  );
+
+  const batchSizeLiters = toNumberOrUndefined(defaults?.batchSizeLiters);
+  const literPrice =
+    batchSizeLiters !== undefined && batchSizeLiters > 0
+      ? totalIngredientCost / batchSizeLiters
+      : undefined;
+
+  return {
+    totalIngredientCost: Number(totalIngredientCost.toFixed(2)),
+    batchSizeLiters,
+    literPrice:
+      literPrice !== undefined ? Number(Math.max(0, literPrice).toFixed(2)) : undefined,
+  };
+}
+
 function toDateOrUndefined(value: any) {
   if (!value) return undefined;
   const d = new Date(value);
@@ -180,6 +204,7 @@ function normalizeRecipeSnapshot(payload: any = {}, sourceRecipeOrSnapshot: any 
         category: normalizeIngredientCategory(ing?.category),
         amount: toStringOrUndefined(ing?.amount),
         unit: toStringOrUndefined(ing?.unit),
+        price: toNumberOrUndefined(ing?.price),
         notes: toStringOrUndefined(ing?.notes),
         stepIds: rawStepIds.filter((stepId: string) => allowedStepIds.has(stepId)),
       };
@@ -203,6 +228,9 @@ function normalizeRecipeSnapshot(payload: any = {}, sourceRecipeOrSnapshot: any 
       fgTo: toGravityOrUndefined(incomingDefaults.fgTo ?? sourceDefaults.fgTo),
       co2Volumes: toNumberOrUndefined(incomingDefaults.co2Volumes ?? sourceDefaults.co2Volumes),
       ibu: toNumberOrUndefined(incomingDefaults.ibu ?? sourceDefaults.ibu),
+      batchSizeLiters: toNumberOrUndefined(
+        incomingDefaults.batchSizeLiters ?? sourceDefaults.batchSizeLiters,
+      ),
     },
     steps,
     ingredients,
@@ -230,6 +258,7 @@ function buildStepProgress(steps: any[] = [], existing: any[] = []) {
         pausedRemainingSeconds: undefined,
         accumulatedActiveSeconds: 0,
         actualDurationSeconds: undefined,
+        note: undefined,
       };
     }
 
@@ -249,6 +278,7 @@ function buildStepProgress(steps: any[] = [], existing: any[] = []) {
       pausedRemainingSeconds: toNumberOrUndefined(previous.pausedRemainingSeconds),
       accumulatedActiveSeconds: toNumberOrUndefined(previous.accumulatedActiveSeconds) || 0,
       actualDurationSeconds: toNumberOrUndefined(previous.actualDurationSeconds),
+      note: toStringOrUndefined(previous.note),
     };
   });
 }
@@ -321,9 +351,14 @@ function attachComputedFields(brew: any) {
     actualOg !== undefined && actualFg !== undefined
       ? Number(Math.max(0, (actualOg - actualFg) * 131.25).toFixed(2))
       : undefined;
+  const recipeCostSummary = computeCostSummary(
+    data?.recipeSnapshot?.defaults,
+    data?.recipeSnapshot?.ingredients,
+  );
 
   return {
     ...data,
+    recipeCostSummary,
     actualMetrics: {
       ...(data.actualMetrics || {}),
       og: actualOg,
@@ -1052,6 +1087,42 @@ brewsRouter.post("/:id/steps/:stepId/reset", async (req: any, res) => {
     return res.json(attachComputedFields(brew));
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Failed to reset step" });
+  }
+});
+
+brewsRouter.post("/:id/steps/:stepId/note", async (req: any, res) => {
+  try {
+    const brewerId = await resolveBrewerId(req);
+    const brew = await Brew.findOne({ _id: req.params.id, brewerId });
+
+    if (!brew) {
+      return res.status(404).json({ error: "Brew not found" });
+    }
+
+    const steps = Array.isArray(brew.recipeSnapshot?.steps) ? brew.recipeSnapshot.steps : [];
+    const stepIndex = steps.findIndex((step: any) => step.stepId === req.params.stepId);
+
+    if (stepIndex < 0) {
+      return res.status(404).json({ error: "Step not found" });
+    }
+
+    brew.progress = brew.progress || {};
+    const progressEntries = buildStepProgress(steps, brew.progress.stepProgress || []);
+    const entry = progressEntries.find((p: any) => p.stepId === req.params.stepId);
+
+    if (!entry) {
+      return res.status(500).json({ error: "Could not find step progress entry" });
+    }
+
+    entry.note = toStringOrUndefined(req.body?.note);
+    brew.progress.stepProgress = progressEntries;
+    brew.progress.currentStepIndex = stepIndex;
+
+    await brew.save();
+    notifyBrewUpdated(brew);
+    return res.json(attachComputedFields(brew));
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || "Failed to save step note" });
   }
 });
 

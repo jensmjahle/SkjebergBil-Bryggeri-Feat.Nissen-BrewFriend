@@ -168,6 +168,13 @@
             />
             <BaseInput v-model="ingredient.amount" :label="t('recipes.fields.amount')" />
             <BaseInput v-model="ingredient.unit" :label="t('recipes.fields.unit')" />
+            <BaseInput
+              v-model.number="ingredient.price"
+              :model-modifiers="{ number: true }"
+              type="number"
+              step="0.01"
+              :label="t('recipes.fields.price')"
+            />
           </div>
           <BaseInput v-model="ingredient.notes" :label="t('recipes.fields.notes')" />
 
@@ -198,6 +205,18 @@
             </BaseButton>
           </div>
         </BaseCard>
+
+        <div v-if="form.snapshot.ingredients.length" class="rounded-lg border border-border3 p-4">
+          <h4>{{ t("recipes.detail.cost_summary") }}</h4>
+          <p class="mt-2 text-sm opacity-90">
+            {{ t("recipes.detail.total_ingredients_cost") }}:
+            <strong>{{ formatCurrency(ingredientTotalCost) }}</strong>
+          </p>
+          <p class="mt-1 text-sm opacity-90">
+            {{ t("recipes.detail.liter_price") }}:
+            <strong>{{ ingredientLiterPrice !== null ? formatCurrency(ingredientLiterPrice) : "-" }}</strong>
+          </p>
+        </div>
       </div>
 
       <div v-else class="space-y-4">
@@ -221,12 +240,27 @@
               step="1"
               :label="t('recipes.metrics.ibu')"
             />
+            <BaseInput
+              v-model.number="form.snapshot.defaults.batchSizeLiters"
+              :model-modifiers="{ number: true }"
+              type="number"
+              step="0.1"
+              :label="t('recipes.fields.batch_size_liters')"
+            />
           </div>
         </BaseCard>
 
         <BaseCard>
           <p class="text-sm opacity-80">
             {{ t("brews.plan.summary", { steps: form.snapshot.steps.length, ingredients: form.snapshot.ingredients.length }) }}
+          </p>
+          <p class="mt-2 text-sm opacity-90">
+            {{ t("recipes.detail.total_ingredients_cost") }}:
+            <strong>{{ formatCurrency(ingredientTotalCost) }}</strong>
+          </p>
+          <p class="mt-1 text-sm opacity-90">
+            {{ t("recipes.detail.liter_price") }}:
+            <strong>{{ ingredientLiterPrice !== null ? formatCurrency(ingredientLiterPrice) : "-" }}</strong>
           </p>
         </BaseCard>
       </div>
@@ -273,7 +307,7 @@ import {
 
 const route = useRoute();
 const router = useRouter();
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const gravityPattern = /^1\.\d{3}$/;
 
 const loading = ref(true);
@@ -307,6 +341,7 @@ const form = reactive({
       fgTo: "",
       co2Volumes: null,
       ibu: null,
+      batchSizeLiters: null,
     },
     steps: [],
     ingredients: [],
@@ -347,12 +382,38 @@ const isGravityValid = computed(() => {
   return fields.every((v) => gravityPattern.test(v || ""));
 });
 
+const ingredientTotalCost = computed(() =>
+  form.snapshot.ingredients.reduce((sum, ingredient) => {
+    const price = Number(ingredient?.price);
+    if (!Number.isFinite(price) || price < 0) return sum;
+    return sum + price;
+  }, 0),
+);
+
+const ingredientLiterPrice = computed(() => {
+  const liters = Number(form.snapshot.defaults.batchSizeLiters);
+  if (!Number.isFinite(liters) || liters <= 0) return null;
+  return ingredientTotalCost.value / liters;
+});
+
 function resolveStepComponent(stepType) {
   return STEP_COMPONENTS[stepType] || STEP_COMPONENTS.custom;
 }
 
 function stepTypeLabel(value) {
   return t(`recipes.step_types.${value || "custom"}`);
+}
+
+function formatCurrency(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "-";
+  const localeCode = locale.value === "no" ? "nb-NO" : "en-US";
+  return new Intl.NumberFormat(localeCode, {
+    style: "currency",
+    currency: "NOK",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
 }
 
 function toLocalDateTimeInput(value) {
@@ -407,6 +468,7 @@ function addIngredient() {
     category: selectedIngredientCategory.value || "other",
     amount: "",
     unit: "",
+    price: null,
     notes: "",
     stepIds: [],
   });
@@ -443,6 +505,7 @@ function hydrateForm(brewDoc) {
     fgTo: snapshot?.defaults?.fgTo || "",
     co2Volumes: snapshot?.defaults?.co2Volumes ?? null,
     ibu: snapshot?.defaults?.ibu ?? null,
+    batchSizeLiters: snapshot?.defaults?.batchSizeLiters ?? null,
   };
   form.snapshot.steps = Array.isArray(snapshot?.steps)
     ? snapshot.steps.map((step) => ({
@@ -463,6 +526,7 @@ function hydrateForm(brewDoc) {
         category: ing.category || "other",
         amount: ing.amount || "",
         unit: ing.unit || "",
+        price: ing.price ?? null,
         notes: ing.notes || "",
         stepIds: Array.isArray(ing.stepIds) ? ing.stepIds : [],
       }))
@@ -493,6 +557,7 @@ function snapshotPayload() {
       category: ingredient.category || "other",
       amount: ingredient.amount?.trim() || undefined,
       unit: ingredient.unit?.trim() || undefined,
+      price: sanitizeNumber(ingredient.price),
       notes: ingredient.notes?.trim() || undefined,
       stepIds: (ingredient.stepIds || []).filter((stepId) => allowedStepIds.has(stepId)),
     }))
@@ -512,6 +577,7 @@ function snapshotPayload() {
       fgTo: form.snapshot.defaults.fgTo?.trim() || undefined,
       co2Volumes: sanitizeNumber(form.snapshot.defaults.co2Volumes),
       ibu: sanitizeNumber(form.snapshot.defaults.ibu),
+      batchSizeLiters: sanitizeNumber(form.snapshot.defaults.batchSizeLiters),
     },
     steps: stepPayload,
     ingredients: ingredientPayload,

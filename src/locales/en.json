@@ -11,13 +11,20 @@
     "close": "Close"
   },
   "home": {
-    "live_exchanges_headline": "Live exchanges",
-    "live_exchanges_subtitle": "See active events in real time.",
-    "no_live_events": "No live events right now.",
-    "untitled_event": "Untitled Event",
-    "live_badge": "live",
-    "enter": "Enter",
-    "failed_to_load_events": "Failed to load events"
+    "title": "Brew Buddy",
+    "subtitle": "Keep track of recipes, planned brews and brew days from one place.",
+    "main_action_title": "Main Action",
+    "continue_brew_cta": "Continue Brew: {name}",
+    "start_brew_cta": "Start New Brew",
+    "current_status": "Current status",
+    "quick_actions": "Quick Actions",
+    "overview_title": "Overview",
+    "stats": {
+      "recipes": "Recipes",
+      "brews": "Brews",
+      "active": "Active",
+      "planned": "Planned"
+    }
   },
   "recipes": {
     "common": {
@@ -64,8 +71,10 @@
       "category": "Category",
       "amount": "Amount",
       "unit": "Unit",
+      "price": "Price",
       "notes": "Notes",
-      "link_to_steps": "Link to steps"
+      "link_to_steps": "Link to steps",
+      "batch_size_liters": "Batch size (L)"
     },
     "metrics": {
       "og": "OG",
@@ -160,7 +169,10 @@
       "time": "Time",
       "minutes": "min",
       "ingredients_in_step": "Ingredients in this step",
-      "used_in_steps": "Used in"
+      "used_in_steps": "Used in",
+      "cost_summary": "Cost Summary",
+      "total_ingredients_cost": "Total ingredient cost",
+      "liter_price": "Price per liter"
     }
   },
   "brews": {
@@ -194,6 +206,11 @@
       "step_used_time": "Used time",
       "target_og": "Target OG",
       "target_fg": "Target FG",
+      "target_gravity": "Target Gravity",
+      "target_sg": "Target SG",
+      "target_ph": "Target pH",
+      "target_co2": "Target CO2",
+      "target_ibu": "Target IBU",
       "actual_og": "Actual OG",
       "actual_fg": "Actual FG",
       "actual_abv": "Actual ABV"
@@ -222,6 +239,7 @@
       "complete_step": "Complete step",
       "reset_step": "Reset step",
       "add_measurement": "Add measurement",
+      "save_step_note": "Save step note",
       "save_actual_metrics": "Save actual OG/FG"
     },
     "list": {
@@ -245,6 +263,7 @@
     "current": {
       "progress_tab": "Progress",
       "recipe_tab": "Recipe",
+      "measurements_tab": "Measurements",
       "menu": "Menu",
       "more_actions": "More actions",
       "step_label": "Step {current} of {total}",
@@ -256,6 +275,15 @@
       "no_measurements": "No measurements yet.",
       "latest_measurements": "Latest measurements",
       "actual_metrics_title": "Actual metrics",
+      "measurement_graph": "Measurement graph",
+      "series_gravity": "Gravity",
+      "series_expected_gravity": "Expected gravity",
+      "series_temperature": "Temperature",
+      "series_expected_temperature": "Expected temperature",
+      "series_ph": "pH",
+      "step_note_label": "Step note",
+      "step_note_placeholder": "Add notes for this step...",
+      "step_note_saved": "Step note saved.",
       "measurement_added": "Measurement added.",
       "step_started": "Step started.",
       "step_paused": "Step paused.",
@@ -268,7 +296,12 @@
     "measurements": {
       "gravity": "Gravity",
       "temperature": "Temperature",
-      "ph": "pH"
+      "ph": "pH",
+      "og": "OG",
+      "fg": "FG",
+      "sg": "SG",
+      "co2_volumes": "CO2 volumes",
+      "ibu": "IBU"
     },
     "errors": {
       "fetch_failed": "Could not fetch brews",

@@ -1,5 +1,5 @@
 # --- Builder Stage ---
-FROM node:18 AS builder
+FROM node:20 AS builder
 
 WORKDIR /app
 
@@ -9,7 +9,7 @@ COPY . .
 RUN npm run build
 
 # --- Runtime Stage ---
-FROM node:18-slim
+FROM node:20-slim
 
 RUN npm install -g serve
 

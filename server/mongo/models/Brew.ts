@@ -29,6 +29,7 @@ const brewIngredientSchema = new mongoose.Schema(
     },
     amount: { type: String, trim: true, maxlength: 80 },
     unit: { type: String, trim: true, maxlength: 40 },
+    price: { type: Number, min: 0 },
     notes: { type: String, trim: true, maxlength: 1000 },
     stepIds: { type: [String], default: [] },
   },
@@ -55,6 +56,7 @@ const recipeSnapshotSchema = new mongoose.Schema(
       fgTo: { type: String, trim: true, match: gravityPattern },
       co2Volumes: { type: Number },
       ibu: { type: Number },
+      batchSizeLiters: { type: Number, min: 0 },
     },
     steps: { type: [brewStepSchema], default: [] },
     ingredients: { type: [brewIngredientSchema], default: [] },
@@ -78,6 +80,7 @@ const stepProgressSchema = new mongoose.Schema(
     pausedRemainingSeconds: { type: Number, min: 0 },
     accumulatedActiveSeconds: { type: Number, min: 0 },
     actualDurationSeconds: { type: Number, min: 0 },
+    note: { type: String, trim: true, maxlength: 2000 },
   },
   { _id: false },
 );

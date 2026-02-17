@@ -1,7 +1,10 @@
 <template>
   <div class="h-80">
     <Line v-if="hasData" :data="chartData" :options="chartOptions" />
-    <div v-else class="flex h-full items-center justify-center rounded-xl border border-dashed border-border3 text-sm opacity-70">
+    <div
+      v-else
+      class="flex h-full items-center justify-center rounded-xl border border-dashed border-border3 text-sm opacity-70"
+    >
       {{ emptyText }}
     </div>
   </div>
@@ -34,95 +37,75 @@ ChartJS.register(
 );
 
 const props = defineProps({
-  measurements: {
+  labels: {
     type: Array,
     default: () => [],
   },
-  targetFg: {
-    type: Number,
-    default: null,
+  datasets: {
+    type: Array,
+    default: () => [],
   },
   emptyText: {
     type: String,
-    default: "Ingen målinger ennå.",
+    default: "No chart data yet.",
   },
 });
 
-function gravityValue(measurement) {
-  const candidates = [
-    measurement?.gravity,
-    measurement?.fg,
-    measurement?.sg,
-    measurement?.og,
-  ];
-  for (const value of candidates) {
-    const n = Number(value);
-    if (Number.isFinite(n)) return n;
-  }
-  return null;
+function normalizeDataset(dataset) {
+  const values = Array.isArray(dataset?.data) ? dataset.data : [];
+  return {
+    label: String(dataset?.label || ""),
+    data: values.map((value) => {
+      const numberValue = Number(value);
+      return Number.isFinite(numberValue) ? numberValue : null;
+    }),
+    borderColor: dataset?.borderColor || "rgb(59, 130, 246)",
+    backgroundColor: dataset?.backgroundColor || "rgba(59, 130, 246, 0.15)",
+    tension: Number.isFinite(Number(dataset?.tension)) ? Number(dataset.tension) : 0.25,
+    fill: Boolean(dataset?.fill),
+    pointRadius: Number.isFinite(Number(dataset?.pointRadius)) ? Number(dataset.pointRadius) : 2,
+    pointHoverRadius: Number.isFinite(Number(dataset?.pointHoverRadius))
+      ? Number(dataset.pointHoverRadius)
+      : 3,
+    borderDash: Array.isArray(dataset?.borderDash) ? dataset.borderDash : undefined,
+    yAxisID: dataset?.yAxisID || "yGravity",
+  };
 }
 
-const normalized = computed(() =>
-  [...(props.measurements || [])]
-    .map((measurement) => ({
-      at: measurement?.takenAt ? new Date(measurement.takenAt) : null,
-      value: gravityValue(measurement),
-    }))
-    .filter((point) => point.at && !Number.isNaN(point.at.getTime()) && point.value !== null)
-    .sort((a, b) => a.at.getTime() - b.at.getTime()),
+const normalizedDatasets = computed(() =>
+  (props.datasets || [])
+    .filter((dataset) => dataset && dataset.hidden !== true)
+    .map((dataset) => normalizeDataset(dataset))
+    .filter((dataset) => dataset.label.length > 0),
 );
 
-const hasData = computed(() => normalized.value.length > 0);
-
-const labels = computed(() =>
-  normalized.value.map((point) =>
-    point.at.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
+const hasData = computed(() =>
+  normalizedDatasets.value.some((dataset) =>
+    dataset.data.some((value) => Number.isFinite(value)),
   ),
 );
 
-const values = computed(() => normalized.value.map((point) => point.value));
+const chartData = computed(() => ({
+  labels: Array.isArray(props.labels) ? props.labels : [],
+  datasets: normalizedDatasets.value,
+}));
 
-const fgLineValues = computed(() => {
-  const target = Number(props.targetFg);
-  if (!Number.isFinite(target)) return [];
-  return normalized.value.map(() => target);
-});
-
-const chartData = computed(() => {
-  const datasets = [
-    {
-      label: "Gravity",
-      data: values.value,
-      borderColor: "rgb(16, 185, 129)",
-      backgroundColor: "rgba(16, 185, 129, 0.15)",
-      tension: 0.25,
-      fill: true,
-      pointRadius: 3,
-      pointHoverRadius: 4,
-    },
-  ];
-
-  if (fgLineValues.value.length) {
-    datasets.push({
-      label: "FG Target",
-      data: fgLineValues.value,
-      borderColor: "rgb(245, 158, 11)",
-      borderDash: [6, 6],
-      tension: 0,
-      fill: false,
-      pointRadius: 0,
-    });
-  }
-
+const visibleAxes = computed(() => {
+  const active = new Set(normalizedDatasets.value.map((dataset) => dataset.yAxisID));
   return {
-    labels: labels.value,
-    datasets,
+    gravity: active.has("yGravity"),
+    temperature: active.has("yTemperature"),
+    ph: active.has("yPh"),
   };
 });
 
 const chartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
+  interaction: {
+    mode: "index",
+    intersect: false,
+  },
   plugins: {
     legend: {
       display: true,
@@ -142,12 +125,34 @@ const chartOptions = computed(() => ({
         color: "rgba(148, 163, 184, 0.2)",
       },
     },
-    y: {
+    yGravity: {
+      display: visibleAxes.value.gravity,
+      position: "left",
       ticks: {
         color: "#9ca3af",
       },
       grid: {
         color: "rgba(148, 163, 184, 0.2)",
+      },
+    },
+    yTemperature: {
+      display: visibleAxes.value.temperature,
+      position: "right",
+      ticks: {
+        color: "#9ca3af",
+      },
+      grid: {
+        drawOnChartArea: false,
+      },
+    },
+    yPh: {
+      display: visibleAxes.value.ph,
+      position: "right",
+      ticks: {
+        color: "#9ca3af",
+      },
+      grid: {
+        drawOnChartArea: false,
       },
     },
   },

@@ -27,6 +27,30 @@ function gravityToNum(value?: string) {
   return Number.isFinite(n) ? n : undefined;
 }
 
+function computeCostSummary(defaults: any = {}, ingredients: any[] = []) {
+  const totalIngredientCost = (Array.isArray(ingredients) ? ingredients : []).reduce(
+    (sum, ingredient) => {
+      const price = toNumberOrUndefined(ingredient?.price);
+      if (price === undefined || price < 0) return sum;
+      return sum + price;
+    },
+    0,
+  );
+
+  const batchSizeLiters = toNumberOrUndefined(defaults?.batchSizeLiters);
+  const literPrice =
+    batchSizeLiters !== undefined && batchSizeLiters > 0
+      ? totalIngredientCost / batchSizeLiters
+      : undefined;
+
+  return {
+    totalIngredientCost: Number(totalIngredientCost.toFixed(2)),
+    batchSizeLiters,
+    literPrice:
+      literPrice !== undefined ? Number(Math.max(0, literPrice).toFixed(2)) : undefined,
+  };
+}
+
 function computeAbvRange(defaults: any = {}) {
   const ogFrom = gravityToNum(defaults.ogFrom);
   const ogTo = gravityToNum(defaults.ogTo);
@@ -56,6 +80,7 @@ function attachComputedFields(recipe: any) {
   return {
     ...data,
     abvRange: computeAbvRange(data.defaults),
+    costSummary: computeCostSummary(data.defaults, data.ingredients),
   };
 }
 
@@ -102,6 +127,7 @@ function normalizeRecipePayload(payload: any = {}) {
             category: normalizedCategory,
             amount: ing?.amount ? String(ing.amount).trim() : undefined,
             unit: ing?.unit ? String(ing.unit).trim() : undefined,
+            price: toNumberOrUndefined(ing?.price),
             notes: ing?.notes ? String(ing.notes).trim() : undefined,
             stepIds: rawStepIds.filter((stepId: string) => allowedStepIds.has(stepId)),
           };
@@ -124,6 +150,7 @@ function normalizeRecipePayload(payload: any = {}) {
       fgTo: toGravityOrUndefined(payload?.defaults?.fgTo),
       co2Volumes: toNumberOrUndefined(payload?.defaults?.co2Volumes),
       ibu: toNumberOrUndefined(payload?.defaults?.ibu),
+      batchSizeLiters: toNumberOrUndefined(payload?.defaults?.batchSizeLiters),
     },
     steps,
     ingredients,
@@ -295,6 +322,7 @@ recipesRouter.get("/", async (req: any, res) => {
           { "defaults.fgTo": { $ne: null } },
           { "defaults.co2Volumes": { $ne: null } },
           { "defaults.ibu": { $ne: null } },
+          { "defaults.batchSizeLiters": { $ne: null } },
         ],
       });
     } else if (hasDefaults === "false") {
@@ -306,6 +334,7 @@ recipesRouter.get("/", async (req: any, res) => {
           { "defaults.fgTo": null },
           { "defaults.co2Volumes": null },
           { "defaults.ibu": null },
+          { "defaults.batchSizeLiters": null },
         ],
       });
     }

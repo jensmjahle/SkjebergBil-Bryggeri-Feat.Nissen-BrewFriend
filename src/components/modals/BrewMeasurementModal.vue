@@ -24,11 +24,49 @@
           :label="t('brews.measurements.temperature')"
         />
         <BaseInput
+          v-model.number="form.og"
+          :model-modifiers="{ number: true }"
+          type="number"
+          step="0.001"
+          :label="t('brews.measurements.og')"
+          placeholder="1.056"
+        />
+        <BaseInput
+          v-model.number="form.fg"
+          :model-modifiers="{ number: true }"
+          type="number"
+          step="0.001"
+          :label="t('brews.measurements.fg')"
+          placeholder="1.012"
+        />
+        <BaseInput
+          v-model.number="form.sg"
+          :model-modifiers="{ number: true }"
+          type="number"
+          step="0.001"
+          :label="t('brews.measurements.sg')"
+          placeholder="1.020"
+        />
+        <BaseInput
           v-model.number="form.ph"
           :model-modifiers="{ number: true }"
           type="number"
           step="0.01"
           :label="t('brews.measurements.ph')"
+        />
+        <BaseInput
+          v-model.number="form.co2Volumes"
+          :model-modifiers="{ number: true }"
+          type="number"
+          step="0.1"
+          :label="t('brews.measurements.co2_volumes')"
+        />
+        <BaseInput
+          v-model.number="form.ibu"
+          :model-modifiers="{ number: true }"
+          type="number"
+          step="0.1"
+          :label="t('brews.measurements.ibu')"
         />
         <BaseInput v-model="form.note" :label="t('recipes.fields.notes')" />
       </div>
@@ -69,14 +107,24 @@ const { t } = useI18n();
 const form = reactive({
   gravity: null,
   temperatureC: null,
+  og: null,
+  fg: null,
+  sg: null,
   ph: null,
+  co2Volumes: null,
+  ibu: null,
   note: "",
 });
 
 function resetForm() {
   form.gravity = null;
   form.temperatureC = null;
+  form.og = null;
+  form.fg = null;
+  form.sg = null;
   form.ph = null;
+  form.co2Volumes = null;
+  form.ibu = null;
   form.note = "";
 }
 
@@ -84,7 +132,12 @@ function submit() {
   emit("submit", {
     gravity: form.gravity,
     temperatureC: form.temperatureC,
+    og: form.og,
+    fg: form.fg,
+    sg: form.sg,
     ph: form.ph,
+    co2Volumes: form.co2Volumes,
+    ibu: form.ibu,
     note: form.note || undefined,
   });
 }

@@ -38,6 +38,13 @@
             <BaseInput v-model="form.defaults.fgTo" :label="t('recipes.fields.fg_to')" placeholder="1.014" />
             <BaseInput v-model.number="form.defaults.co2Volumes" :model-modifiers="{ number: true }" type="number" step="0.1" :label="t('recipes.metrics.co2')" />
             <BaseInput v-model.number="form.defaults.ibu" :model-modifiers="{ number: true }" type="number" step="1" :label="t('recipes.metrics.ibu')" />
+            <BaseInput
+              v-model.number="form.defaults.batchSizeLiters"
+              :model-modifiers="{ number: true }"
+              type="number"
+              step="0.1"
+              :label="t('recipes.fields.batch_size_liters')"
+            />
           </div>
           <p class="text-sm opacity-80">{{ t("recipes.metrics.abv_estimated") }}: {{ abvText }}</p>
         </div>
@@ -79,6 +86,13 @@
               <BaseDropdown v-model="ingredient.category" :label="t('recipes.fields.category')" :options="ingredientCategoryOptions" :placeholder="t('recipes.create.select_category')" />
               <BaseInput v-model="ingredient.amount" :label="t('recipes.fields.amount')" />
               <BaseInput v-model="ingredient.unit" :label="t('recipes.fields.unit')" />
+              <BaseInput
+                v-model.number="ingredient.price"
+                :model-modifiers="{ number: true }"
+                type="number"
+                step="0.01"
+                :label="t('recipes.fields.price')"
+              />
             </div>
             <BaseInput v-model="ingredient.notes" :label="t('recipes.fields.notes')" />
 
@@ -97,6 +111,18 @@
               <BaseButton type="button" variant="button4" @click="removeIngredient(idx)">{{ t("recipes.actions.remove_ingredient") }}</BaseButton>
             </div>
           </BaseCard>
+
+          <div v-if="form.ingredients.length" class="rounded-lg border border-border3 p-4">
+            <h4>{{ t("recipes.detail.cost_summary") }}</h4>
+            <p class="mt-2 text-sm opacity-90">
+              {{ t("recipes.detail.total_ingredients_cost") }}:
+              <strong>{{ formatCurrency(ingredientTotalCost) }}</strong>
+            </p>
+            <p class="mt-1 text-sm opacity-90">
+              {{ t("recipes.detail.liter_price") }}:
+              <strong>{{ ingredientLiterPrice !== null ? formatCurrency(ingredientLiterPrice) : "-" }}</strong>
+            </p>
+          </div>
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
@@ -124,7 +150,7 @@ import { getRecipe, updateRecipe, uploadRecipeImage } from "@/services/recipes.s
 import { STEP_COMPONENTS, STEP_TYPE_OPTIONS, createDefaultStep } from "@/components/recipe-steps/index.js";
 
 const route = useRoute();
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const gravityPattern = /^1\.\d{3}$/;
 
 const loading = ref(true);
@@ -170,7 +196,7 @@ const form = reactive({
   flavorProfile: "",
   color: "",
   imageUrl: "",
-  defaults: { ogFrom: "", ogTo: "", fgFrom: "", fgTo: "", co2Volumes: null, ibu: null },
+  defaults: { ogFrom: "", ogTo: "", fgFrom: "", fgTo: "", co2Volumes: null, ibu: null, batchSizeLiters: null },
   steps: [],
   ingredients: [],
 });
@@ -206,6 +232,20 @@ const abvText = computed(() => {
   return `${min.toFixed(2)}% - ${max.toFixed(2)}% ABV`;
 });
 
+const ingredientTotalCost = computed(() =>
+  form.ingredients.reduce((sum, ingredient) => {
+    const price = Number(ingredient?.price);
+    if (!Number.isFinite(price) || price < 0) return sum;
+    return sum + price;
+  }, 0),
+);
+
+const ingredientLiterPrice = computed(() => {
+  const liters = Number(form.defaults.batchSizeLiters);
+  if (!Number.isFinite(liters) || liters <= 0) return null;
+  return ingredientTotalCost.value / liters;
+});
+
 const isGravityValid = computed(() => {
   const fields = [form.defaults.ogFrom, form.defaults.ogTo, form.defaults.fgFrom, form.defaults.fgTo];
   const allEmpty = fields.every((v) => !v);
@@ -215,6 +255,18 @@ const isGravityValid = computed(() => {
 
 function stepTypeLabel(value) {
   return t(`recipes.step_types.${value || "custom"}`);
+}
+
+function formatCurrency(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "-";
+  const localeCode = locale.value === "no" ? "nb-NO" : "en-US";
+  return new Intl.NumberFormat(localeCode, {
+    style: "currency",
+    currency: "NOK",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
 }
 function resolveStepComponent(stepType) { return STEP_COMPONENTS[stepType] || STEP_COMPONENTS.custom; }
 function addStepByType() { form.steps.push(createDefaultStep(selectedStepType.value || "custom")); }
@@ -237,7 +289,7 @@ function moveStep(index, direction) {
 }
 
 function addIngredient() {
-  form.ingredients.push({ ingredientId: newIngredientId(), name: "", category: selectedIngredientCategory.value || "other", amount: "", unit: "", notes: "", stepIds: [] });
+  form.ingredients.push({ ingredientId: newIngredientId(), name: "", category: selectedIngredientCategory.value || "other", amount: "", unit: "", price: null, notes: "", stepIds: [] });
 }
 function removeIngredient(index) { form.ingredients.splice(index, 1); }
 function toggleIngredientStep(ingredient, stepId) {
@@ -263,6 +315,7 @@ function hydrateForm(recipe) {
     fgTo: recipe?.defaults?.fgTo || "",
     co2Volumes: recipe?.defaults?.co2Volumes ?? null,
     ibu: recipe?.defaults?.ibu ?? null,
+    batchSizeLiters: recipe?.defaults?.batchSizeLiters ?? null,
   };
   form.steps = Array.isArray(recipe?.steps)
     ? recipe.steps.map((s) => ({
@@ -283,6 +336,7 @@ function hydrateForm(recipe) {
         category: ing.category || "other",
         amount: ing.amount || "",
         unit: ing.unit || "",
+        price: ing.price ?? null,
         notes: ing.notes || "",
         stepIds: Array.isArray(ing.stepIds) ? ing.stepIds : [],
       }))
@@ -338,6 +392,7 @@ async function handleSubmit() {
         fgTo: form.defaults.fgTo?.trim() || undefined,
         co2Volumes: sanitizeNumber(form.defaults.co2Volumes),
         ibu: sanitizeNumber(form.defaults.ibu),
+        batchSizeLiters: sanitizeNumber(form.defaults.batchSizeLiters),
       },
       steps: form.steps
         .map((s, idx) => ({
@@ -359,6 +414,7 @@ async function handleSubmit() {
           category: ing.category || "other",
           amount: ing.amount?.trim() || undefined,
           unit: ing.unit?.trim() || undefined,
+          price: sanitizeNumber(ing.price),
           notes: ing.notes?.trim() || undefined,
           stepIds: (ing.stepIds || []).filter((id) => form.steps.some((s) => s.stepId === id)),
         }))

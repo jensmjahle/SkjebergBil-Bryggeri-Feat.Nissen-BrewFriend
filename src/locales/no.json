@@ -11,13 +11,20 @@
     "close": "Lukk"
   },
   "home": {
-    "live_exchanges_headline": "Live events",
-    "live_exchanges_subtitle": "Se aktive eventer i sanntid.",
-    "no_live_events": "Ingen live events akkurat nå.",
-    "untitled_event": "Uten tittel",
-    "live_badge": "live",
-    "enter": "Gå inn",
-    "failed_to_load_events": "Kunne ikke laste eventer"
+    "title": "Bryggekompis",
+    "subtitle": "Hold styr på oppskrifter, planlagte brygg og bryggedag på ett sted.",
+    "main_action_title": "Hovedhandling",
+    "continue_brew_cta": "Fortsett brygg: {name}",
+    "start_brew_cta": "Start nytt brygg",
+    "current_status": "Nåværende status",
+    "quick_actions": "Hurtigvalg",
+    "overview_title": "Oversikt",
+    "stats": {
+      "recipes": "Oppskrifter",
+      "brews": "Brygg",
+      "active": "Aktive",
+      "planned": "Planlagte"
+    }
   },
   "recipes": {
     "common": {
@@ -64,8 +71,10 @@
       "category": "Kategori",
       "amount": "Mengde",
       "unit": "Enhet",
+      "price": "Pris",
       "notes": "Notater",
-      "link_to_steps": "Knytt til steg"
+      "link_to_steps": "Knytt til steg",
+      "batch_size_liters": "Batchstørrelse (L)"
     },
     "metrics": {
       "og": "OG",
@@ -160,7 +169,10 @@
       "time": "Tid",
       "minutes": "min",
       "ingredients_in_step": "Ingredienser i dette steget",
-      "used_in_steps": "Brukes i"
+      "used_in_steps": "Brukes i",
+      "cost_summary": "Kostnadsoversikt",
+      "total_ingredients_cost": "Total ingredienskostnad",
+      "liter_price": "Pris per liter"
     }
   },
   "brews": {
@@ -194,6 +206,11 @@
       "step_used_time": "Brukt tid",
       "target_og": "Mål OG",
       "target_fg": "Mål FG",
+      "target_gravity": "Mål Gravity",
+      "target_sg": "Mål SG",
+      "target_ph": "Mål pH",
+      "target_co2": "Mål CO2",
+      "target_ibu": "Mål IBU",
       "actual_og": "Faktisk OG",
       "actual_fg": "Faktisk FG",
       "actual_abv": "Faktisk ABV"
@@ -222,6 +239,7 @@
       "complete_step": "Fullfør steg",
       "reset_step": "Nullstill steg",
       "add_measurement": "Legg til måling",
+      "save_step_note": "Lagre stegnotat",
       "save_actual_metrics": "Lagre faktisk OG/FG"
     },
     "list": {
@@ -245,6 +263,7 @@
     "current": {
       "progress_tab": "Fremdrift",
       "recipe_tab": "Oppskrift",
+      "measurements_tab": "Målinger",
       "menu": "Meny",
       "more_actions": "Flere handlinger",
       "step_label": "Steg {current} av {total}",
@@ -256,6 +275,15 @@
       "no_measurements": "Ingen målinger registrert enda.",
       "latest_measurements": "Siste målinger",
       "actual_metrics_title": "Faktiske måleverdier",
+      "measurement_graph": "Målingsgraf",
+      "series_gravity": "Gravity",
+      "series_expected_gravity": "Forventet gravity",
+      "series_temperature": "Temperatur",
+      "series_expected_temperature": "Forventet temperatur",
+      "series_ph": "pH",
+      "step_note_label": "Stegnotat",
+      "step_note_placeholder": "Legg til notater for dette steget...",
+      "step_note_saved": "Stegnotat lagret.",
       "measurement_added": "Måling lagt til.",
       "step_started": "Steg startet.",
       "step_paused": "Steg pauset.",
@@ -268,7 +296,12 @@
     "measurements": {
       "gravity": "Gravity",
       "temperature": "Temperatur",
-      "ph": "pH"
+      "ph": "pH",
+      "og": "OG",
+      "fg": "FG",
+      "sg": "SG",
+      "co2_volumes": "CO2 volumer",
+      "ibu": "IBU"
     },
     "errors": {
       "fetch_failed": "Kunne ikke hente brygg",

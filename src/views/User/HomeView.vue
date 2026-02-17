@@ -1,105 +1,156 @@
-﻿<template>
-  <section class="mx-auto max-w-6xl px-4 py-8 space-y-6">
-    <header class="text-center space-y-2">
-      <h1 class="text-3xl font-extrabold">
-        {{ t("home.live_exchanges_headline") }}
-      </h1>
-      <p class="opacity-70">{{ t("home.live_exchanges_subtitle") }}</p>
-    </header>
-
-    <div v-if="loading" class="rounded-xl border border-dashed p-6 text-center">
-      {{ t("common.loading") }}
-    </div>
-    <div
-      v-else-if="error"
-      class="rounded-xl border border-danger-border bg-danger p-6 text-text1 text-center"
-    >
-      {{ error }}
-    </div>
-
-    <div v-else>
-      <div
-        v-if="!liveEvents.length"
-        class="rounded-xl border p-8 text-center opacity-70"
-      >
-        {{ t("home.no_live_events") }}
-      </div>
-
-      <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <article
-          v-for="e in liveEvents"
-          :key="e.id"
-          class="rounded-xl border border-border2 bg-bg2 overflow-hidden flex flex-col"
-        >
+<template>
+  <section class="mx-auto w-full max-w-6xl px-4 py-8 space-y-6">
+    <BaseCard class="overflow-hidden">
+      <div class="grid gap-6 md:grid-cols-[220px_1fr] md:items-center">
+        <div class="flex justify-center md:justify-start">
           <img
-            v-if="e.image_url"
-            :src="assetUrl(e.image_url)"
-            alt=""
-            class="h-36 w-full object-cover border-b border-[var(--color-border3)]"
+            src="/assets/logo.png"
+            alt="GuttaBrew logo"
+            class="h-32 w-auto object-contain md:h-36"
           />
-          <div class="p-4 flex-1 flex flex-col gap-2">
-            <h3 class="font-bold text-lg line-clamp-1">
-              {{ e.name || t("home.untitled_event") }}
-            </h3>
-            <div class="text-sm opacity-70">
-              <span
-                class="rounded-full bg-green-100 text-green-700 px-2 py-0.5 text-xs"
-                >{{ t("home.live_badge") }}</span
-              >
-              <span v-if="e.starts_at" class="ml-2">{{
-                fmt(e.starts_at)
-              }}</span>
-            </div>
-
-            <router-link
-              :to="{ name: 'event', params: { eventId: e.id } }"
-              class="mt-auto inline-flex items-center justify-center rounded-lg border border-[var(--color-border3)] px-3 py-1.5 text-sm hover:bg-[var(--color-bg4)]"
-            >
-              {{ t("home.enter") }}
-            </router-link>
-          </div>
-        </article>
+        </div>
+        <div class="space-y-3">
+          <h1 class="text-3xl font-extrabold sm:text-4xl">{{ t("home.title") }}</h1>
+          <p class="text-sm opacity-80 sm:text-base">{{ t("home.subtitle") }}</p>
+        </div>
       </div>
-    </div>
+    </BaseCard>
+
+    <BaseCard v-if="loading">
+      <p>{{ t("common.loading") }}</p>
+    </BaseCard>
+
+    <BaseCard v-else-if="error">
+      <p class="text-red-600">{{ error }}</p>
+    </BaseCard>
+
+    <template v-else>
+      <BaseCard class="space-y-3">
+        <h3>{{ t("home.main_action_title") }}</h3>
+        <router-link v-if="featuredBrew" :to="featuredBrewRoute" class="block">
+          <BaseButton class="w-full py-4 text-lg sm:text-xl" variant="button1">
+            {{ t("home.continue_brew_cta", { name: featuredBrew.name }) }}
+          </BaseButton>
+        </router-link>
+        <router-link v-else to="/brygg/nytt" class="block">
+          <BaseButton class="w-full py-4 text-lg sm:text-xl" variant="button1">
+            {{ t("home.start_brew_cta") }}
+          </BaseButton>
+        </router-link>
+        <p v-if="featuredBrew" class="text-sm opacity-80">
+          {{ t("home.current_status") }}: {{ statusLabel(featuredBrew.status) }}
+        </p>
+      </BaseCard>
+
+      <BaseCard>
+        <h3>{{ t("home.quick_actions") }}</h3>
+        <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <router-link v-for="action in quickActions" :key="action.to" :to="action.to">
+            <BaseButton class="w-full" :variant="action.variant">{{ action.label }}</BaseButton>
+          </router-link>
+        </div>
+      </BaseCard>
+
+      <BaseCard>
+        <h3>{{ t("home.overview_title") }}</h3>
+        <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div class="rounded-lg border border-border3 p-3">
+            <p class="text-xs uppercase tracking-wide opacity-70">{{ t("home.stats.recipes") }}</p>
+            <p class="mt-1 text-2xl font-bold">{{ recipeCount }}</p>
+          </div>
+          <div class="rounded-lg border border-border3 p-3">
+            <p class="text-xs uppercase tracking-wide opacity-70">{{ t("home.stats.brews") }}</p>
+            <p class="mt-1 text-2xl font-bold">{{ brewCount }}</p>
+          </div>
+          <div class="rounded-lg border border-border3 p-3">
+            <p class="text-xs uppercase tracking-wide opacity-70">{{ t("home.stats.active") }}</p>
+            <p class="mt-1 text-2xl font-bold">{{ activeCount }}</p>
+          </div>
+          <div class="rounded-lg border border-border3 p-3">
+            <p class="text-xs uppercase tracking-wide opacity-70">{{ t("home.stats.planned") }}</p>
+            <p class="mt-1 text-2xl font-bold">{{ plannedCount }}</p>
+          </div>
+        </div>
+      </BaseCard>
+    </template>
   </section>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { listEvents } from "@/services/events.service.js";
+import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { useAssetUrl } from "@/composables/useAssetUrl.js";
+import BaseCard from "@/components/base/BaseCard.vue";
+import BaseButton from "@/components/base/BaseButton.vue";
+import { getCurrentBrew, listBrews } from "@/services/brews.service.js";
+import { listRecipes } from "@/services/recipes.service.js";
+
+const { t } = useI18n();
 
 const loading = ref(true);
-const error = ref(null);
-const events = ref([]);
-const { t } = useI18n();
-const { assetUrl } = useAssetUrl();
+const error = ref("");
+const currentBrew = ref(null);
+const brews = ref([]);
+const recipeCount = ref(0);
 
-function fmt(d) {
-  try {
-    return new Date(d).toLocaleString([], {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
-  } catch {
-    return "";
+const brewCount = computed(() => brews.value.length);
+const activeCount = computed(
+  () =>
+    brews.value.filter(
+      (brew) => brew?.status === "active" || brew?.status === "conditioning",
+    ).length,
+);
+const plannedCount = computed(
+  () => brews.value.filter((brew) => brew?.status === "planned").length,
+);
+
+const featuredBrew = computed(() => {
+  if (!currentBrew.value) return null;
+  const status = currentBrew.value.status;
+  if (status === "planned" || status === "active" || status === "conditioning") {
+    return currentBrew.value;
   }
+  return null;
+});
+
+const featuredBrewRoute = computed(() => {
+  if (!featuredBrew.value?._id) return "/brygg/nytt";
+  if (featuredBrew.value.status === "planned") {
+    return `/brygg/${featuredBrew.value._id}/planlegging`;
+  }
+  return `/brygg/${featuredBrew.value._id}`;
+});
+
+const quickActions = computed(() => [
+  { to: "/brygg/nytt", label: t("navbar.user.items.new_brew"), variant: "button1" },
+  { to: "/brygg/tidligere", label: t("navbar.user.items.previous_brews"), variant: "button3" },
+  { to: "/oppskrifter", label: t("navbar.user.items.recipes"), variant: "button2" },
+  { to: "/oppskrifter/ny", label: t("navbar.user.items.new_recipe"), variant: "button3" },
+  { to: "/verktoy/alkoholmaler", label: t("navbar.user.items.alcohol_calc"), variant: "button3" },
+  { to: "/verktoy/co2-volumer", label: t("navbar.user.items.co2_volumes"), variant: "button3" },
+]);
+
+function statusLabel(status) {
+  return t(`brews.status.${status || "planned"}`);
 }
 
-async function load() {
+async function loadHomeData() {
   loading.value = true;
-  error.value = null;
+  error.value = "";
   try {
-    events.value = await listEvents();
-  } catch (e) {
-    error.value = e?.message || t("home.failed_to_load_events");
+    const [current, allBrews, recipes] = await Promise.all([
+      getCurrentBrew(),
+      listBrews(),
+      listRecipes(),
+    ]);
+    currentBrew.value = current;
+    brews.value = Array.isArray(allBrews) ? allBrews : [];
+    recipeCount.value = Array.isArray(recipes) ? recipes.length : 0;
+  } catch (err) {
+    error.value = err?.response?.data?.error || err?.message || t("brews.errors.fetch_failed");
   } finally {
     loading.value = false;
   }
 }
 
-const liveEvents = computed(() => events.value.filter((e) => e.status === "live"));
-
-onMounted(load);
+onMounted(loadHomeData);
 </script>

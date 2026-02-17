@@ -1,15 +1,42 @@
 version: "3.9"
 
 services:
+  mongo:
+    image: mongo:7
+    container_name: guttabrew-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${DOCKER_MONGO_ROOT_USERNAME:-brewfriend}
+      MONGO_INITDB_ROOT_PASSWORD: ${DOCKER_MONGO_ROOT_PASSWORD:-brewfriend}
+      MONGO_INITDB_DATABASE: ${DOCKER_MONGO_DATABASE:-brewfriend}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
 
   backend:
-    image: beer-friend-backend
-    container_name: beer-friend-backend
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    container_name: guttabrew-backend
     restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
     ports:
       - "3000:3000"
-    env_file:
-      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGODB_URI: ${DOCKER_MONGODB_URI:-mongodb://brewfriend:brewfriend@mongo:27017/brewfriend?authSource=admin}
+      MONGODB_DB: ${DOCKER_MONGODB_DB:-brewfriend}
+      JWT_SECRET: ${DOCKER_JWT_SECRET:-change-me-in-prod}
     volumes:
       - beer_uploads:/app/uploads
 
@@ -17,15 +44,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: beer-friend-frontend
-    environment:
-      - VITE_API_URL
-      - NODE_ENV=production
-    ports:
-      - "8080:8080"
+    container_name: guttabrew-frontend
+    restart: unless-stopped
     depends_on:
       - backend
-    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      NODE_ENV: production
+      VITE_API_URL: ${DOCKER_VITE_API_URL:-http://localhost:3000}
 
 volumes:
   beer_uploads:
+  mongo_data:

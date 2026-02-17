@@ -86,6 +86,15 @@ export async function resetBrewStep(brewId, stepId) {
   return data;
 }
 
+export async function saveBrewStepNote(brewId, stepId, note) {
+  const { data } = await api.post(
+    `${BASE}/${encodeURIComponent(brewId)}/steps/${encodeURIComponent(stepId)}/note`,
+    { note },
+    { headers: { "Content-Type": "application/json" } },
+  );
+  return data;
+}
+
 export async function addBrewMeasurement(brewId, payload) {
   const { data } = await api.post(
     `${BASE}/${encodeURIComponent(brewId)}/measurements`,

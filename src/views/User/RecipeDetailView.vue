@@ -47,7 +47,22 @@
           <div>{{ t("recipes.metrics.fg") }}: {{ recipe.defaults?.fgFrom || '-' }} - {{ recipe.defaults?.fgTo || '-' }}</div>
           <div>{{ t("recipes.metrics.co2") }}: {{ formatMetric(recipe.defaults?.co2Volumes) }}</div>
           <div>{{ t("recipes.metrics.ibu") }}: {{ formatMetric(recipe.defaults?.ibu) }}</div>
+          <div>{{ t("recipes.fields.batch_size_liters") }}: {{ formatMetric(recipe.defaults?.batchSizeLiters) }}</div>
           <div>{{ t("recipes.metrics.abv") }}: {{ abvText }}</div>
+        </div>
+      </BaseCard>
+
+      <BaseCard>
+        <h3>{{ t("recipes.detail.cost_summary") }}</h3>
+        <div class="mt-3 grid gap-2 sm:grid-cols-2 text-sm">
+          <p>
+            {{ t("recipes.detail.total_ingredients_cost") }}:
+            <strong>{{ formatCurrency(totalIngredientCost) }}</strong>
+          </p>
+          <p>
+            {{ t("recipes.detail.liter_price") }}:
+            <strong>{{ literPrice !== null ? formatCurrency(literPrice) : "-" }}</strong>
+          </p>
         </div>
       </BaseCard>
 
@@ -61,6 +76,9 @@
               <span class="rounded-full bg-bg4 px-2 py-1 text-xs">{{ ingredientCategoryLabel(ing.category) }}</span>
             </div>
             <p class="mt-1 text-sm opacity-90">{{ [ing.amount, ing.unit].filter(Boolean).join(' ') || '-' }}</p>
+            <p class="mt-1 text-sm opacity-85">
+              {{ t("recipes.fields.price") }}: {{ ing.price !== null && ing.price !== undefined ? formatCurrency(ing.price) : "-" }}
+            </p>
             <p v-if="ing.notes" class="mt-1 text-sm opacity-80">{{ ing.notes }}</p>
             <div v-if="ingredientStepTags(ing).length" class="mt-2 space-y-1">
               <p class="text-xs font-semibold uppercase opacity-70">{{ t("recipes.detail.used_in_steps") }}</p>
@@ -122,7 +140,7 @@ import { getRecipe } from "@/services/recipes.service.js";
 import { STEP_TYPE_OPTIONS } from "@/components/recipe-steps/index.js";
 
 const route = useRoute();
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const loading = ref(true);
 const error = ref("");
 const recipe = ref(null);
@@ -147,6 +165,24 @@ const abvText = computed(() => {
   const min = Math.max(0, (ogFrom - fgTo) * 131.25);
   const max = Math.max(0, (ogTo - fgFrom) * 131.25);
   return `${min.toFixed(2)}% - ${max.toFixed(2)}%`;
+});
+
+const totalIngredientCost = computed(() => {
+  const backendTotal = Number(recipe.value?.costSummary?.totalIngredientCost);
+  if (Number.isFinite(backendTotal)) return backendTotal;
+  return (recipe.value?.ingredients || []).reduce((sum, ingredient) => {
+    const price = Number(ingredient?.price);
+    if (!Number.isFinite(price) || price < 0) return sum;
+    return sum + price;
+  }, 0);
+});
+
+const literPrice = computed(() => {
+  const backendLiterPrice = Number(recipe.value?.costSummary?.literPrice);
+  if (Number.isFinite(backendLiterPrice)) return backendLiterPrice;
+  const liters = Number(recipe.value?.defaults?.batchSizeLiters);
+  if (!Number.isFinite(liters) || liters <= 0) return null;
+  return totalIngredientCost.value / liters;
 });
 
 function ingredientCategoryLabel(category) {
@@ -193,6 +229,18 @@ function stepDurationLabel(step) {
 
 function formatMetric(value) {
   return value === null || value === undefined || value === "" ? "-" : value;
+}
+
+function formatCurrency(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "-";
+  const localeCode = locale.value === "no" ? "nb-NO" : "en-US";
+  return new Intl.NumberFormat(localeCode, {
+    style: "currency",
+    currency: "NOK",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
 }
 
 async function loadRecipe() {
