@@ -1,41 +1,19 @@
 version: "3.9"
 
 services:
-  mongo:
-    image: mongo:7
-    container_name: beer-friend-mongo
-    restart: unless-stopped
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${DOCKER_MONGO_ROOT_USERNAME:-brewfriend}
-      MONGO_INITDB_ROOT_PASSWORD: ${DOCKER_MONGO_ROOT_PASSWORD:-brewfriend}
-      MONGO_INITDB_DATABASE: ${DOCKER_MONGO_DATABASE:-brewfriend}
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 6
-      start_period: 15s
-
   backend:
     build:
       context: .
       dockerfile: Dockerfile.server
     container_name: beer-friend-backend
     restart: unless-stopped
-    depends_on:
-      mongo:
-        condition: service_healthy
     ports:
-      - "${DOCKER_BACKEND_PORT:-3000}:3000"
+      - "3000:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
-      MONGODB_URI: ${DOCKER_MONGODB_URI:-mongodb://brewfriend:brewfriend@mongo:27017/brewfriend?authSource=admin}
-      MONGODB_DB: ${DOCKER_MONGODB_DB:-brewfriend}
+      MONGODB_URI: ${MONGODB_URI}
+      MONGODB_DB: ${MONGODB_DB:-brewfriend}
       JWT_SECRET: ${DOCKER_JWT_SECRET:-change-me-in-prod}
     volumes:
       - beer_uploads:/app/uploads
@@ -56,4 +34,3 @@ services:
 
 volumes:
   beer_uploads:
-  mongo_data:
