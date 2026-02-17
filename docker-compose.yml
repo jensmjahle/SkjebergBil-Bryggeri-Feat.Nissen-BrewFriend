@@ -3,7 +3,7 @@ version: "3.9"
 services:
   mongo:
     image: mongo:7
-    container_name: guttabrew-mongo
+    container_name: beer-friend-mongo
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${DOCKER_MONGO_ROOT_USERNAME:-brewfriend}
@@ -24,7 +24,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.server
-    container_name: guttabrew-backend
+    container_name: beer-friend-backend
     restart: unless-stopped
     depends_on:
       mongo:
@@ -44,7 +44,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: guttabrew-frontend
+    container_name: beer-friend-frontend
     restart: unless-stopped
     depends_on:
       - backend
