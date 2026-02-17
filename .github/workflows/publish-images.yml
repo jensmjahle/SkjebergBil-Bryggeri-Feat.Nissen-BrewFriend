@@ -2,7 +2,7 @@ name: Publish Docker images (GHCR)
 
 on:
   push:
-    branches: ["main"]
+    branches: ["master"]
   workflow_dispatch:
 
 jobs:
