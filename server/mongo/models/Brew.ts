@@ -138,6 +138,10 @@ const brewSchema = new mongoose.Schema(
       ibu: { type: Number },
       ph: { type: Number },
     },
+    actualMetrics: {
+      og: { type: Number },
+      fg: { type: Number },
+    },
     recipeSnapshot: { type: recipeSnapshotSchema, default: {} },
     progress: {
       currentStepIndex: { type: Number, default: 0, min: 0 },

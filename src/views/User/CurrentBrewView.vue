@@ -9,44 +9,109 @@
     </BaseCard>
 
     <template v-else-if="brew">
-      <BaseCard class="space-y-4">
-        <div class="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1>{{ brew.name }}</h1>
+      <div class="space-y-3">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0 flex-1">
+            <h1 class="truncate">{{ brew.name }}</h1>
             <p class="mt-1 text-sm opacity-80">{{ statusLabel(brew.status) }}</p>
             <p v-if="brew.progress?.brewStartedAt" class="mt-1 text-xs opacity-70">
               {{ t("brews.fields.brew_started_at") }}: {{ formatDateTime(brew.progress.brewStartedAt) }}
             </p>
+            <p v-if="brew.progress?.brewStartedAt" class="mt-1 text-xs opacity-70">
+              {{ t("brews.fields.brew_day_elapsed") }}: {{ formatStopwatch(brewDayElapsedSeconds) }}
+            </p>
+            <p class="mt-1 text-xs opacity-70">
+              {{ t("brews.fields.total_step_time") }}: {{ formatStopwatch(totalStepElapsedSeconds) }}
+            </p>
           </div>
-          <div class="flex flex-wrap gap-2">
-            <router-link to="/brygg/tidligere">
-              <BaseButton variant="button3">{{ t("brews.actions.back_to_list") }}</BaseButton>
-            </router-link>
-            <router-link :to="`/brygg/${brew._id}/planlegging`">
-              <BaseButton variant="button3">{{ t("brews.actions.open_plan") }}</BaseButton>
-            </router-link>
-            <BaseButton
-              v-if="brew.status === 'planned'"
-              variant="button2"
-              @click="startBrewDayAction"
-            >
-              {{ t("brews.actions.start_brew_day") }}
-            </BaseButton>
+
+          <div class="flex items-center gap-2">
+            <BaseToggle
+              class="hidden sm:flex"
+              :model-value="activePanel"
+              :options="panelToggleOptions"
+              @update:model-value="setActivePanel"
+            />
+
+            <div ref="headerMenuRoot" class="relative">
+              <BaseButton
+                variant="button3"
+                :icon="EllipsisVertical"
+                icon-position="left"
+                :aria-label="t('brews.current.more_actions')"
+                @click.stop="toggleHeaderMenu"
+              >
+                <span class="hidden lg:inline">{{ t("brews.current.menu") }}</span>
+              </BaseButton>
+              <div
+                v-if="headerMenuOpen"
+                class="absolute right-0 top-full z-30 mt-1 min-w-[10.5rem] rounded-lg border border-border3 bg-bg2 p-1 shadow-lg"
+              >
+                <button
+                  type="button"
+                  class="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-bg4"
+                  @click="editBrewAction"
+                >
+                  {{ t("brews.actions.edit") }}
+                </button>
+                <button
+                  type="button"
+                  class="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-bg4"
+                  @click="finishBrewAction"
+                >
+                  {{ t("brews.actions.finish") }}
+                </button>
+                <button
+                  type="button"
+                  class="w-full rounded-md px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                  @click="deleteBrewAction"
+                >
+                  {{ t("brews.actions.delete") }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="flex flex-wrap gap-2">
-          <BaseButton
-            :variant="activePanel === 'progress' ? 'button1' : 'button3'"
-            @click="activePanel = 'progress'"
-          >
-            {{ t("brews.current.progress_tab") }}
+        <BaseToggle
+          class="sm:hidden"
+          :model-value="activePanel"
+          :options="panelToggleOptions"
+          :full-width="true"
+          @update:model-value="setActivePanel"
+        />
+
+        <div v-if="brew.status === 'planned'" class="flex">
+          <BaseButton variant="button2" @click="startBrewDayAction">
+            {{ t("brews.actions.start_brew_day") }}
           </BaseButton>
+        </div>
+      </div>
+
+      <BaseCard class="space-y-3">
+        <h3>{{ t("brews.current.actual_metrics_title") }}</h3>
+        <div class="grid gap-2 text-sm opacity-90 sm:grid-cols-3">
+          <p>{{ t("brews.fields.target_og") }}: {{ targetOgRangeText }}</p>
+          <p>{{ t("brews.fields.target_fg") }}: {{ targetFgRangeText }}</p>
+          <p>{{ t("brews.fields.actual_abv") }}: {{ actualAbvText }}</p>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <BaseInput
+            v-model="actualOgInput"
+            :label="t('brews.fields.actual_og')"
+            placeholder="1.056"
+          />
+          <BaseInput
+            v-model="actualFgInput"
+            :label="t('brews.fields.actual_fg')"
+            placeholder="1.012"
+          />
           <BaseButton
-            :variant="activePanel === 'recipe' ? 'button1' : 'button3'"
-            @click="activePanel = 'recipe'"
+            type="button"
+            :disabled="savingActualMetrics"
+            @click="saveActualMetrics"
           >
-            {{ t("brews.current.recipe_tab") }}
+            {{ savingActualMetrics ? t("common.saving") : t("brews.actions.save_actual_metrics") }}
           </BaseButton>
         </div>
       </BaseCard>
@@ -69,7 +134,6 @@
           <div class="grid gap-2 text-sm opacity-90 md:grid-cols-3">
             <p>{{ t("recipes.detail.time") }}: {{ stepDurationLabel(currentStep) }}</p>
             <p>{{ t("recipes.detail.temp") }}: {{ currentStep.temperatureC ?? "-" }} °C</p>
-            <p>{{ t("recipes.metrics.co2") }}: {{ currentStep.co2Volumes ?? "-" }}</p>
           </div>
 
           <CircularCountdown
@@ -79,28 +143,6 @@
             :label="t('brews.current.timer_remaining')"
             :show-days="isCurrentStepDayBased"
           />
-
-          <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            <BaseButton type="button" variant="button3" :disabled="currentStepIndex <= 0" @click="previousStep">
-              {{ t("brews.actions.previous_step") }}
-            </BaseButton>
-            <BaseButton type="button" variant="button3" :disabled="currentStepIndex >= steps.length - 1" @click="nextStep">
-              {{ t("brews.actions.next_step") }}
-            </BaseButton>
-            <BaseButton
-              type="button"
-              :variant="isCurrentStepActive ? 'button4' : 'button2'"
-              @click="toggleCurrentStepRunning"
-            >
-              {{ currentStepActionLabel }}
-            </BaseButton>
-            <BaseButton type="button" variant="button1" @click="completeCurrentStepAction">
-              {{ t("brews.actions.complete_step") }}
-            </BaseButton>
-            <BaseButton type="button" variant="button4" @click="resetCurrentStepAction">
-              {{ t("brews.actions.reset_step") }}
-            </BaseButton>
-          </div>
 
           <div class="space-y-3 rounded-lg border border-border3 p-4">
             <p v-if="currentStep.description" class="text-sm opacity-90">{{ currentStep.description }}</p>
@@ -128,6 +170,33 @@
                   {{ ingredient.name }}: {{ ingredient.notes }}
                 </p>
               </template>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <div class="grid grid-cols-3 gap-2">
+              <BaseButton type="button" variant="button3" :disabled="currentStepIndex <= 0" @click="previousStep">
+                {{ t("brews.actions.previous_step") }}
+              </BaseButton>
+              <BaseButton type="button" variant="button3" :disabled="currentStepIndex >= steps.length - 1" @click="nextStep">
+                {{ t("brews.actions.next_step") }}
+              </BaseButton>
+              <BaseButton type="button" variant="button4" @click="resetCurrentStepAction">
+                {{ t("brews.actions.reset_step") }}
+              </BaseButton>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <BaseButton
+                type="button"
+                :variant="isCurrentStepActive ? 'button4' : 'button2'"
+                @click="toggleCurrentStepRunning"
+              >
+                {{ currentStepActionLabel }}
+              </BaseButton>
+              <BaseButton type="button" variant="button1" @click="completeCurrentStepAction">
+                {{ t("brews.actions.complete_step") }}
+              </BaseButton>
             </div>
           </div>
         </BaseCard>
@@ -242,6 +311,18 @@
               </div>
               <p class="mt-1 text-sm opacity-90">{{ [ingredient.amount, ingredient.unit].filter(Boolean).join(" ") || "-" }}</p>
               <p v-if="ingredient.notes" class="mt-1 text-sm opacity-80">{{ ingredient.notes }}</p>
+              <div v-if="ingredientStepTags(ingredient).length" class="mt-2 space-y-1">
+                <p class="text-xs font-semibold uppercase opacity-70">{{ t("recipes.detail.used_in_steps") }}</p>
+                <div class="flex flex-wrap gap-2">
+                  <span
+                    v-for="stepTag in ingredientStepTags(ingredient)"
+                    :key="`${ingredient.ingredientId}-${stepTag}`"
+                    class="rounded-full border border-border3 px-2 py-1 text-xs"
+                  >
+                    {{ stepTag }}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </BaseCard>
@@ -293,25 +374,37 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
+import { EllipsisVertical } from "lucide-vue-next";
 import BaseCard from "@/components/base/BaseCard.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
+import BaseInput from "@/components/base/BaseInput.vue";
+import BaseToggle from "@/components/base/BaseToggle.vue";
 import CircularCountdown from "@/components/brews/CircularCountdown.vue";
 import GravityProgressChart from "@/components/brews/GravityProgressChart.vue";
 import BrewMeasurementModal from "@/components/modals/BrewMeasurementModal.vue";
 import {
   addBrewMeasurement,
   completeBrewStep,
+  deleteBrew,
   getBrew,
   pauseBrewStep,
   resetBrewStep,
   setCurrentBrewStep,
   startBrew,
   startBrewStep,
+  updateBrew,
 } from "@/services/brews.service.js";
+import {
+  connectBrewLive,
+  disconnectBrewLive,
+  on as onBrewLive,
+  off as offBrewLive,
+} from "@/services/brewLive.service.js";
 
 const route = useRoute();
+const router = useRouter();
 const { t } = useI18n();
 
 const loading = ref(true);
@@ -323,9 +416,15 @@ const addingMeasurement = ref(false);
 const measurementModalOpen = ref(false);
 const measurementMessage = ref("");
 const lastAlarmKey = ref("");
+const actualOgInput = ref("");
+const actualFgInput = ref("");
+const savingActualMetrics = ref(false);
+const headerMenuOpen = ref(false);
+const headerMenuRoot = ref(null);
 
 let clockInterval = null;
 
+const gravityPattern = /^1\.\d{3}$/;
 const graphStepTypes = ["primary_fermentation", "secondary_fermentation", "cold_crash"];
 const dayStepTypes = [...graphStepTypes];
 
@@ -427,6 +526,42 @@ const measurementSeries = computed(() =>
 );
 
 const latestMeasurements = computed(() => [...measurementSeries.value].reverse().slice(0, 8));
+const panelToggleOptions = computed(() => [
+  { label: t("brews.current.progress_tab"), value: "progress" },
+  { label: t("brews.current.recipe_tab"), value: "recipe" },
+]);
+const brewDayElapsedSeconds = computed(() => {
+  const startedAt = brew.value?.progress?.brewStartedAt
+    ? new Date(brew.value.progress.brewStartedAt).getTime()
+    : null;
+  if (!startedAt || Number.isNaN(startedAt)) return 0;
+  return Math.max(0, Math.floor((nowTs.value - startedAt) / 1000));
+});
+const totalStepElapsedSeconds = computed(() =>
+  (brew.value?.progress?.stepProgress || []).reduce((sum, entry) => {
+    const current =
+      Number(entry?.loggedDurationSeconds) ||
+      Number(entry?.elapsedSeconds) ||
+      Number(entry?.accumulatedActiveSeconds) ||
+      0;
+    return sum + (Number.isFinite(current) ? current : 0);
+  }, 0),
+);
+const targetOgRangeText = computed(() => {
+  const defaults = brew.value?.recipeSnapshot?.defaults || {};
+  return `${defaults.ogFrom || "-"} - ${defaults.ogTo || "-"}`;
+});
+const targetFgRangeText = computed(() => {
+  const defaults = brew.value?.recipeSnapshot?.defaults || {};
+  return `${defaults.fgFrom || "-"} - ${defaults.fgTo || "-"}`;
+});
+const actualAbvText = computed(() => {
+  const og = parseGravityValue(actualOgInput.value);
+  const fg = parseGravityValue(actualFgInput.value);
+  if (og === null || fg === null) return "-";
+  const abv = Math.max(0, (og - fg) * 131.25);
+  return `${abv.toFixed(2)}%`;
+});
 
 const targetFg = computed(() => {
   const defaults = brew.value?.recipeSnapshot?.defaults || {};
@@ -535,6 +670,19 @@ function formatValue(value) {
   return value;
 }
 
+function parseGravityValue(value) {
+  const text = String(value || "").trim();
+  if (!gravityPattern.test(text)) return null;
+  const n = Number(text);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatGravityValue(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return n.toFixed(3);
+}
+
 function formatDuration(seconds) {
   const value = Number(seconds) || 0;
   const sign = value < 0 ? "-" : "";
@@ -544,6 +692,122 @@ function formatDuration(seconds) {
   const minutes = Math.floor((total % 3600) / 60);
   if (days > 0) return `${sign}${days}d ${hours}h ${minutes}m`;
   return `${sign}${hours}h ${minutes}m`;
+}
+
+function formatStopwatch(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  const hh = String(hours).padStart(2, "0");
+  const mm = String(minutes).padStart(2, "0");
+  const ss = String(secs).padStart(2, "0");
+  if (days > 0) return `${days}d ${hh}:${mm}:${ss}`;
+  return `${hh}:${mm}:${ss}`;
+}
+
+function ingredientStepTags(ingredient) {
+  const ids = Array.isArray(ingredient?.stepIds) ? ingredient.stepIds : [];
+  const allSteps = steps.value || [];
+  return ids
+    .map((id) => {
+      const step = allSteps.find((item) => item.stepId === id);
+      if (!step) return null;
+      const orderPrefix = Number.isFinite(Number(step.order)) ? `${step.order}. ` : "";
+      return `${orderPrefix}${step.title || stepTypeLabel(step.stepType)}`;
+    })
+    .filter(Boolean);
+}
+
+function hydrateActualMetricsInputs() {
+  actualOgInput.value = formatGravityValue(brew.value?.actualMetrics?.og);
+  actualFgInput.value = formatGravityValue(brew.value?.actualMetrics?.fg);
+}
+
+function setActivePanel(value) {
+  activePanel.value = value === "recipe" ? "recipe" : "progress";
+}
+
+function toggleHeaderMenu() {
+  headerMenuOpen.value = !headerMenuOpen.value;
+}
+
+function closeHeaderMenu() {
+  headerMenuOpen.value = false;
+}
+
+function handleDocumentClick(event) {
+  if (!headerMenuOpen.value) return;
+  const root = headerMenuRoot.value;
+  if (!root) return;
+  if (event?.target instanceof Node && !root.contains(event.target)) {
+    headerMenuOpen.value = false;
+  }
+}
+
+async function editBrewAction() {
+  closeHeaderMenu();
+  if (!brew.value?._id) return;
+  await router.push(`/brygg/${brew.value._id}/planlegging`);
+}
+
+async function finishBrewAction() {
+  closeHeaderMenu();
+  if (!brew.value?._id) return;
+
+  try {
+    const now = new Date().toISOString();
+    brew.value = await updateBrew(brew.value._id, {
+      status: "completed",
+      progress: { brewCompletedAt: now },
+      timeline: { completedAt: now },
+    });
+    measurementMessage.value = t("brews.current.brew_finished");
+  } catch (err) {
+    error.value = err?.response?.data?.error || err?.message || t("brews.errors.save_failed");
+  }
+}
+
+async function deleteBrewAction() {
+  closeHeaderMenu();
+  if (!brew.value?._id) return;
+
+  const confirmed = window.confirm(t("brews.current.confirm_delete"));
+  if (!confirmed) return;
+
+  try {
+    await deleteBrew(brew.value._id);
+    await router.push("/brygg/tidligere");
+  } catch (err) {
+    error.value = err?.response?.data?.error || err?.message || t("brews.errors.save_failed");
+  }
+}
+
+async function saveActualMetrics() {
+  if (!brew.value?._id) return;
+
+  const og = parseGravityValue(actualOgInput.value);
+  const fg = parseGravityValue(actualFgInput.value);
+
+  if (og === null || fg === null) {
+    error.value = t("brews.current.actual_format_error");
+    return;
+  }
+
+  savingActualMetrics.value = true;
+  error.value = "";
+  try {
+    brew.value = await updateBrew(brew.value._id, {
+      actualMetrics: { og, fg },
+    });
+    hydrateActualMetricsInputs();
+    measurementMessage.value = t("brews.current.actual_saved");
+  } catch (err) {
+    error.value = err?.response?.data?.error || err?.message || t("brews.errors.save_failed");
+  } finally {
+    savingActualMetrics.value = false;
+  }
 }
 
 async function loadBrew() {
@@ -556,6 +820,39 @@ async function loadBrew() {
   } finally {
     loading.value = false;
   }
+}
+
+async function refreshBrewLive() {
+  try {
+    brew.value = await getBrew(route.params.brewId);
+  } catch (_err) {
+    // ignore transient live refresh errors
+  }
+}
+
+async function handleLiveBrewUpdate(payload) {
+  const liveBrewId = String(payload?.brewId || "");
+  const currentId = String(route.params.brewId || "");
+  if (liveBrewId && currentId && liveBrewId !== currentId) return;
+  await refreshBrewLive();
+}
+
+function handleLiveBrewDeleted(payload) {
+  const liveBrewId = String(payload?.brewId || "");
+  const currentId = String(route.params.brewId || "");
+  if (liveBrewId && currentId && liveBrewId !== currentId) return;
+  error.value = t("brews.errors.deleted");
+  brew.value = null;
+}
+
+function setupLiveConnection(brewId) {
+  const id = String(brewId || "").trim();
+  if (!id) return;
+  connectBrewLive(id);
+  offBrewLive("brewUpdate", handleLiveBrewUpdate);
+  offBrewLive("brewDeleted", handleLiveBrewDeleted);
+  onBrewLive("brewUpdate", handleLiveBrewUpdate);
+  onBrewLive("brewDeleted", handleLiveBrewDeleted);
 }
 
 async function showStep(index) {
@@ -662,22 +959,36 @@ watch(
 );
 
 watch(
-  () => route.params.brewId,
+  () => brew.value,
   () => {
-    if (route.params.brewId) loadBrew();
+    hydrateActualMetricsInputs();
+  },
+  { immediate: true },
+);
+
+watch(
+  () => route.params.brewId,
+  (brewId) => {
+    if (!brewId) return;
+    loadBrew();
+    setupLiveConnection(brewId);
   },
 );
 
 onMounted(async () => {
+  document.addEventListener("click", handleDocumentClick);
   await loadBrew();
+  setupLiveConnection(route.params.brewId);
   clockInterval = setInterval(() => {
     nowTs.value = Date.now();
   }, 1000);
 });
 
 onBeforeUnmount(() => {
+  document.removeEventListener("click", handleDocumentClick);
+  offBrewLive("brewUpdate", handleLiveBrewUpdate);
+  offBrewLive("brewDeleted", handleLiveBrewDeleted);
+  disconnectBrewLive();
   if (clockInterval) clearInterval(clockInterval);
 });
 </script>
-
-

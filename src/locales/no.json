@@ -1,4 +1,4 @@
-﻿{
+{
   "common": {
     "loading": "Laster...",
     "saving": "Lagrer...",
@@ -35,6 +35,7 @@
     "step_types": {
       "preparation": "Forberedning",
       "mash": "Mesking",
+      "sparge": "Skylling",
       "boil": "Koking",
       "primary_fermentation": "Gjæring",
       "secondary_fermentation": "Sekundær Gjæring",
@@ -158,7 +159,8 @@
       "temp": "Temp",
       "time": "Tid",
       "minutes": "min",
-      "ingredients_in_step": "Ingredienser i dette steget"
+      "ingredients_in_step": "Ingredienser i dette steget",
+      "used_in_steps": "Brukes i"
     }
   },
   "brews": {
@@ -185,9 +187,16 @@
       "current_step": "Aktivt steg",
       "planned_start": "Planlagt start",
       "brew_started_at": "Brygg startet",
+      "brew_day_elapsed": "Bryggedag tid",
+      "total_step_time": "Samlet stegtid",
       "step_started_at": "Steg startet",
       "step_completed_at": "Steg fullført",
-      "step_used_time": "Brukt tid"
+      "step_used_time": "Brukt tid",
+      "target_og": "Mål OG",
+      "target_fg": "Mål FG",
+      "actual_og": "Faktisk OG",
+      "actual_fg": "Faktisk FG",
+      "actual_abv": "Faktisk ABV"
     },
     "actions": {
       "new_brew": "Start nytt brygg",
@@ -199,6 +208,11 @@
       "open_plan": "Åpne planlegging",
       "open_brew": "Åpne brygg",
       "open_live": "Gå til bryggvisning",
+      "edit": "Rediger",
+      "finish": "Avslutt",
+      "delete": "Slett",
+      "show_recipe": "Vis oppskrift",
+      "show_progress": "Vis fremdrift",
       "previous_step": "Forrige steg",
       "next_step": "Neste steg",
       "show_step": "Vis steg",
@@ -207,7 +221,8 @@
       "resume_step": "Fortsett steg",
       "complete_step": "Fullfør steg",
       "reset_step": "Nullstill steg",
-      "add_measurement": "Legg til måling"
+      "add_measurement": "Legg til måling",
+      "save_actual_metrics": "Lagre faktisk OG/FG"
     },
     "list": {
       "title": "Tidligere Brygg",
@@ -230,6 +245,8 @@
     "current": {
       "progress_tab": "Fremdrift",
       "recipe_tab": "Oppskrift",
+      "menu": "Meny",
+      "more_actions": "Flere handlinger",
       "step_label": "Steg {current} av {total}",
       "timer_remaining": "Tid igjen",
       "all_steps": "Alle steg",
@@ -238,10 +255,15 @@
       "step_details": "Stegdetaljer",
       "no_measurements": "Ingen målinger registrert enda.",
       "latest_measurements": "Siste målinger",
+      "actual_metrics_title": "Faktiske måleverdier",
       "measurement_added": "Måling lagt til.",
       "step_started": "Steg startet.",
       "step_paused": "Steg pauset.",
-      "brew_started": "Bryggedagen er startet."
+      "brew_started": "Bryggedagen er startet.",
+      "brew_finished": "Brygget er avsluttet.",
+      "confirm_delete": "Er du sikker på at du vil slette dette brygget?",
+      "actual_saved": "Faktiske OG/FG lagret.",
+      "actual_format_error": "Faktisk OG/FG må være i format 1.056"
     },
     "measurements": {
       "gravity": "Gravity",
@@ -254,7 +276,50 @@
       "save_failed": "Kunne ikke lagre brygg",
       "start_failed": "Kunne ikke starte brygg",
       "step_failed": "Kunne ikke oppdatere steg",
-      "measurement_failed": "Kunne ikke lagre måling"
+      "measurement_failed": "Kunne ikke lagre måling",
+      "deleted": "Brygget ble slettet."
+    }
+  },
+  "navbar": {
+    "home": "Hjem",
+    "games": "Spill",
+    "events": "Events",
+    "user": {
+      "groups": {
+        "brew": "Brygg",
+        "recipes": "Oppskrifter",
+        "tools": "Verktøy"
+      },
+      "items": {
+        "new_brew": "Nytt Brygg",
+        "previous_brews": "Tidligere Brygg",
+        "new_recipe": "Ny Oppskrift",
+        "recipes": "Oppskrifter",
+        "alcohol_calc": "Alkoholutregning",
+        "co2_volumes": "CO2 volumer",
+        "hydrometer_correction": "Hydrometer-korrigering"
+      }
+    }
+  },
+  "settings": {
+    "title": "Innstillinger",
+    "open": "Åpne innstillinger",
+    "language": "Språk",
+    "theme": "Tema",
+    "themes": {
+      "light": "Lys",
+      "dark": "Mørk"
+    },
+    "languages": {
+      "no": "Norsk",
+      "en": "Engelsk"
+    },
+    "clearSession": "Økt",
+    "clearSessionButton": "Logg ut og tøm økt",
+    "chaos": {
+      "label": "Opp ned?",
+      "on": "PÅ",
+      "off": "AV"
     }
   }
 }

@@ -24,24 +24,12 @@
             @update:model-value="onPressureInputChange"
           />
         </div>
-        <div class="mb-[2px] flex overflow-hidden rounded-lg border border-border4 bg-bg4">
-          <button
-            type="button"
-            class="px-3 py-2 text-sm font-semibold transition-colors"
-            :class="pressureUnit === 'bar' ? 'bg-button1 text-button1-meta' : 'text-text4 hover:bg-bg2'"
-            @click="setPressureUnit('bar')"
-          >
-            bar
-          </button>
-          <button
-            type="button"
-            class="px-3 py-2 text-sm font-semibold transition-colors"
-            :class="pressureUnit === 'psi' ? 'bg-button1 text-button1-meta' : 'text-text4 hover:bg-bg2'"
-            @click="setPressureUnit('psi')"
-          >
-            psi
-          </button>
-        </div>
+        <BaseToggle
+          class="mb-[2px]"
+          :model-value="pressureUnit"
+          :options="pressureUnitOptions"
+          @update:model-value="setPressureUnit"
+        />
       </div>
 
       <BaseInput
@@ -59,6 +47,7 @@
 import { computed } from "vue";
 import BaseCard from "@/components/base/BaseCard.vue";
 import BaseInput from "@/components/base/BaseInput.vue";
+import BaseToggle from "@/components/base/BaseToggle.vue";
 import { useToolsStore } from "@/store/useToolsStore";
 
 const store = useToolsStore();
@@ -77,6 +66,10 @@ const pressureStep = computed(() => (pressureUnit.value === "bar" ? 0.01 : 0.1))
 const pressureLabel = computed(() =>
   pressureUnit.value === "bar" ? "Trykk (bar)" : "Trykk (PSI)",
 );
+const pressureUnitOptions = [
+  { label: "bar", value: "bar" },
+  { label: "psi", value: "psi" },
+];
 
 function n(value) {
   const x = Number(value);

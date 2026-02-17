@@ -1,4 +1,4 @@
-﻿{
+{
   "common": {
     "loading": "Loading...",
     "saving": "Saving...",
@@ -35,6 +35,7 @@
     "step_types": {
       "preparation": "Preparation",
       "mash": "Mash",
+      "sparge": "Sparge",
       "boil": "Boil",
       "primary_fermentation": "Primary Fermentation",
       "secondary_fermentation": "Secondary Fermentation",
@@ -158,7 +159,8 @@
       "temp": "Temp",
       "time": "Time",
       "minutes": "min",
-      "ingredients_in_step": "Ingredients in this step"
+      "ingredients_in_step": "Ingredients in this step",
+      "used_in_steps": "Used in"
     }
   },
   "brews": {
@@ -185,9 +187,16 @@
       "current_step": "Current step",
       "planned_start": "Planned start",
       "brew_started_at": "Brew started",
+      "brew_day_elapsed": "Brew day time",
+      "total_step_time": "Total step time",
       "step_started_at": "Step started",
       "step_completed_at": "Step completed",
-      "step_used_time": "Used time"
+      "step_used_time": "Used time",
+      "target_og": "Target OG",
+      "target_fg": "Target FG",
+      "actual_og": "Actual OG",
+      "actual_fg": "Actual FG",
+      "actual_abv": "Actual ABV"
     },
     "actions": {
       "new_brew": "Start new brew",
@@ -199,6 +208,11 @@
       "open_plan": "Open planning",
       "open_brew": "Open brew",
       "open_live": "Open live view",
+      "edit": "Edit",
+      "finish": "Finish",
+      "delete": "Delete",
+      "show_recipe": "Show recipe",
+      "show_progress": "Show progress",
       "previous_step": "Previous step",
       "next_step": "Next step",
       "show_step": "Show step",
@@ -207,7 +221,8 @@
       "resume_step": "Resume step",
       "complete_step": "Complete step",
       "reset_step": "Reset step",
-      "add_measurement": "Add measurement"
+      "add_measurement": "Add measurement",
+      "save_actual_metrics": "Save actual OG/FG"
     },
     "list": {
       "title": "Brews",
@@ -230,6 +245,8 @@
     "current": {
       "progress_tab": "Progress",
       "recipe_tab": "Recipe",
+      "menu": "Menu",
+      "more_actions": "More actions",
       "step_label": "Step {current} of {total}",
       "timer_remaining": "Time left",
       "all_steps": "All steps",
@@ -238,10 +255,15 @@
       "step_details": "Step details",
       "no_measurements": "No measurements yet.",
       "latest_measurements": "Latest measurements",
+      "actual_metrics_title": "Actual metrics",
       "measurement_added": "Measurement added.",
       "step_started": "Step started.",
       "step_paused": "Step paused.",
-      "brew_started": "Brew day started."
+      "brew_started": "Brew day started.",
+      "brew_finished": "Brew finished.",
+      "confirm_delete": "Are you sure you want to delete this brew?",
+      "actual_saved": "Actual OG/FG saved.",
+      "actual_format_error": "Actual OG/FG must be in format 1.056"
     },
     "measurements": {
       "gravity": "Gravity",
@@ -254,7 +276,50 @@
       "save_failed": "Could not save brew",
       "start_failed": "Could not start brew",
       "step_failed": "Could not update step",
-      "measurement_failed": "Could not save measurement"
+      "measurement_failed": "Could not save measurement",
+      "deleted": "The brew was deleted."
+    }
+  },
+  "navbar": {
+    "home": "Home",
+    "games": "Games",
+    "events": "Events",
+    "user": {
+      "groups": {
+        "brew": "Brew",
+        "recipes": "Recipes",
+        "tools": "Tools"
+      },
+      "items": {
+        "new_brew": "New Brew",
+        "previous_brews": "Previous Brews",
+        "new_recipe": "New Recipe",
+        "recipes": "Recipes",
+        "alcohol_calc": "Alcohol Calculator",
+        "co2_volumes": "CO2 Volumes",
+        "hydrometer_correction": "Hydrometer Correction"
+      }
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "open": "Open settings",
+    "language": "Language",
+    "theme": "Theme",
+    "themes": {
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "languages": {
+      "no": "Norwegian",
+      "en": "English"
+    },
+    "clearSession": "Session",
+    "clearSessionButton": "Log out and clear session",
+    "chaos": {
+      "label": "Upside down?",
+      "on": "ON",
+      "off": "OFF"
     }
   }
 }

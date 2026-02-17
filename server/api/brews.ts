@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { Brew } from "../mongo/models/Brew.js";
 import { Recipe } from "../mongo/models/Recipe.js";
 import { Brewer } from "../mongo/models/Brewer.js";
+import { broadcastBrewDeleted, broadcastBrewUpdate } from "../live/brewLive.js";
 
 export const brewsRouter = Router();
 
@@ -279,6 +280,15 @@ function applyTargetMetricsUpdate(target: AnyObj, incoming: AnyObj) {
   });
 }
 
+function applyActualMetricsUpdate(target: AnyObj, incoming: AnyObj) {
+  const fields = ["og", "fg"];
+  fields.forEach((field) => {
+    if (Object.prototype.hasOwnProperty.call(incoming, field)) {
+      target[field] = toNumberOrUndefined(incoming[field]);
+    }
+  });
+}
+
 function attachComputedFields(brew: any) {
   const data = toPlainObject(brew);
   const steps = Array.isArray(data?.recipeSnapshot?.steps)
@@ -305,9 +315,21 @@ function attachComputedFields(brew: any) {
   const currentStepProgress = currentStep
     ? stepProgress.find((entry: any) => entry.stepId === currentStep.stepId) || null
     : null;
+  const actualOg = toNumberOrUndefined(data?.actualMetrics?.og);
+  const actualFg = toNumberOrUndefined(data?.actualMetrics?.fg);
+  const actualAbv =
+    actualOg !== undefined && actualFg !== undefined
+      ? Number(Math.max(0, (actualOg - actualFg) * 131.25).toFixed(2))
+      : undefined;
 
   return {
     ...data,
+    actualMetrics: {
+      ...(data.actualMetrics || {}),
+      og: actualOg,
+      fg: actualFg,
+      abv: actualAbv,
+    },
     progress: {
       ...(data.progress || {}),
       currentStepIndex,
@@ -316,6 +338,12 @@ function attachComputedFields(brew: any) {
     currentStep,
     currentStepProgress,
   };
+}
+
+function notifyBrewUpdated(brew: any) {
+  const brewId = String(brew?._id || "");
+  if (!brewId) return;
+  broadcastBrewUpdate(brewId);
 }
 
 function extractBearerToken(req: any) {
@@ -424,6 +452,10 @@ brewsRouter.post("/from-recipe/:recipeId", async (req: any, res) => {
       targetMetrics: {
         ...getDefaultTargetMetrics(snapshot),
       },
+      actualMetrics: {
+        og: toNumberOrUndefined(req.body?.actualMetrics?.og),
+        fg: toNumberOrUndefined(req.body?.actualMetrics?.fg),
+      },
       recipeSnapshot: snapshot,
       progress: {
         currentStepIndex: 0,
@@ -432,6 +464,7 @@ brewsRouter.post("/from-recipe/:recipeId", async (req: any, res) => {
       measurements: [],
     });
 
+    notifyBrewUpdated(brew);
     return res.status(201).json(attachComputedFields(brew));
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Failed to create planned brew" });
@@ -492,6 +525,10 @@ brewsRouter.post("/", async (req: any, res) => {
           getDefaultTargetMetrics(snapshot).ibu,
         ph: toNumberOrUndefined(payload?.targetMetrics?.ph),
       },
+      actualMetrics: {
+        og: toNumberOrUndefined(payload?.actualMetrics?.og),
+        fg: toNumberOrUndefined(payload?.actualMetrics?.fg),
+      },
       recipeSnapshot: snapshot,
       progress: {
         currentStepIndex: clampIndex(payload?.progress?.currentStepIndex || 0, snapshot.steps.length),
@@ -502,6 +539,7 @@ brewsRouter.post("/", async (req: any, res) => {
       measurements: Array.isArray(payload.measurements) ? payload.measurements : [],
     });
 
+    notifyBrewUpdated(brew);
     return res.status(201).json(attachComputedFields(brew));
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Failed to create brew" });
@@ -634,6 +672,11 @@ brewsRouter.patch("/:id", async (req: any, res) => {
       applyTargetMetricsUpdate(brew.targetMetrics, payload.targetMetrics);
     }
 
+    if (!brew.actualMetrics) brew.actualMetrics = {};
+    if (payload.actualMetrics && typeof payload.actualMetrics === "object") {
+      applyActualMetricsUpdate(brew.actualMetrics, payload.actualMetrics);
+    }
+
     if (shouldUpdateSnapshot) {
       const nextSnapshot = normalizeRecipeSnapshot(
         payload.recipeSnapshot || {},
@@ -682,6 +725,7 @@ brewsRouter.patch("/:id", async (req: any, res) => {
     }
 
     await brew.save();
+    notifyBrewUpdated(brew);
     return res.json(attachComputedFields(brew));
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Failed to update brew" });
@@ -704,6 +748,7 @@ brewsRouter.patch("/:id/current-step", async (req: any, res) => {
     );
 
     await brew.save();
+    notifyBrewUpdated(brew);
     return res.json(attachComputedFields(brew));
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Failed to set current step" });
@@ -732,6 +777,7 @@ brewsRouter.post("/:id/start", async (req: any, res) => {
     brew.progress.currentStepIndex = clampIndex(brew.progress.currentStepIndex || 0, steps.length);
 
     await brew.save();
+    notifyBrewUpdated(brew);
     return res.json(attachComputedFields(brew));
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Failed to start brew" });
@@ -840,6 +886,7 @@ brewsRouter.post("/:id/steps/:stepId/start", async (req: any, res) => {
     brew.progress.currentStepIndex = stepIndex;
 
     await brew.save();
+    notifyBrewUpdated(brew);
     return res.json(attachComputedFields(brew));
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Failed to start step" });
@@ -887,6 +934,7 @@ brewsRouter.post("/:id/steps/:stepId/pause", async (req: any, res) => {
     brew.progress.currentStepIndex = stepIndex;
 
     await brew.save();
+    notifyBrewUpdated(brew);
     return res.json(attachComputedFields(brew));
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Failed to pause step" });
@@ -955,6 +1003,7 @@ brewsRouter.post("/:id/steps/:stepId/complete", async (req: any, res) => {
     brew.progress.stepProgress = progressEntries;
 
     await brew.save();
+    notifyBrewUpdated(brew);
     return res.json(attachComputedFields(brew));
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Failed to complete step" });
@@ -999,6 +1048,7 @@ brewsRouter.post("/:id/steps/:stepId/reset", async (req: any, res) => {
     brew.progress.stepProgress = progressEntries;
 
     await brew.save();
+    notifyBrewUpdated(brew);
     return res.json(attachComputedFields(brew));
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Failed to reset step" });
@@ -1012,6 +1062,7 @@ brewsRouter.delete("/:id", async (req: any, res) => {
     if (!brew) {
       return res.status(404).json({ error: "Brew not found" });
     }
+    broadcastBrewDeleted(String(brew._id));
     return res.status(204).send();
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Failed to delete brew" });
@@ -1041,6 +1092,7 @@ brewsRouter.post("/:id/measurements", async (req: any, res) => {
 
     brew.measurements.push(measurement as any);
     await brew.save();
+    notifyBrewUpdated(brew);
 
     return res.status(201).json(brew.measurements[brew.measurements.length - 1]);
   } catch (err: any) {

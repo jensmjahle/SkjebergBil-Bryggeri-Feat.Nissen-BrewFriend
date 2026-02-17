@@ -5,15 +5,15 @@
     </p>
     <div class="flex gap-2">
       <BaseButton
-        block
-        :variant="theme === 'light' ? '1' : '4'"
+        class="flex-1"
+        :variant="theme === 'light' ? 'button1' : 'button4'"
         @click="updateTheme('light')"
       >
         {{ t("settings.themes.light") }}
       </BaseButton>
       <BaseButton
-        block
-        :variant="theme === 'dark' ? '1' : '4'"
+        class="flex-1"
+        :variant="theme === 'dark' ? 'button1' : 'button4'"
         @click="updateTheme('dark')"
       >
         {{ t("settings.themes.dark") }}

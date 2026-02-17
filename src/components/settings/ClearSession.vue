@@ -4,9 +4,8 @@
       {{ $t("settings.clearSession") }}
     </p>
     <BaseButton
-      block
-      variant="4"
-      class="text-danger underline font-normal hover:opacity-80"
+      variant="button4"
+      class="w-full font-normal text-danger underline hover:opacity-80"
       @click="clearSession"
     >
       {{ $t("settings.clearSessionButton") }}

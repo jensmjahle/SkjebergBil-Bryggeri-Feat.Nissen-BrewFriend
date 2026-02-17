@@ -16,7 +16,19 @@
               : '',
     ]"
   >
-    <slot />
+    <span class="inline-flex items-center gap-2">
+      <component
+        :is="icon"
+        v-if="icon && iconPosition === 'left'"
+        class="h-4 w-4 shrink-0"
+      />
+      <slot />
+      <component
+        :is="icon"
+        v-if="icon && iconPosition === 'right'"
+        class="h-4 w-4 shrink-0"
+      />
+    </span>
   </button>
 </template>
 
@@ -25,6 +37,14 @@ defineProps({
   variant: {
     type: String,
     default: "button1", // "button1" | "button2" | "button3" | "button4"
+  },
+  icon: {
+    type: [Object, Function, String],
+    default: null,
+  },
+  iconPosition: {
+    type: String,
+    default: "left", // "left" | "right"
   },
 });
 defineEmits(["click"]);

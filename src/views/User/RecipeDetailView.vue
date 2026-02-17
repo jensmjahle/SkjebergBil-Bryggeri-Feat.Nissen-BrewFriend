@@ -62,6 +62,18 @@
             </div>
             <p class="mt-1 text-sm opacity-90">{{ [ing.amount, ing.unit].filter(Boolean).join(' ') || '-' }}</p>
             <p v-if="ing.notes" class="mt-1 text-sm opacity-80">{{ ing.notes }}</p>
+            <div v-if="ingredientStepTags(ing).length" class="mt-2 space-y-1">
+              <p class="text-xs font-semibold uppercase opacity-70">{{ t("recipes.detail.used_in_steps") }}</p>
+              <div class="mt-1 flex flex-wrap gap-2">
+                <span
+                  v-for="stepTag in ingredientStepTags(ing)"
+                  :key="`${ing.ingredientId}-${stepTag}`"
+                  class="rounded-full border border-border3 px-2 py-1 text-xs"
+                >
+                  {{ stepTag }}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </BaseCard>
@@ -145,6 +157,19 @@ function ingredientCategoryLabel(category) {
 
 function ingredientsForStep(stepId) {
   return (recipe.value?.ingredients || []).filter((ing) => (ing.stepIds || []).includes(stepId));
+}
+
+function ingredientStepTags(ingredient) {
+  const ids = Array.isArray(ingredient?.stepIds) ? ingredient.stepIds : [];
+  const allSteps = recipe.value?.steps || [];
+  return ids
+    .map((stepId) => {
+      const step = allSteps.find((item) => item.stepId === stepId);
+      if (!step) return null;
+      const orderPrefix = Number.isFinite(Number(step.order)) ? `${step.order}. ` : "";
+      return `${orderPrefix}${step.title || stepTypeLabel(step.stepType)}`;
+    })
+    .filter(Boolean);
 }
 
 function stepTypeLabel(value) {

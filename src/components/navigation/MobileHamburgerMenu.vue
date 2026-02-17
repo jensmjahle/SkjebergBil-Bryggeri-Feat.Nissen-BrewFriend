@@ -3,7 +3,7 @@
     <button
       ref="toggleRef"
       @click="menuOpen = !menuOpen"
-      class="btn-btn1 flex justify-center items-center border border-border1 h-[40px] w-[39px] bg-bg1 rounded-md"
+      class=" flex justify-center items-center border border-border1 h-[40px] w-[39px] bg-bg1 text-text1 rounded-md"
     >
       <Menu v-if="!menuOpen" />
       <X v-else />

@@ -44,8 +44,10 @@ const { brewersRouter } = await import("./api/brewers.js");
 const { recipesRouter } = await import("./api/recipes.js");
 const { brewsRouter } = await import("./api/brews.js");
 const { uploadsRouter } = await import("./api/uploads.js");
+const { liveRouter } = await import("./api/live.js");
 
 if (mongoConnected) {
+  app.use("/api/live", liveRouter);
   app.use("/api/uploads", uploadsRouter);
   app.use("/api/auth", authRouter);
   app.use("/api/brewers", brewersRouter);

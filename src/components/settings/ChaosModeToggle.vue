@@ -1,31 +1,34 @@
 <template>
-  <div class="flex items-center w-full gap-2 cursor-pointer select-none">
+  <div class="flex w-full cursor-pointer select-none items-center gap-2">
     <input
       id="chaos-toggle"
-      type="checkbox"
       v-model="enabled"
-      class="hidden peer"
+      type="checkbox"
+      class="peer hidden"
     />
     <label
       for="chaos-toggle"
-      class="flex items-center gap-2 px-3 py-2 rounded-lg border border-button2-border text-button2-meta w-full bg-button2 hover:bg-button2-hover transition-all"
+      class="flex w-full items-center gap-2 rounded-lg border border-button2-border bg-button2 px-3 py-2 text-button2-meta transition-all hover:bg-button2-hover"
     >
       <span class="text-lg">🍺</span>
-      <span class="font-medium">Opp ned?</span>
-      <span v-if="enabled" class="text-sm text-green-500 font-semibold ml-1"
-        >PÅ</span
-      >
-      <span v-else class="text-sm text-button2-meta ml-1">AV</span>
+      <span class="font-medium">{{ t("settings.chaos.label") }}</span>
+      <span v-if="enabled" class="ml-1 text-sm font-semibold text-green-500">
+        {{ t("settings.chaos.on") }}
+      </span>
+      <span v-else class="ml-1 text-sm text-button2-meta">
+        {{ t("settings.chaos.off") }}
+      </span>
     </label>
   </div>
 </template>
 
 <script setup>
 import { ref, watch, onMounted } from "vue";
+import { useI18n } from "vue-i18n";
 
 const enabled = ref(false);
+const { t } = useI18n();
 
-// Ved oppstart – sjekk om brukeren har hatt det aktivert
 onMounted(() => {
   const saved = localStorage.getItem("chaosMode");
   if (saved === "true") {
@@ -34,7 +37,6 @@ onMounted(() => {
   }
 });
 
-// Lytt på endringer
 watch(enabled, (val) => {
   document.body.classList.toggle("upside-down", val);
   localStorage.setItem("chaosMode", val);
@@ -42,12 +44,10 @@ watch(enabled, (val) => {
 </script>
 
 <style scoped>
-/* Litt visuell flair */
 label {
   transition: all 0.3s ease;
 }
 
-/* Når PÅ: gjør knappen litt sprø */
 .peer:checked + label {
   transform: rotate(-2deg);
   background-color: var(--color-bg2);
@@ -55,7 +55,6 @@ label {
 }
 </style>
 
-<!-- Global stil legges gjerne i app.css eller main.css -->
 <style>
 body.upside-down {
   transform: rotate(180deg);
