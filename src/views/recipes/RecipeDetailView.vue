@@ -1,5 +1,5 @@
 ﻿<template>
-  <section class="mx-auto w-full max-w-5xl px-4 py-8 space-y-6">
+  <section class="mx-auto w-full max-w-5xl px-4 py-2 md:py-8 space-y-2 md:space-y-6">
     <BaseCard v-if="loading">
       <p>{{ t("common.loading") }}</p>
     </BaseCard>
@@ -10,7 +10,7 @@
 
     <template v-else-if="recipe">
       <BaseCard>
-        <div class="flex flex-wrap items-start justify-between gap-4">
+        <div class="flex flex-wrap items-start justify-between gap-2">
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-3">
               <img :src="recipeIcon" :alt="recipe.name" class="h-14 w-14 rounded-lg border border-border3 bg-white p-2 object-contain" />
@@ -101,13 +101,13 @@
         <h3>{{ t("recipes.detail.ingredients") }}</h3>
         <div class="mt-3 space-y-2">
           <div v-if="!recipe.ingredients?.length" class="text-sm opacity-70">{{ t("recipes.detail.no_ingredients") }}</div>
-          <div v-for="ing in recipe.ingredients || []" :key="ing.ingredientId" class="rounded-lg border border-border3 p-3">
+          <div v-for="ing in recipe.ingredients || []" :key="ing.ingredientId" class="border-t border-border3 py-2">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div class="flex items-center gap-2">
                 <img :src="ingredientCategoryIcon(ing.category)" :alt="ingredientCategoryText(ing.category)" class="h-7 w-7 rounded-md border border-border3 bg-white p-1 object-contain" />
                 <h4>{{ ing.name }}</h4>
               </div>
-              <span class="rounded-full bg-bg4 px-2 py-1 text-xs">{{ ingredientCategoryText(ing.category) }}</span>
+              <span class="rounded-full bg-bg4 text-text4 px-2 py-1 text-xs">{{ ingredientCategoryText(ing.category) }}</span>
             </div>
             <p class="mt-1 text-sm opacity-90">{{ [ing.amount, ing.unit].filter(Boolean).join(' ') || '-' }}</p>
             <p class="mt-1 text-sm opacity-85">
@@ -133,10 +133,10 @@
       <BaseCard>
         <h3>{{ t("recipes.detail.steps") }}</h3>
         <div class="mt-3 space-y-3">
-          <div v-for="step in recipe.steps || []" :key="`${step.stepId}-${step.order}`" class="rounded-lg border border-border3 p-3">
+          <div v-for="step in recipe.steps || []" :key="`${step.stepId}-${step.order}`" class="border-t border-border3 py-2">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <h4>{{ step.order }}. {{ step.title }}</h4>
-              <span class="rounded-full bg-bg4 px-2 py-1 text-xs">{{ stepTypeLabel(step.stepType) }}</span>
+              <span class="rounded-full bg-bg4 text-text4 px-2 py-1 text-xs">{{ stepTypeLabel(step.stepType) }}</span>
             </div>
             <p v-if="step.description" class="mt-2 whitespace-pre-line text-sm opacity-90">{{ step.description }}</p>
             <div class="mt-2 flex flex-wrap gap-4 text-xs opacity-80">

@@ -4,16 +4,16 @@ import { parseJwt } from "../utils/jwt";
 import AppUserLayout from "../layouts/AppUserLayout.vue";
 import AppAdminLayout from "@/layouts/AppAdminLayout.vue";
 
-import HomeView from "../views/User/HomeView.vue";
-import SectionPlaceholderView from "@/views/User/SectionPlaceholderView.vue";
-import CreateNewRecipeView from "@/views/User/CreateNewRecipeView.vue";
-import RecipesView from "@/views/User/RecipesView.vue";
-import RecipeDetailView from "@/views/User/RecipeDetailView.vue";
-import EditRecipeView from "@/views/User/EditRecipeView.vue";
-import ToolsView from "@/views/User/ToolsView.vue";
-import BrewsView from "@/views/User/BrewsView.vue";
-import BrewPlanningView from "@/views/User/BrewPlanningView.vue";
-import CurrentBrewView from "@/views/User/CurrentBrewView.vue";
+import HomeView from "@/views/HomeView.vue";
+import SectionPlaceholderView from "@/views/SectionPlaceholderView.vue";
+import CreateNewRecipeView from "@/views/recipes/CreateNewRecipeView.vue";
+import RecipesView from "@/views/recipes/RecipesView.vue";
+import RecipeDetailView from "@/views/recipes/RecipeDetailView.vue";
+import EditRecipeView from "@/views/recipes/EditRecipeView.vue";
+import ToolsView from "@/views/tools/ToolsView.vue";
+import BrewsView from "@/views/brews/BrewsView.vue";
+import BrewPlanningView from "@/views/brews/BrewPlanningView.vue";
+import CurrentBrewView from "@/views/brews/CurrentBrewView.vue";
 
 import AdminLoginView from "@/views/Admin/AdminLoginView.vue";
 import AdminHomeView from "@/views/Admin/AdminHomeView.vue";
