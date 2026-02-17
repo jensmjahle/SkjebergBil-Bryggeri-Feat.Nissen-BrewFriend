@@ -13,12 +13,18 @@ export async function connectMongo() {
     return true;
   }
 
-  await mongoose.connect(mongoUri, {
-    dbName: process.env.MONGODB_DB || "brewbuddy",
-  });
+  try {
+    await mongoose.connect(mongoUri, {
+      dbName: process.env.MONGODB_DB || "brewbuddy",
+    });
 
-  isConnected = true;
-  return true;
+    isConnected = true;
+    return true;
+  } catch (error) {
+    console.error("[server] MongoDB connection failed:", error);
+    isConnected = false;
+    return false;
+  }
 }
 
 export function mongoStatus() {
