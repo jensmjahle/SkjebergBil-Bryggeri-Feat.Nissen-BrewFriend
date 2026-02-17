@@ -1,5 +1,5 @@
 ﻿<template>
-  <section class="mx-auto w-full max-w-6xl px-4 py-8 space-y-6">
+  <section class="mx-auto w-full max-w-6xl px-4 py-8 space-y-2 md:space-y-6">
     <BaseCard v-if="loading">
       <p>{{ t("common.loading") }}</p>
     </BaseCard>
@@ -98,7 +98,7 @@
               <h3>{{ currentStep.title }}</h3>
               <p class="text-sm opacity-80">{{ stepTypeLabel(currentStep.stepType) }}</p>
             </div>
-            <span class="rounded-full bg-bg4 px-2 py-1 text-xs">
+            <span class="rounded-full bg-bg4 text-text4 px-2 py-1 text-xs">
               {{ stepStatusLabel(currentStepProgress?.status || "pending", currentStepProgress) }}
             </span>
           </div>
@@ -116,7 +116,7 @@
             :show-days="isCurrentStepDayBased"
           />
 
-          <div class="space-y-3 rounded-lg border border-border3 p-4">
+          <div class="space-y-3 md:rounded-lg md:border border-border3 md:p-4">
             <p v-if="currentStep.description" class="whitespace-pre-line text-sm opacity-90">{{ currentStep.description }}</p>
 
             <div v-if="currentStepDataEntries.length" class="space-y-1 text-sm">
@@ -146,13 +146,13 @@
             </div>
           </div>
 
-          <div class="space-y-2 rounded-lg border border-border3 p-4">
+          <div class="space-y-2 rounded-lg md:border border-border3 md:p-4">
             <label class="block text-sm font-medium">
               {{ t("brews.current.step_note_label") }}
             </label>
             <textarea
               v-model="stepNoteInput"
-              class="w-full rounded-lg border border-border4 bg-bg4 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-button1"
+              class="w-full rounded-lg border border-border4 bg-bg4 text-text4 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-button1"
               rows="3"
               :placeholder="t('brews.current.step_note_placeholder')"
             />
@@ -203,8 +203,8 @@
             <div
               v-for="(step, index) in steps"
               :key="step.stepId || index"
-              class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border3 px-3 py-2"
-              :class="{ 'border-button1-border bg-bg4': index === currentStepIndex }"
+              class="flex flex-wrap items-center justify-between gap-2 rounded-lg border-t md:border border-border3 md:px-3 py-2"
+              :class="{ 'border-button1-border bg-bg4 text-text4': index === currentStepIndex }"
             >
               <div>
                 <p class="font-medium">{{ index + 1 }}. {{ step.title }}</p>
@@ -226,7 +226,7 @@
                 </p>
               </div>
               <div class="flex items-center gap-2">
-                <span class="rounded-full bg-bg4 px-2 py-1 text-xs">
+                <span class="rounded-full bg-bg4 text-text4 px-2 py-1 text-xs">
                   {{ stepStatusLabel(stepProgress(step.stepId)?.status || "pending", stepProgress(step.stepId)) }}
                 </span>
                 <BaseButton type="button" variant="button3" @click="showStep(index)">
@@ -242,98 +242,39 @@
       <template v-else-if="activePanel === 'recipe'">
         <BaseCard>
           <h3>{{ t("recipes.detail.defaults") }}</h3>
-          <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 text-sm">
-            <div>{{ t("recipes.metrics.og") }}: {{ brew.recipeSnapshot?.defaults?.ogFrom || "-" }} - {{ brew.recipeSnapshot?.defaults?.ogTo || "-" }}</div>
-            <div>{{ t("recipes.metrics.fg") }}: {{ brew.recipeSnapshot?.defaults?.fgFrom || "-" }} - {{ brew.recipeSnapshot?.defaults?.fgTo || "-" }}</div>
-            <div>{{ t("recipes.metrics.co2") }}: {{ formatValue(brew.recipeSnapshot?.defaults?.co2Volumes) }}</div>
-            <div>{{ t("recipes.metrics.ibu") }}: {{ formatValue(brew.recipeSnapshot?.defaults?.ibu) }}</div>
-            <div>{{ t("recipes.fields.batch_size_liters") }}: {{ formatValue(brew.recipeSnapshot?.defaults?.batchSizeLiters) }}</div>
-          </div>
+          <RecipeDefaultsSummary :defaults="brew.recipeSnapshot?.defaults || {}" />
         </BaseCard>
 
         <BaseCard>
           <h3>{{ t("recipes.detail.cost_summary") }}</h3>
-          <div class="mt-3 grid gap-2 sm:grid-cols-2 text-sm">
-            <p>
-              {{ t("recipes.detail.total_ingredients_cost") }}:
-              <strong>{{ formatCurrency(recipeTotalIngredientCost) }}</strong>
-            </p>
-            <p>
-              {{ t("recipes.detail.liter_price") }}:
-              <strong>{{ recipeLiterPrice !== null ? formatCurrency(recipeLiterPrice) : "-" }}</strong>
-            </p>
-          </div>
+          <RecipeCostSummary
+            :total-cost-text="formatCurrency(recipeTotalIngredientCost)"
+            :liter-price-text="recipeLiterPrice !== null ? formatCurrency(recipeLiterPrice) : '-'"
+          />
         </BaseCard>
 
         <BaseCard>
           <h3>{{ t("recipes.detail.ingredients") }}</h3>
           <div class="mt-3 space-y-2">
             <div v-if="!ingredients.length" class="text-sm opacity-70">{{ t("recipes.detail.no_ingredients") }}</div>
-            <div
+            <RecipeIngredientItem
               v-for="ingredient in ingredients"
               :key="ingredient.ingredientId"
-              class="rounded-lg border border-border3 p-3"
-            >
-              <div class="flex flex-wrap items-center justify-between gap-2">
-                <div class="flex items-center gap-2">
-                  <img :src="ingredientCategoryIcon(ingredient.category)" :alt="ingredientCategoryText(ingredient.category)" class="h-7 w-7 rounded-md border border-border3 bg-white p-1 object-contain" />
-                  <h4>{{ ingredient.name }}</h4>
-                </div>
-                <span class="rounded-full bg-bg4 px-2 py-1 text-xs">{{ ingredientCategoryText(ingredient.category) }}</span>
-              </div>
-              <p class="mt-1 text-sm opacity-90">{{ [ingredient.amount, ingredient.unit].filter(Boolean).join(" ") || "-" }}</p>
-              <p class="mt-1 text-sm opacity-85">
-                {{ t("recipes.fields.price") }}:
-                {{ ingredient.price !== null && ingredient.price !== undefined ? formatCurrency(ingredient.price) : "-" }}
-              </p>
-              <p v-if="ingredient.notes" class="mt-1 text-sm opacity-80">{{ ingredient.notes }}</p>
-              <div v-if="ingredientStepTags(ingredient).length" class="mt-2 space-y-1">
-                <p class="text-xs font-semibold uppercase opacity-70">{{ t("recipes.detail.used_in_steps") }}</p>
-                <div class="flex flex-wrap gap-2">
-                  <span
-                    v-for="stepTag in ingredientStepTags(ingredient)"
-                    :key="`${ingredient.ingredientId}-${stepTag}`"
-                    class="rounded-full border border-border3 px-2 py-1 text-xs"
-                  >
-                    {{ stepTag }}
-                  </span>
-                </div>
-              </div>
-            </div>
+              :ingredient="ingredient"
+              :steps="steps"
+            />
           </div>
         </BaseCard>
 
         <BaseCard>
           <h3>{{ t("recipes.detail.steps") }}</h3>
           <div class="mt-3 space-y-3">
-            <div
+            <RecipeStepItem
               v-for="step in steps"
               :key="`${step.stepId}-${step.order}`"
-              class="rounded-lg border border-border3 p-3"
-            >
-              <div class="flex flex-wrap items-center justify-between gap-2">
-                <h4>{{ step.order }}. {{ step.title }}</h4>
-                <span class="rounded-full bg-bg4 px-2 py-1 text-xs">{{ stepTypeLabel(step.stepType) }}</span>
-              </div>
-              <p v-if="step.description" class="mt-2 whitespace-pre-line text-sm opacity-90">{{ step.description }}</p>
-              <div class="mt-2 flex flex-wrap gap-4 text-xs opacity-80">
-                <span v-if="step.temperatureC !== null && step.temperatureC !== undefined">{{ t("recipes.detail.temp") }}: {{ step.temperatureC }} °C</span>
-                <span v-if="step.durationMinutes !== null && step.durationMinutes !== undefined">{{ t("recipes.detail.time") }}: {{ stepDurationLabel(step) }}</span>
-                <span v-if="step.co2Volumes !== null && step.co2Volumes !== undefined">{{ t("recipes.metrics.co2") }}: {{ step.co2Volumes }}</span>
-              </div>
-              <div class="mt-3" v-if="ingredientsForStep(step.stepId).length">
-                <p class="text-xs font-semibold uppercase opacity-70">{{ t("recipes.detail.ingredients_in_step") }}</p>
-                <div class="mt-1 flex flex-wrap gap-2">
-                  <span
-                    v-for="ingredient in ingredientsForStep(step.stepId)"
-                    :key="`${step.stepId}-${ingredient.ingredientId}`"
-                    class="rounded-full border border-border3 px-2 py-1 text-xs"
-                  >
-                    {{ ingredient.name }}
-                  </span>
-                </div>
-              </div>
-            </div>
+              :step="step"
+              :ingredients="ingredients"
+            />
           </div>
         </BaseCard>
       </template>
@@ -467,6 +408,10 @@ import BaseInput from "@/components/base/BaseInput.vue";
 import BaseToggle from "@/components/base/BaseToggle.vue";
 import CircularCountdown from "@/components/brews/CircularCountdown.vue";
 import GravityProgressChart from "@/components/brews/GravityProgressChart.vue";
+import RecipeDefaultsSummary from "@/components/recipes/RecipeDefaultsSummary.vue";
+import RecipeCostSummary from "@/components/recipes/RecipeCostSummary.vue";
+import RecipeIngredientItem from "@/components/recipes/RecipeIngredientItem.vue";
+import RecipeStepItem from "@/components/recipes/RecipeStepItem.vue";
 import BrewMeasurementModal from "@/components/modals/BrewMeasurementModal.vue";
 import {
   addBrewMeasurement,
@@ -1190,19 +1135,6 @@ function formatStopwatch(seconds) {
   const ss = String(secs).padStart(2, "0");
   if (days > 0) return `${days}d ${hh}:${mm}:${ss}`;
   return `${hh}:${mm}:${ss}`;
-}
-
-function ingredientStepTags(ingredient) {
-  const ids = Array.isArray(ingredient?.stepIds) ? ingredient.stepIds : [];
-  const allSteps = steps.value || [];
-  return ids
-    .map((id) => {
-      const step = allSteps.find((item) => item.stepId === id);
-      if (!step) return null;
-      const orderPrefix = Number.isFinite(Number(step.order)) ? `${step.order}. ` : "";
-      return `${orderPrefix}${step.title || stepTypeLabel(step.stepType)}`;
-    })
-    .filter(Boolean);
 }
 
 function hydrateActualMetricsInputs() {

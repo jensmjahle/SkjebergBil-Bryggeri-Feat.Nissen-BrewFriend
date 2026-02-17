@@ -73,91 +73,39 @@
 
       <BaseCard>
         <h3>{{ t("recipes.detail.defaults") }}</h3>
-        <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 text-sm">
-          <div>{{ t("recipes.metrics.og") }}: {{ recipe.defaults?.ogFrom || '-' }} - {{ recipe.defaults?.ogTo || '-' }}</div>
-          <div>{{ t("recipes.metrics.fg") }}: {{ recipe.defaults?.fgFrom || '-' }} - {{ recipe.defaults?.fgTo || '-' }}</div>
-          <div>{{ t("recipes.metrics.co2") }}: {{ formatMetric(recipe.defaults?.co2Volumes) }}</div>
-          <div>{{ t("recipes.metrics.ibu") }}: {{ formatMetric(recipe.defaults?.ibu) }}</div>
-          <div>{{ t("recipes.fields.batch_size_liters") }}: {{ formatMetric(recipe.defaults?.batchSizeLiters) }}</div>
-          <div>{{ t("recipes.metrics.abv") }}: {{ abvText }}</div>
-        </div>
+        <RecipeDefaultsSummary :defaults="recipe.defaults" :abv-text="abvText" :show-abv="true" />
       </BaseCard>
 
       <BaseCard>
         <h3>{{ t("recipes.detail.cost_summary") }}</h3>
-        <div class="mt-3 grid gap-2 sm:grid-cols-2 text-sm">
-          <p>
-            {{ t("recipes.detail.total_ingredients_cost") }}:
-            <strong>{{ formatCurrency(totalIngredientCost) }}</strong>
-          </p>
-          <p>
-            {{ t("recipes.detail.liter_price") }}:
-            <strong>{{ literPrice !== null ? formatCurrency(literPrice) : "-" }}</strong>
-          </p>
-        </div>
+        <RecipeCostSummary
+          :total-cost-text="formatCurrency(totalIngredientCost)"
+          :liter-price-text="literPrice !== null ? formatCurrency(literPrice) : '-'"
+        />
       </BaseCard>
 
       <BaseCard>
         <h3>{{ t("recipes.detail.ingredients") }}</h3>
         <div class="mt-3 space-y-2">
           <div v-if="!recipe.ingredients?.length" class="text-sm opacity-70">{{ t("recipes.detail.no_ingredients") }}</div>
-          <div v-for="ing in recipe.ingredients || []" :key="ing.ingredientId" class="border-t border-border3 py-2">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <div class="flex items-center gap-2">
-                <img :src="ingredientCategoryIcon(ing.category)" :alt="ingredientCategoryText(ing.category)" class="h-7 w-7 rounded-md border border-border3 bg-white p-1 object-contain" />
-                <h4>{{ ing.name }}</h4>
-              </div>
-              <span class="rounded-full bg-bg4 text-text4 px-2 py-1 text-xs">{{ ingredientCategoryText(ing.category) }}</span>
-            </div>
-            <p class="mt-1 text-sm opacity-90">{{ [ing.amount, ing.unit].filter(Boolean).join(' ') || '-' }}</p>
-            <p class="mt-1 text-sm opacity-85">
-              {{ t("recipes.fields.price") }}: {{ ing.price !== null && ing.price !== undefined ? formatCurrency(ing.price) : "-" }}
-            </p>
-            <p v-if="ing.notes" class="mt-1 text-sm opacity-80">{{ ing.notes }}</p>
-            <div v-if="ingredientStepTags(ing).length" class="mt-2 space-y-1">
-              <p class="text-xs font-semibold uppercase opacity-70">{{ t("recipes.detail.used_in_steps") }}</p>
-              <div class="mt-1 flex flex-wrap gap-2">
-                <span
-                  v-for="stepTag in ingredientStepTags(ing)"
-                  :key="`${ing.ingredientId}-${stepTag}`"
-                  class="rounded-full border border-border3 px-2 py-1 text-xs"
-                >
-                  {{ stepTag }}
-                </span>
-              </div>
-            </div>
-          </div>
+          <RecipeIngredientItem
+            v-for="ing in recipe.ingredients || []"
+            :key="ing.ingredientId"
+            :ingredient="ing"
+            :steps="recipe.steps || []"
+          />
         </div>
       </BaseCard>
 
       <BaseCard>
         <h3>{{ t("recipes.detail.steps") }}</h3>
         <div class="mt-3 space-y-3">
-          <div v-for="step in recipe.steps || []" :key="`${step.stepId}-${step.order}`" class="border-t border-border3 py-2">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <h4>{{ step.order }}. {{ step.title }}</h4>
-              <span class="rounded-full bg-bg4 text-text4 px-2 py-1 text-xs">{{ stepTypeLabel(step.stepType) }}</span>
-            </div>
-            <p v-if="step.description" class="mt-2 whitespace-pre-line text-sm opacity-90">{{ step.description }}</p>
-            <div class="mt-2 flex flex-wrap gap-4 text-xs opacity-80">
-              <span v-if="step.temperatureC !== null && step.temperatureC !== undefined">{{ t("recipes.detail.temp") }}: {{ step.temperatureC }} °C</span>
-              <span v-if="step.durationMinutes !== null && step.durationMinutes !== undefined">{{ t("recipes.detail.time") }}: {{ stepDurationLabel(step) }}</span>
-              <span v-if="step.co2Volumes !== null && step.co2Volumes !== undefined">{{ t("recipes.metrics.co2") }}: {{ step.co2Volumes }}</span>
-            </div>
-
-            <div class="mt-3" v-if="ingredientsForStep(step.stepId).length">
-              <p class="text-xs font-semibold uppercase opacity-70">{{ t("recipes.detail.ingredients_in_step") }}</p>
-              <div class="mt-1 flex flex-wrap gap-2">
-                <span
-                  v-for="ing in ingredientsForStep(step.stepId)"
-                  :key="`${step.stepId}-${ing.ingredientId}`"
-                  class="rounded-full border border-border3 px-2 py-1 text-xs"
-                >
-                  {{ ing.name }}
-                </span>
-              </div>
-            </div>
-          </div>
+          <RecipeStepItem
+            v-for="step in recipe.steps || []"
+            :key="`${step.stepId}-${step.order}`"
+            :step="step"
+            :ingredients="recipe.ingredients || []"
+          />
         </div>
       </BaseCard>
     </template>
@@ -171,18 +119,17 @@ import { useI18n } from "vue-i18n";
 import BaseCard from "@/components/base/BaseCard.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
 import BaseDropdown from "@/components/base/BaseDropdown.vue";
+import RecipeDefaultsSummary from "@/components/recipes/RecipeDefaultsSummary.vue";
+import RecipeCostSummary from "@/components/recipes/RecipeCostSummary.vue";
+import RecipeIngredientItem from "@/components/recipes/RecipeIngredientItem.vue";
+import RecipeStepItem from "@/components/recipes/RecipeStepItem.vue";
 import {
   deleteRecipeFamily,
   deleteRecipeVersion,
   getRecipe,
   listRecipeVersions,
 } from "@/services/recipes.service.js";
-import { STEP_TYPE_OPTIONS } from "@/components/recipe-steps/index.js";
-import {
-  ingredientCategoryIcon,
-  ingredientCategoryLabel,
-  resolveRecipeIconPath,
-} from "@/utils/recipeAssets.js";
+import { resolveRecipeIconPath } from "@/utils/recipeAssets.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -237,50 +184,6 @@ const literPrice = computed(() => {
   if (!Number.isFinite(liters) || liters <= 0) return null;
   return totalIngredientCost.value / liters;
 });
-
-function ingredientCategoryText(category) {
-  return ingredientCategoryLabel(t, category);
-}
-
-function ingredientsForStep(stepId) {
-  return (recipe.value?.ingredients || []).filter((ing) => (ing.stepIds || []).includes(stepId));
-}
-
-function ingredientStepTags(ingredient) {
-  const ids = Array.isArray(ingredient?.stepIds) ? ingredient.stepIds : [];
-  const allSteps = recipe.value?.steps || [];
-  return ids
-    .map((stepId) => {
-      const step = allSteps.find((item) => item.stepId === stepId);
-      if (!step) return null;
-      const orderPrefix = Number.isFinite(Number(step.order)) ? `${step.order}. ` : "";
-      return `${orderPrefix}${step.title || stepTypeLabel(step.stepType)}`;
-    })
-    .filter(Boolean);
-}
-
-function stepTypeLabel(value) {
-  return t(`recipes.step_types.${value || "custom"}`);
-}
-
-function isDayBasedStep(step) {
-  const type = step?.stepType || "";
-  return type === "primary_fermentation" || type === "secondary_fermentation" || type === "cold_crash";
-}
-
-function stepDurationLabel(step) {
-  const minutes = Number(step?.durationMinutes);
-  if (!Number.isFinite(minutes) || minutes <= 0) return "-";
-  if (isDayBasedStep(step)) {
-    const days = minutes / 1440;
-    return Number.isInteger(days) ? `${days} d` : `${days.toFixed(1)} d`;
-  }
-  return `${Math.round(minutes)} ${t("recipes.detail.minutes")}`;
-}
-
-function formatMetric(value) {
-  return value === null || value === undefined || value === "" ? "-" : value;
-}
 
 function formatCurrency(value) {
   const amount = Number(value);

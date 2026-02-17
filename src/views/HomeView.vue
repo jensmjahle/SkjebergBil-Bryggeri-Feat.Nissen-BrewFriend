@@ -1,5 +1,5 @@
 <template>
-  <section class="mx-auto w-full max-w-6xl px-4 py-8 space-y-6">
+  <section class="mx-auto w-full max-w-6xl px-4 py-2 md:py-8 space-y-2 md:space-y-6">
     <BaseCard class="overflow-hidden">
       <div class="grid gap-6 md:grid-cols-[220px_1fr] md:items-center">
         <div class="flex justify-center md:justify-start">
@@ -25,25 +25,81 @@
     </BaseCard>
 
     <template v-else>
-      <BaseCard class="space-y-3">
+      <BaseCard class="space-y-4">
         <h3>{{ t("home.main_action_title") }}</h3>
-        <router-link v-if="featuredBrew" :to="featuredBrewRoute" class="block">
-          <BaseButton class="w-full py-4 text-lg sm:text-xl" variant="button1">
-            {{ t("home.continue_brew_cta", { name: featuredBrew.name }) }}
-          </BaseButton>
+        <router-link v-if="featuredBrew" :to="featuredBrewRoute" class="group block">
+          <div class="rounded-2xl border border-border3 bg-bg4 p-4 transition-all group-hover:-translate-y-0.5 group-hover:border-button1-border">
+            <div class="flex items-center gap-3">
+              <div class="rounded-2xl border border-border3 bg-bg2 p-2 shadow-sm">
+                <img
+                  src="/icons/135-brewery.png"
+                  alt="Bryggeriikon"
+                  class="h-16 w-16 object-contain sm:h-20 sm:w-20"
+                />
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="text-xs uppercase tracking-wide opacity-70">{{ t("home.current_status") }}</p>
+                <p class="truncate text-lg font-semibold">{{ featuredBrew.name }}</p>
+                <p class="text-sm opacity-80">{{ statusLabel(featuredBrew.status) }}</p>
+              </div>
+            </div>
+            <BaseButton class="mt-4 w-full py-4 text-lg sm:text-xl" variant="button1">
+              {{ t("home.continue_brew_cta", { name: featuredBrew.name }) }}
+            </BaseButton>
+          </div>
         </router-link>
-        <router-link v-else to="/brygg/nytt" class="block">
-          <BaseButton class="w-full py-4 text-lg sm:text-xl" variant="button1">
-            {{ t("home.start_brew_cta") }}
-          </BaseButton>
+        <router-link v-else to="/brygg/nytt" class="group block">
+          <div class="rounded-2xl border border-border3 bg-bg4 p-4 transition-all group-hover:-translate-y-0.5 group-hover:border-button1-border">
+            <div class="flex items-center gap-3">
+              <div class="rounded-2xl border border-border3 bg-bg2 p-2 shadow-sm">
+                <img
+                  src="/icons/135-brewery.png"
+                  alt="Bryggeriikon"
+                  class="h-16 w-16 object-contain sm:h-20 sm:w-20"
+                />
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="text-xs uppercase tracking-wide opacity-70">{{ t("navbar.user.items.new_brew") }}</p>
+                <p class="text-lg font-semibold">{{ t("home.start_brew_cta") }}</p>
+              </div>
+            </div>
+            <BaseButton class="mt-4 w-full py-4 text-lg sm:text-xl" variant="button1">
+              {{ t("home.start_brew_cta") }}
+            </BaseButton>
+          </div>
         </router-link>
-        <p v-if="featuredBrew" class="text-sm opacity-80">
-          {{ t("home.current_status") }}: {{ statusLabel(featuredBrew.status) }}
-        </p>
       </BaseCard>
 
       <BaseCard>
         <h3>{{ t("home.quick_actions") }}</h3>
+        <div class="mt-4 grid gap-3 md:grid-cols-2">
+          <router-link to="/oppskrifter" class="group block">
+            <div class="rounded-2xl border border-border3 bg-bg4 p-4 transition-all group-hover:-translate-y-0.5 group-hover:border-button2-border">
+              <div class="flex items-center gap-3">
+                <img src="/icons/157-book.png" alt="Oppskriftsboka" class="h-12 w-12 shrink-0 object-contain" />
+                <div class="min-w-0">
+                  <p class="truncate text-base font-semibold">{{ t("navbar.user.items.recipes") }}</p>
+                  <p class="text-sm opacity-75">Oppskriftsboka</p>
+                </div>
+              </div>
+              <p class="mt-3 text-sm opacity-80">{{ recipeCount }} oppskrifter</p>
+            </div>
+          </router-link>
+
+          <router-link to="/brygg/tidligere" class="group block">
+            <div class="rounded-2xl border border-border3 bg-bg4 p-4 transition-all group-hover:-translate-y-0.5 group-hover:border-button3-border">
+              <div class="flex items-center gap-3">
+                <img src="/icons/115-international-beer-day-1.png" alt="Alle brygg" class="h-12 w-12 shrink-0 object-contain" />
+                <div class="min-w-0">
+                  <p class="truncate text-base font-semibold">{{ t("navbar.user.items.previous_brews") }}</p>
+                  <p class="text-sm opacity-75">Alle brygga</p>
+                </div>
+              </div>
+              <p class="mt-3 text-sm opacity-80">{{ brewCount }} brygg totalt</p>
+            </div>
+          </router-link>
+        </div>
+
         <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <router-link v-for="action in quickActions" :key="action.to" :to="action.to">
             <BaseButton class="w-full" :variant="action.variant">{{ action.label }}</BaseButton>
@@ -122,8 +178,6 @@ const featuredBrewRoute = computed(() => {
 
 const quickActions = computed(() => [
   { to: "/brygg/nytt", label: t("navbar.user.items.new_brew"), variant: "button1" },
-  { to: "/brygg/tidligere", label: t("navbar.user.items.previous_brews"), variant: "button3" },
-  { to: "/oppskrifter", label: t("navbar.user.items.recipes"), variant: "button2" },
   { to: "/oppskrifter/ny", label: t("navbar.user.items.new_recipe"), variant: "button3" },
   { to: "/verktoy/alkoholmaler", label: t("navbar.user.items.alcohol_calc"), variant: "button3" },
   { to: "/verktoy/co2-volumer", label: t("navbar.user.items.co2_volumes"), variant: "button3" },
