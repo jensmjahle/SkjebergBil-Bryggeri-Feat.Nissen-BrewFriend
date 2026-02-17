@@ -37,6 +37,7 @@
     "ingredient_category": {
       "fermentable": "Fermentable",
       "hops": "Hops",
+      "yeast": "Yeast",
       "other": "Other"
     },
     "step_types": {
@@ -58,6 +59,7 @@
     "fields": {
       "name": "Name",
       "beer_type": "Beer type",
+      "icon": "Icon",
       "color": "Color",
       "image": "Image",
       "image_url": "Image URL",
@@ -88,6 +90,8 @@
     "actions": {
       "create": "Create recipe",
       "save": "Save changes",
+      "delete_version": "Delete version",
+      "delete_recipe": "Delete recipe",
       "add_step": "Add step",
       "add_ingredient": "Add ingredient",
       "remove": "Remove",
@@ -126,7 +130,8 @@
       "subtitle": "Search and filter recipes by beer type, steps and ingredients.",
       "new_recipe": "New Recipe",
       "found": "{count} recipe(s) found",
-      "no_results": "No recipes match the filters."
+      "no_results": "No recipes match the filters.",
+      "no_flavor_profile": "No flavor profile registered yet."
     },
     "create": {
       "title": "New Recipe",
@@ -136,6 +141,7 @@
       "copy_suffix": "copy",
       "name_placeholder": "e.g. Summer IPA",
       "select_beer_type": "Select beer type",
+      "select_icon": "Select beer icon",
       "color_placeholder": "e.g. Golden",
       "image_url_placeholder": "Generated automatically after upload",
       "flavor_placeholder": "Describe flavor, aroma and mouthfeel",
@@ -158,6 +164,8 @@
     "detail": {
       "edit": "Edit",
       "copy": "Copy Recipe",
+      "confirm_delete_version": "Delete version v{version}? This cannot be undone.",
+      "confirm_delete_recipe": "Delete the entire recipe with all versions? This cannot be undone.",
       "start_brew": "Start Brew",
       "image_alt": "Recipe image",
       "flavor_profile": "Flavor profile",
@@ -165,6 +173,8 @@
       "ingredients": "Ingredients",
       "no_ingredients": "No ingredients registered.",
       "steps": "Steps",
+      "version": "Recipe version",
+      "latest": "Latest",
       "temp": "Temp",
       "time": "Time",
       "minutes": "min",
@@ -220,6 +230,9 @@
       "continue": "Continue brew",
       "create_plan": "Create planned brew",
       "save_plan": "Save plan",
+      "create_empty_plan": "Create empty planned brew",
+      "update_recipe_version": "Update current recipe version",
+      "create_recipe_version": "Save as new recipe version",
       "start_brew_day": "Start brew day",
       "back_to_list": "Back to brews",
       "open_plan": "Open planning",
@@ -256,9 +269,17 @@
       "create_from_recipe": "Create from recipe",
       "select_recipe_help": "Select a recipe to create a planned brew.",
       "select_recipe": "Select recipe",
+      "create_empty_title": "Or start with an empty brew",
+      "create_empty_help": "Create an empty planned brew and build recipe details while developing it.",
+      "empty_brew_name": "Untitled Brew",
+      "no_linked_recipe": "No recipe linked to this brew yet.",
+      "linked_recipe_version": "Linked recipe version: v{version}",
       "overview": "Overview",
       "summary": "{steps} steps and {ingredients} ingredients",
-      "saved": "Plan saved."
+      "saved": "Plan saved.",
+      "recipe_version_updated": "Linked recipe version updated.",
+      "recipe_version_created": "New recipe version created and linked to this brew.",
+      "recipe_created_and_linked": "Recipe created from this brew and linked."
     },
     "current": {
       "progress_tab": "Progress",

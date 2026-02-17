@@ -33,8 +33,9 @@
       placeholder="f.eks. 16.0"
       @update:model-value="setDataField('waterAmountL', $event)"
     />
-    <BaseInput
+    <BaseTextarea
       :model-value="modelValue.description"
+      rows="4"
       label="Notater"
       @update:model-value="setField('description', $event)"
     />
@@ -44,6 +45,7 @@
 <script setup>
 import BaseCard from "@/components/base/BaseCard.vue";
 import BaseInput from "@/components/base/BaseInput.vue";
+import BaseTextarea from "@/components/base/BaseTextarea.vue";
 
 const props = defineProps({
   modelValue: { type: Object, required: true },

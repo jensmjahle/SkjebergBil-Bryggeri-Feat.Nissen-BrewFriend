@@ -24,7 +24,7 @@ const brewIngredientSchema = new mongoose.Schema(
     category: {
       type: String,
       required: true,
-      enum: ["fermentable", "hops", "other"],
+      enum: ["fermentable", "hops", "yeast", "other"],
       default: "other",
     },
     amount: { type: String, trim: true, maxlength: 80 },
@@ -46,6 +46,9 @@ const recipeSnapshotSchema = new mongoose.Schema(
     },
     name: { type: String, trim: true, maxlength: 160 },
     beerType: { type: String, trim: true, maxlength: 120 },
+    iconPath: { type: String, trim: true, maxlength: 500 },
+    recipeGroupId: { type: String, trim: true, maxlength: 80 },
+    recipeVersion: { type: Number, min: 1 },
     flavorProfile: { type: String, trim: true, maxlength: 1200 },
     color: { type: String, trim: true, maxlength: 120 },
     imageUrl: { type: String, trim: true, maxlength: 500 },

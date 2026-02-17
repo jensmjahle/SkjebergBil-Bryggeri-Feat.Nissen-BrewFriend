@@ -150,7 +150,14 @@ function normalizeStep(step: any, index: number) {
 
 function normalizeIngredientCategory(value: any) {
   const text = toStringOrUndefined(value) || "other";
-  if (text === "fermentable" || text === "hops" || text === "other") return text;
+  if (
+    text === "fermentable" ||
+    text === "hops" ||
+    text === "yeast" ||
+    text === "other"
+  ) {
+    return text;
+  }
   return "other";
 }
 
@@ -211,6 +218,17 @@ function normalizeRecipeSnapshot(payload: any = {}, sourceRecipeOrSnapshot: any 
     })
     .filter((ing: any) => ing.name.length > 0);
 
+  const rawRecipeVersion = toNumberOrUndefined(
+    incoming.recipeVersion ??
+      incoming.version ??
+      source.recipeVersion ??
+      source.version,
+  );
+  const recipeVersion =
+    rawRecipeVersion !== undefined && rawRecipeVersion > 0
+      ? Math.floor(rawRecipeVersion)
+      : 1;
+
   return {
     recipeId:
       incoming.recipeId !== undefined
@@ -218,6 +236,9 @@ function normalizeRecipeSnapshot(payload: any = {}, sourceRecipeOrSnapshot: any 
         : source._id || source.recipeId || undefined,
     name: toStringOrUndefined(incoming.name ?? source.name),
     beerType: toStringOrUndefined(incoming.beerType ?? source.beerType),
+    iconPath: toStringOrUndefined(incoming.iconPath ?? source.iconPath),
+    recipeGroupId: toStringOrUndefined(incoming.recipeGroupId ?? source.recipeGroupId),
+    recipeVersion,
     flavorProfile: toStringOrUndefined(incoming.flavorProfile ?? source.flavorProfile),
     color: toStringOrUndefined(incoming.color ?? source.color),
     imageUrl: toStringOrUndefined(incoming.imageUrl ?? source.imageUrl),

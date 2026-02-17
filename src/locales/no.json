@@ -37,7 +37,8 @@
     "ingredient_category": {
       "fermentable": "Fermenterbart",
       "hops": "Humle",
-      "other": "Annet"
+      "other": "Annet",
+      "yeast": "Gjær"
     },
     "step_types": {
       "preparation": "Forberedning",
@@ -74,7 +75,8 @@
       "price": "Pris",
       "notes": "Notater",
       "link_to_steps": "Knytt til steg",
-      "batch_size_liters": "Batchstørrelse (L)"
+      "batch_size_liters": "Batchstørrelse (L)",
+      "icon": "Ikon"
     },
     "metrics": {
       "og": "OG",
@@ -88,6 +90,8 @@
     "actions": {
       "create": "Opprett oppskrift",
       "save": "Lagre endringer",
+      "delete_version": "Slett versjon",
+      "delete_recipe": "Slett oppskrift",
       "add_step": "Legg til steg",
       "add_ingredient": "Legg til ingrediens",
       "remove": "Fjern",
@@ -126,7 +130,8 @@
       "subtitle": "Søk og filtrer oppskrifter på øltype, steg og ingredienser.",
       "new_recipe": "Ny Oppskrift",
       "found": "{count} oppskrift(er) funnet",
-      "no_results": "Ingen oppskrifter matcher filtrene."
+      "no_results": "Ingen oppskrifter matcher filtrene.",
+      "no_flavor_profile": "Ingen smaksprofil registrert enda."
     },
     "create": {
       "title": "Ny Oppskrift",
@@ -148,7 +153,8 @@
       "no_ingredients": "Ingen ingredienser lagt til.",
       "add_steps_first": "Legg til steg først.",
       "image_uploading": "Laster opp bilde...",
-      "image_uploaded": "Bilde lastet opp."
+      "image_uploaded": "Bilde lastet opp.",
+      "select_icon": "Velg øl-ikon"
     },
     "edit": {
       "title": "Rediger Oppskrift",
@@ -158,6 +164,8 @@
     "detail": {
       "edit": "Rediger",
       "copy": "Kopier Oppskrift",
+      "confirm_delete_version": "Slette versjon v{version}? Dette kan ikke angres.",
+      "confirm_delete_recipe": "Slette hele oppskriften med alle versjoner? Dette kan ikke angres.",
       "start_brew": "Start Brygg",
       "image_alt": "Oppskriftsbilde",
       "flavor_profile": "Smaksprofil",
@@ -172,7 +180,9 @@
       "used_in_steps": "Brukes i",
       "cost_summary": "Kostnadsoversikt",
       "total_ingredients_cost": "Total ingredienskostnad",
-      "liter_price": "Pris per liter"
+      "liter_price": "Pris per liter",
+      "version": "Oppskriftsversjon",
+      "latest": "Nyeste"
     }
   },
   "brews": {
@@ -240,7 +250,10 @@
       "reset_step": "Nullstill steg",
       "add_measurement": "Legg til måling",
       "save_step_note": "Lagre stegnotat",
-      "save_actual_metrics": "Lagre faktisk OG/FG"
+      "save_actual_metrics": "Lagre faktisk OG/FG",
+      "create_empty_plan": "Opprett tomt planlagt brygg",
+      "update_recipe_version": "Oppdater nåværende oppskriftsversjon",
+      "create_recipe_version": "Lagre som ny oppskriftsversjon"
     },
     "list": {
       "title": "Tidligere Brygg",
@@ -258,7 +271,15 @@
       "select_recipe": "Velg oppskrift",
       "overview": "Oversikt",
       "summary": "{steps} steg og {ingredients} ingredienser",
-      "saved": "Plan lagret."
+      "saved": "Plan lagret.",
+      "create_empty_title": "Eller start med et tomt brygg",
+      "create_empty_help": "Opprett et tomt planlagt brygg og bygg opp oppskriften mens du utvikler den.",
+      "empty_brew_name": "Brygg uten navn",
+      "no_linked_recipe": "Ingen oppskrift er koblet til dette brygget ennå.",
+      "linked_recipe_version": "Koblet oppskriftsversjon: v{version}",
+      "recipe_version_updated": "Koblet oppskriftsversjon er oppdatert.",
+      "recipe_version_created": "Ny oppskriftsversjon er laget og koblet til brygget.",
+      "recipe_created_and_linked": "Oppskrift er laget fra brygget og koblet."
     },
     "current": {
       "progress_tab": "Fremdrift",

@@ -35,13 +35,14 @@
       placeholder="f.eks. 3.0 L/kg"
       @update:model-value="setDataField('waterToGrainRatio', $event)"
     />
-    <BaseInput :model-value="modelValue.description" label="Notater" @update:model-value="setField('description', $event)" />
+    <BaseTextarea :model-value="modelValue.description" rows="4" label="Notater" @update:model-value="setField('description', $event)" />
   </BaseCard>
 </template>
 
 <script setup>
 import BaseCard from "@/components/base/BaseCard.vue";
 import BaseInput from "@/components/base/BaseInput.vue";
+import BaseTextarea from "@/components/base/BaseTextarea.vue";
 
 const props = defineProps({ modelValue: { type: Object, required: true }, stepNumber: { type: Number, required: true } });
 const emit = defineEmits(["update:modelValue"]);

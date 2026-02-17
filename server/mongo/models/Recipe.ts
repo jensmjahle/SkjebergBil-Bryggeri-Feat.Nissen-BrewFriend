@@ -22,7 +22,7 @@ const recipeIngredientSchema = new mongoose.Schema(
     category: {
       type: String,
       required: true,
-      enum: ["fermentable", "hops", "other"],
+      enum: ["fermentable", "hops", "yeast", "other"],
       default: "other",
     },
     amount: { type: String, trim: true, maxlength: 80 },
@@ -44,8 +44,12 @@ const recipeSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    recipeGroupId: { type: String, trim: true, maxlength: 80, index: true },
+    version: { type: Number, min: 1, default: 1 },
+    isLatest: { type: Boolean, default: true, index: true },
     name: { type: String, required: true, trim: true, maxlength: 160 },
     beerType: { type: String, trim: true, maxlength: 120 },
+    iconPath: { type: String, trim: true, maxlength: 500 },
     flavorProfile: { type: String, trim: true, maxlength: 1200 },
     color: { type: String, trim: true, maxlength: 120 },
     imageUrl: { type: String, trim: true, maxlength: 500 },
@@ -65,6 +69,8 @@ const recipeSchema = new mongoose.Schema(
 );
 
 recipeSchema.index({ brewerId: 1, name: 1 });
+recipeSchema.index({ brewerId: 1, recipeGroupId: 1, version: -1 });
+recipeSchema.index({ brewerId: 1, recipeGroupId: 1, isLatest: 1 });
 
 export const Recipe: any =
   mongoose.models.Recipe || mongoose.model("Recipe", recipeSchema);

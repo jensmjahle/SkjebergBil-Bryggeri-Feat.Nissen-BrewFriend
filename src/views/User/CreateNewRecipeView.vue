@@ -15,6 +15,11 @@
           <BaseInput v-model="form.imageUrl" :label="t('recipes.fields.image_url')" :placeholder="t('recipes.create.image_url_placeholder')" />
         </div>
 
+        <div class="space-y-2 rounded-lg border border-border3 p-4">
+          <h3>{{ t("recipes.fields.icon") }}</h3>
+          <RecipeIconPicker v-model="form.iconPath" />
+        </div>
+
         <div class="space-y-3 rounded-lg border border-border3 p-4">
           <h3>{{ t("recipes.fields.image") }}</h3>
           <input type="file" accept="image/*" @change="handleImageUpload" class="block w-full text-sm" />
@@ -103,6 +108,11 @@
           </div>
 
           <BaseCard v-for="(ingredient, idx) in form.ingredients" :key="ingredient.ingredientId" class="space-y-3">
+            <div class="flex items-center gap-2 text-sm">
+              <img :src="ingredientCategoryIcon(ingredient.category)" :alt="ingredientCategoryText(ingredient.category)" class="h-7 w-7 rounded-md border border-border3 bg-white p-1 object-contain" />
+              <span class="opacity-80">{{ ingredientCategoryText(ingredient.category) }}</span>
+            </div>
+
             <div class="grid gap-3 md:grid-cols-2">
               <BaseInput v-model="ingredient.name" :label="t('recipes.fields.name')" :placeholder="t('recipes.create.ingredient_name_placeholder')" />
               <BaseDropdown v-model="ingredient.category" :label="t('recipes.fields.category')" :options="ingredientCategoryOptions" :placeholder="t('recipes.create.select_category')" />
@@ -172,8 +182,15 @@ import BaseCard from "@/components/base/BaseCard.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
 import BaseInput from "@/components/base/BaseInput.vue";
 import BaseDropdown from "@/components/base/BaseDropdown.vue";
+import RecipeIconPicker from "@/components/recipes/RecipeIconPicker.vue";
 import { createRecipe, getRecipe, uploadRecipeImage } from "@/services/recipes.service.js";
 import { STEP_COMPONENTS, STEP_TYPE_OPTIONS, createDefaultStep } from "@/components/recipe-steps/index.js";
+import {
+  DEFAULT_RECIPE_ICON_PATH,
+  ingredientCategoryIcon,
+  ingredientCategoryLabel,
+  ingredientCategoryOptions as buildIngredientCategoryOptions,
+} from "@/utils/recipeAssets.js";
 
 const route = useRoute();
 const { t, locale } = useI18n();
@@ -191,11 +208,7 @@ const beerTypeOptions = computed(() => [
   { label: t("recipes.beer_type.other"), value: "Annet" },
 ]);
 
-const ingredientCategoryOptions = computed(() => [
-  { label: t("recipes.ingredient_category.fermentable"), value: "fermentable" },
-  { label: t("recipes.ingredient_category.hops"), value: "hops" },
-  { label: t("recipes.ingredient_category.other"), value: "other" },
-]);
+const ingredientCategoryOptions = computed(() => buildIngredientCategoryOptions(t));
 
 const stepTypeOptions = computed(() =>
   STEP_TYPE_OPTIONS.map((step) => ({ label: t(`recipes.step_types.${step.value}`), value: step.value })),
@@ -209,6 +222,7 @@ function newIngredientId() {
 const initialState = () => ({
   name: "",
   beerType: "",
+  iconPath: DEFAULT_RECIPE_ICON_PATH,
   flavorProfile: "",
   color: "",
   imageUrl: "",
@@ -289,6 +303,10 @@ const isGravityValid = computed(() => {
 
 function stepTypeLabel(value) {
   return t(`recipes.step_types.${value || "custom"}`);
+}
+
+function ingredientCategoryText(category) {
+  return ingredientCategoryLabel(t, category);
 }
 
 function formatCurrency(value) {
@@ -387,6 +405,7 @@ async function handleImageUpload(event) {
 function hydrateForm(recipe) {
   form.name = recipe?.name ? `${recipe.name} (${t("recipes.create.copy_suffix")})` : "";
   form.beerType = recipe?.beerType || "";
+  form.iconPath = recipe?.iconPath || DEFAULT_RECIPE_ICON_PATH;
   form.flavorProfile = recipe?.flavorProfile || "";
   form.color = recipe?.color || "";
   form.imageUrl = recipe?.imageUrl || "";
@@ -440,6 +459,7 @@ async function handleSubmit() {
     const payload = {
       name: form.name.trim(),
       beerType: form.beerType || undefined,
+      iconPath: form.iconPath || undefined,
       flavorProfile: form.flavorProfile?.trim() || undefined,
       color: form.color?.trim() || undefined,
       imageUrl: form.imageUrl?.trim() || undefined,

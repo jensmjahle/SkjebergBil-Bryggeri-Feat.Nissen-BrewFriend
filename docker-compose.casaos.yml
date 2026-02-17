@@ -1,0 +1,77 @@
+name: guttabrew_companion
+services:
+  backend:
+    cpu_shares: 90
+    command: []
+    container_name: beer-friend-backend
+    deploy:
+      resources:
+        limits:
+          memory: 31670M
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - MONGODB_URI=mongodb://brewfriend:brewfriend@192.168.1.153:27017/brewfriend?authSource=admin
+      - MONGODB_DB=brewfriend
+      - JWT_SECRET=change-me-in-prod
+    hostname: beer-friend-backend
+    image: ghcr.io/jensmjahle/beer-friend-backend:latest
+    labels:
+      icon: https://icon.casaos.io/main/all/backend.png
+    ports:
+      - target: 3000
+        published: "3019"
+        protocol: tcp
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: /DATA/HubertXL/Dokumenter/GuttaBrewUploads
+        target: /app/uploads
+    devices: []
+    cap_add: []
+    network_mode: bridge
+    privileged: false
+
+  frontend:
+    cpu_shares: 90
+    command: []
+    container_name: beer-friend-frontend
+    depends_on:
+      backend:
+        condition: service_started
+        required: true
+    deploy:
+      resources:
+        limits:
+          memory: 31670M
+    environment:
+      - NODE_ENV=production
+      - VITE_API_URL=https://bryggeri-backend.jensmartin.no
+    hostname: beer-friend-frontend
+    image: ghcr.io/jensmjahle/beer-friend-frontend:latest
+    labels:
+      icon: https://icon.casaos.io/main/all/backend.png
+    ports:
+      - target: 8080
+        published: "8070"
+        protocol: tcp
+    restart: unless-stopped
+    volumes: []
+    devices: []
+    cap_add: []
+    network_mode: bridge
+    privileged: false
+
+x-casaos:
+  author: self
+  category: self
+  hostname: ""
+  icon: https://icon.casaos.io/main/all/backend.png
+  index: /
+  is_uncontrolled: false
+  port_map: "8070"
+  scheme: http
+  store_app_id: guttabrew_companion
+  title:
+    custom: GuttaBrew
+    en_us: GuttaBrew

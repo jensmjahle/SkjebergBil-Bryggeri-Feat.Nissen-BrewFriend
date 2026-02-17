@@ -67,32 +67,35 @@
       {{ t("recipes.list.no_results") }}
     </div>
 
-    <div v-else class="grid gap-4 md:grid-cols-2">
-      <router-link v-for="recipe in recipes" :key="recipe._id" :to="`/oppskrifter/${recipe._id}`" class="block">
-        <BaseCard class="space-y-3 cursor-pointer transition hover:scale-[1.01]">
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <h3>{{ recipe.name }}</h3>
+    <div v-else class="grid auto-rows-fr gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <router-link
+        v-for="recipe in recipes"
+        :key="recipe._id"
+        :to="`/oppskrifter/${recipe._id}`"
+        class="block h-full"
+      >
+        <BaseCard class="flex h-[280px] cursor-pointer flex-col gap-4 transition hover:scale-[1.01]">
+          <div class="flex items-start gap-3">
+            <img
+              :src="recipeIcon(recipe)"
+              :alt="recipe.name"
+              class="h-14 w-14 rounded-lg border border-border3 bg-white p-2 object-contain"
+            />
+            <div class="min-w-0 flex-1">
+              <h3 class="truncate text-xl font-semibold">{{ recipe.name }}</h3>
               <p class="text-sm opacity-80">{{ recipe.beerType || t("recipes.common.unknown_type") }}</p>
             </div>
-            <span class="rounded-full bg-bg4 px-2 py-1 text-xs">{{ t("recipes.common.step_count", { count: recipe.steps?.length || 0 }) }}</span>
+            <span class="rounded-full bg-bg4 px-2 py-1 text-xs">v{{ recipe.version || 1 }}</span>
           </div>
 
-          <p v-if="recipe.flavorProfile" class="text-sm opacity-90">{{ recipe.flavorProfile }}</p>
-
-          <div class="grid grid-cols-2 gap-2 text-sm">
-            <div>{{ t("recipes.metrics.og") }}: {{ recipe.defaults?.ogFrom || '-' }} - {{ recipe.defaults?.ogTo || '-' }}</div>
-            <div>{{ t("recipes.metrics.fg") }}: {{ recipe.defaults?.fgFrom || '-' }} - {{ recipe.defaults?.fgTo || '-' }}</div>
-            <div>{{ t("recipes.metrics.co2") }}: {{ formatMetric(recipe.defaults?.co2Volumes) }}</div>
-            <div>{{ t("recipes.metrics.ibu") }}: {{ formatMetric(recipe.defaults?.ibu) }}</div>
-            <div class="col-span-2">{{ t("recipes.metrics.abv") }}: {{ abvText(recipe) }}</div>
+          <div class="grid grid-cols-1 gap-1 text-sm opacity-90">
+            <p>{{ t("recipes.metrics.abv") }}: <strong>{{ abvText(recipe) }}</strong></p>
+            <p>{{ t("recipes.fields.beer_type") }}: <strong>{{ recipe.beerType || t("recipes.common.unknown_type") }}</strong></p>
           </div>
 
-          <div class="flex flex-wrap gap-2">
-            <span v-for="step in recipe.steps || []" :key="`${recipe._id}-${step.stepId || step.order}`" class="rounded-full border border-border3 px-2 py-1 text-xs">
-              {{ stepTypeLabel(step.stepType) }}
-            </span>
-          </div>
+          <p class="flex-1 overflow-hidden text-sm opacity-85 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:4]">
+            {{ recipe.flavorProfile || t("recipes.list.no_flavor_profile") }}
+          </p>
         </BaseCard>
       </router-link>
     </div>
@@ -109,6 +112,10 @@ import BaseDropdown from "@/components/base/BaseDropdown.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
 import RecipeFiltersModal from "@/components/modals/RecipeFiltersModal.vue";
 import { STEP_TYPE_OPTIONS } from "@/components/recipe-steps/index.js";
+import {
+  ingredientCategoryOptions as buildIngredientCategoryOptions,
+  resolveRecipeIconPath,
+} from "@/utils/recipeAssets.js";
 
 const { t } = useI18n();
 const loading = ref(false);
@@ -141,11 +148,7 @@ const stepTypeOptions = computed(() =>
   STEP_TYPE_OPTIONS.map((step) => ({ label: t(`recipes.step_types.${step.value}`), value: step.value })),
 );
 
-const ingredientCategoryOptions = computed(() => [
-  { label: t("recipes.ingredient_category.fermentable"), value: "fermentable" },
-  { label: t("recipes.ingredient_category.hops"), value: "hops" },
-  { label: t("recipes.ingredient_category.other"), value: "other" },
-]);
+const ingredientCategoryOptions = computed(() => buildIngredientCategoryOptions(t));
 
 const defaultsOptions = computed(() => [
   { label: t("recipes.filters.has_defaults"), value: "true" },
@@ -160,12 +163,8 @@ const sortOptions = computed(() => [
   { label: t("recipes.sort.steps_desc"), value: "steps_desc" },
 ]);
 
-function stepTypeLabel(value) {
-  return t(`recipes.step_types.${value || "custom"}`);
-}
-
-function formatMetric(value) {
-  return value === null || value === undefined || value === "" ? "-" : value;
+function recipeIcon(recipe) {
+  return resolveRecipeIconPath(recipe?.iconPath);
 }
 
 function abvText(recipe) {

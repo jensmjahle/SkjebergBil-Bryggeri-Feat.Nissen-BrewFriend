@@ -14,11 +14,13 @@
       <p>{{ t("common.loading") }}</p>
     </BaseCard>
 
-    <BaseCard v-else-if="!brew">
-      <h3>{{ t("brews.plan.create_from_recipe") }}</h3>
-      <p class="mt-2 text-sm opacity-80">{{ t("brews.plan.select_recipe_help") }}</p>
+    <BaseCard v-else-if="!brew" class="space-y-5">
+      <div>
+        <h3>{{ t("brews.plan.create_from_recipe") }}</h3>
+        <p class="mt-2 text-sm opacity-80">{{ t("brews.plan.select_recipe_help") }}</p>
+      </div>
 
-      <div class="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+      <div class="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
         <BaseDropdown
           v-model="selectedRecipeId"
           :label="t('recipes.fields.name')"
@@ -34,20 +36,61 @@
         </BaseButton>
       </div>
 
-      <p v-if="errorMessage" class="mt-3 text-sm text-red-600">{{ errorMessage }}</p>
+      <div class="border-t border-border3 pt-4">
+        <h4>{{ t("brews.plan.create_empty_title") }}</h4>
+        <p class="mt-1 text-sm opacity-80">{{ t("brews.plan.create_empty_help") }}</p>
+        <div class="mt-3">
+          <BaseButton type="button" variant="button3" :disabled="creating" @click="createEmptyPlan">
+            {{ creating ? t("common.loading") : t("brews.actions.create_empty_plan") }}
+          </BaseButton>
+        </div>
+      </div>
+
+      <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
     </BaseCard>
 
     <BaseCard v-else class="space-y-6">
-      <div class="grid gap-4 md:grid-cols-2">
+      <div class="grid gap-4 md:grid-cols-3">
         <BaseInput v-model="form.name" :label="t('recipes.fields.name')" required />
         <BaseInput
           v-model="form.plannedStartAt"
           :label="t('brews.fields.planned_start')"
           type="datetime-local"
         />
+        <BaseInput
+          v-model.number="form.snapshot.defaults.batchSizeLiters"
+          :model-modifiers="{ number: true }"
+          type="number"
+          step="0.1"
+          :label="t('recipes.fields.batch_size_liters')"
+        />
       </div>
 
       <BaseInput v-model="form.notes" :label="t('recipes.fields.notes')" />
+
+      <div class="rounded-lg border border-border3 p-4">
+        <p class="text-sm font-medium">{{ t("recipes.detail.version") }}</p>
+        <p class="mt-1 text-sm opacity-80">{{ linkedRecipeVersionText }}</p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <BaseButton
+            type="button"
+            variant="button3"
+            :disabled="recipeSyncing || !form.name?.trim() || !isGravityValid || !hasLinkedRecipe"
+            @click="updateLinkedRecipeVersion"
+          >
+            {{ recipeSyncing && recipeSyncAction === "update" ? t("common.saving") : t("brews.actions.update_recipe_version") }}
+          </BaseButton>
+          <BaseButton
+            type="button"
+            variant="button2"
+            :disabled="recipeSyncing || !form.name?.trim() || !isGravityValid"
+            @click="saveAsNewRecipeVersion"
+          >
+            {{ recipeSyncing && recipeSyncAction === "new-version" ? t("common.saving") : t("brews.actions.create_recipe_version") }}
+          </BaseButton>
+        </div>
+        <p v-if="recipeSyncMessage" class="mt-2 text-sm opacity-80">{{ recipeSyncMessage }}</p>
+      </div>
 
       <div class="flex flex-wrap gap-2">
         <BaseButton
@@ -158,6 +201,11 @@
           :key="ingredient.ingredientId"
           class="space-y-3"
         >
+          <div class="flex items-center gap-2 text-sm">
+            <img :src="ingredientCategoryIcon(ingredient.category)" :alt="ingredientCategoryText(ingredient.category)" class="h-7 w-7 rounded-md border border-border3 bg-white p-1 object-contain" />
+            <span class="opacity-80">{{ ingredientCategoryText(ingredient.category) }}</span>
+          </div>
+
           <div class="grid gap-3 md:grid-cols-2">
             <BaseInput v-model="ingredient.name" :label="t('recipes.fields.name')" />
             <BaseDropdown
@@ -289,7 +337,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import BaseCard from "@/components/base/BaseCard.vue";
@@ -297,13 +345,24 @@ import BaseButton from "@/components/base/BaseButton.vue";
 import BaseInput from "@/components/base/BaseInput.vue";
 import BaseDropdown from "@/components/base/BaseDropdown.vue";
 import { STEP_COMPONENTS, STEP_TYPE_OPTIONS, createDefaultStep } from "@/components/recipe-steps/index.js";
-import { listRecipes } from "@/services/recipes.service.js";
 import {
+  createRecipe,
+  createRecipeVersion,
+  listRecipes,
+  updateRecipe,
+} from "@/services/recipes.service.js";
+import {
+  createBrew,
   createPlannedBrewFromRecipe,
   getBrew,
   startBrew,
   updateBrew,
 } from "@/services/brews.service.js";
+import {
+  ingredientCategoryIcon,
+  ingredientCategoryLabel,
+  ingredientCategoryOptions as buildIngredientCategoryOptions,
+} from "@/utils/recipeAssets.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -313,6 +372,10 @@ const gravityPattern = /^1\.\d{3}$/;
 const loading = ref(true);
 const creating = ref(false);
 const saving = ref(false);
+const recipeSyncing = ref(false);
+const recipeSyncAction = ref("");
+const recipeSyncMessage = ref("");
+const suppressBatchAutoScale = ref(false);
 const successMessage = ref("");
 const errorMessage = ref("");
 const brew = ref(null);
@@ -329,8 +392,11 @@ const form = reactive({
   plannedStartAt: "",
   snapshot: {
     recipeId: "",
+    recipeGroupId: "",
+    recipeVersion: 1,
     name: "",
     beerType: "",
+    iconPath: "",
     flavorProfile: "",
     color: "",
     imageUrl: "",
@@ -353,11 +419,7 @@ function newIngredientId() {
   return `ingredient-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-const ingredientCategoryOptions = computed(() => [
-  { label: t("recipes.ingredient_category.fermentable"), value: "fermentable" },
-  { label: t("recipes.ingredient_category.hops"), value: "hops" },
-  { label: t("recipes.ingredient_category.other"), value: "other" },
-]);
+const ingredientCategoryOptions = computed(() => buildIngredientCategoryOptions(t));
 
 const stepTypeOptions = computed(() =>
   STEP_TYPE_OPTIONS.map((step) => ({
@@ -369,6 +431,13 @@ const stepTypeOptions = computed(() =>
 const recipeOptions = computed(() =>
   (recipes.value || []).map((recipe) => ({ label: recipe.name, value: recipe._id })),
 );
+
+const hasLinkedRecipe = computed(() => Boolean(form.snapshot.recipeId));
+const linkedRecipeVersionText = computed(() => {
+  if (!hasLinkedRecipe.value) return t("brews.plan.no_linked_recipe");
+  const version = form.snapshot.recipeVersion || 1;
+  return t("brews.plan.linked_recipe_version", { version });
+});
 
 const isGravityValid = computed(() => {
   const fields = [
@@ -404,6 +473,10 @@ function stepTypeLabel(value) {
   return t(`recipes.step_types.${value || "custom"}`);
 }
 
+function ingredientCategoryText(category) {
+  return ingredientCategoryLabel(t, category);
+}
+
 function formatCurrency(value) {
   const amount = Number(value);
   if (!Number.isFinite(amount)) return "-";
@@ -433,6 +506,33 @@ function toIsoOrUndefined(value) {
 
 function sanitizeNumber(value) {
   return typeof value === "number" && !Number.isNaN(value) ? value : null;
+}
+
+function toPositiveNumber(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
+
+function scaleIngredientAmountText(amountValue, ratio) {
+  if (amountValue === null || amountValue === undefined) return amountValue;
+  const rawText = String(amountValue).trim();
+  if (!rawText) return amountValue;
+
+  const normalized = rawText.replace(",", ".");
+  if (!/^-?\d+(\.\d+)?$/.test(normalized)) return amountValue;
+
+  const amount = Number(normalized);
+  if (!Number.isFinite(amount)) return amountValue;
+
+  const scaled = amount * ratio;
+  const rounded = Math.round(scaled * 1000) / 1000;
+  let text = Number.isInteger(rounded)
+    ? String(rounded)
+    : rounded.toFixed(3).replace(/\.?0+$/, "");
+
+  if (rawText.includes(",")) text = text.replace(".", ",");
+  return text;
 }
 
 function addStepByType() {
@@ -486,6 +586,7 @@ function toggleIngredientStep(ingredient, stepId) {
 }
 
 function hydrateForm(brewDoc) {
+  suppressBatchAutoScale.value = true;
   brew.value = brewDoc;
   form.name = brewDoc?.name || "";
   form.notes = brewDoc?.notes || "";
@@ -493,8 +594,11 @@ function hydrateForm(brewDoc) {
 
   const snapshot = brewDoc?.recipeSnapshot || {};
   form.snapshot.recipeId = snapshot.recipeId || brewDoc?.recipeId || "";
+  form.snapshot.recipeGroupId = snapshot.recipeGroupId || "";
+  form.snapshot.recipeVersion = Number(snapshot.recipeVersion || 1) || 1;
   form.snapshot.name = snapshot.name || "";
   form.snapshot.beerType = snapshot.beerType || "";
+  form.snapshot.iconPath = snapshot.iconPath || "";
   form.snapshot.flavorProfile = snapshot.flavorProfile || "";
   form.snapshot.color = snapshot.color || "";
   form.snapshot.imageUrl = snapshot.imageUrl || "";
@@ -531,6 +635,7 @@ function hydrateForm(brewDoc) {
         stepIds: Array.isArray(ing.stepIds) ? ing.stepIds : [],
       }))
     : [];
+  suppressBatchAutoScale.value = false;
 }
 
 function snapshotPayload() {
@@ -565,8 +670,11 @@ function snapshotPayload() {
 
   return {
     recipeId: form.snapshot.recipeId || undefined,
+    recipeGroupId: form.snapshot.recipeGroupId || undefined,
+    recipeVersion: Number(form.snapshot.recipeVersion || 1) || 1,
     name: form.snapshot.name?.trim() || form.name?.trim() || undefined,
     beerType: form.snapshot.beerType?.trim() || undefined,
+    iconPath: form.snapshot.iconPath?.trim() || undefined,
     flavorProfile: form.snapshot.flavorProfile?.trim() || undefined,
     color: form.snapshot.color?.trim() || undefined,
     imageUrl: form.snapshot.imageUrl?.trim() || undefined,
@@ -616,6 +724,136 @@ async function createPlanFromSelection() {
   await createFromRecipe(selectedRecipeId.value);
 }
 
+function recipePayloadFromSnapshot() {
+  const snapshot = snapshotPayload();
+  return {
+    name: form.name?.trim() || snapshot.name || t("brews.plan.empty_brew_name"),
+    beerType: snapshot.beerType,
+    iconPath: snapshot.iconPath,
+    flavorProfile: snapshot.flavorProfile,
+    color: snapshot.color,
+    imageUrl: snapshot.imageUrl,
+    defaults: snapshot.defaults,
+    steps: snapshot.steps,
+    ingredients: snapshot.ingredients,
+  };
+}
+
+function applyLinkedRecipe(recipeDoc) {
+  form.snapshot.recipeId = recipeDoc?._id || "";
+  form.snapshot.recipeGroupId = recipeDoc?.recipeGroupId || "";
+  form.snapshot.recipeVersion = Number(recipeDoc?.version || 1) || 1;
+  form.snapshot.name = recipeDoc?.name || form.snapshot.name || form.name;
+  form.snapshot.beerType = recipeDoc?.beerType || form.snapshot.beerType;
+  form.snapshot.iconPath = recipeDoc?.iconPath || form.snapshot.iconPath;
+  form.snapshot.flavorProfile = recipeDoc?.flavorProfile || form.snapshot.flavorProfile;
+  form.snapshot.color = recipeDoc?.color || form.snapshot.color;
+  form.snapshot.imageUrl = recipeDoc?.imageUrl || form.snapshot.imageUrl;
+}
+
+async function syncBrewWithLinkedRecipe(recipeDoc) {
+  if (!brew.value?._id) return;
+  applyLinkedRecipe(recipeDoc);
+  const updatedBrew = await updateBrew(brew.value._id, {
+    recipeId: form.snapshot.recipeId || undefined,
+    recipeSnapshot: snapshotPayload(),
+    progress: {
+      currentStepIndex: brew.value?.progress?.currentStepIndex || 0,
+    },
+  });
+  hydrateForm(updatedBrew);
+}
+
+async function updateLinkedRecipeVersion() {
+  if (!hasLinkedRecipe.value || !form.snapshot.recipeId) return;
+  if (!isGravityValid.value) {
+    errorMessage.value = t("recipes.errors.gravity_format");
+    return;
+  }
+
+  recipeSyncing.value = true;
+  recipeSyncAction.value = "update";
+  recipeSyncMessage.value = "";
+  errorMessage.value = "";
+
+  try {
+    const updatedRecipe = await updateRecipe(
+      form.snapshot.recipeId,
+      recipePayloadFromSnapshot(),
+    );
+    await syncBrewWithLinkedRecipe(updatedRecipe);
+    recipeSyncMessage.value = t("brews.plan.recipe_version_updated");
+  } catch (err) {
+    errorMessage.value =
+      err?.response?.data?.error || err?.message || t("recipes.errors.update_failed");
+  } finally {
+    recipeSyncing.value = false;
+    recipeSyncAction.value = "";
+  }
+}
+
+async function saveAsNewRecipeVersion() {
+  if (!form.name?.trim()) return;
+  if (!isGravityValid.value) {
+    errorMessage.value = t("recipes.errors.gravity_format");
+    return;
+  }
+
+  recipeSyncing.value = true;
+  recipeSyncAction.value = "new-version";
+  recipeSyncMessage.value = "";
+  errorMessage.value = "";
+
+  try {
+    const payload = recipePayloadFromSnapshot();
+    const nextRecipe = hasLinkedRecipe.value
+      ? await createRecipeVersion(form.snapshot.recipeId, payload)
+      : await createRecipe(payload);
+    await syncBrewWithLinkedRecipe(nextRecipe);
+    recipeSyncMessage.value = hasLinkedRecipe.value
+      ? t("brews.plan.recipe_version_created")
+      : t("brews.plan.recipe_created_and_linked");
+  } catch (err) {
+    errorMessage.value =
+      err?.response?.data?.error || err?.message || t("recipes.errors.save_failed");
+  } finally {
+    recipeSyncing.value = false;
+    recipeSyncAction.value = "";
+  }
+}
+
+async function createEmptyPlan() {
+  creating.value = true;
+  errorMessage.value = "";
+  recipeSyncMessage.value = "";
+  try {
+    const emptyName = t("brews.plan.empty_brew_name");
+    const brewDoc = await createBrew({
+      name: emptyName,
+      status: "planned",
+      recipeSnapshot: {
+        name: emptyName,
+        defaults: {},
+        steps: [],
+        ingredients: [],
+      },
+      progress: {
+        currentStepIndex: 0,
+      },
+    });
+    hydrateForm(brewDoc);
+    await router.replace({
+      name: "brygg-planlegging",
+      params: { brewId: brewDoc._id },
+    });
+  } catch (err) {
+    errorMessage.value =
+      err?.response?.data?.error || err?.message || t("brews.errors.create_failed");
+  } finally {
+    creating.value = false;
+  }
+}
+
 async function savePlan() {
   if (!brew.value?._id) return;
   if (!isGravityValid.value) {
@@ -626,6 +864,7 @@ async function savePlan() {
   saving.value = true;
   successMessage.value = "";
   errorMessage.value = "";
+  recipeSyncMessage.value = "";
 
   try {
     const updated = await updateBrew(brew.value._id, {
@@ -686,6 +925,22 @@ async function bootstrap() {
     loading.value = false;
   }
 }
+
+watch(
+  () => form.snapshot.defaults.batchSizeLiters,
+  (nextValue, previousValue) => {
+    if (suppressBatchAutoScale.value) return;
+    const nextLiters = toPositiveNumber(nextValue);
+    const previousLiters = toPositiveNumber(previousValue);
+    if (!nextLiters || !previousLiters || nextLiters === previousLiters) return;
+
+    const ratio = nextLiters / previousLiters;
+    form.snapshot.ingredients.forEach((ingredient) => {
+      ingredient.amount = scaleIngredientAmountText(ingredient.amount, ratio);
+    });
+  },
+  { flush: "sync" },
+);
 
 onMounted(bootstrap);
 </script>

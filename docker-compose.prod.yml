@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  backend:
+    image: ghcr.io/${GHCR_OWNER}/beer-friend-backend:${IMAGE_TAG:-latest}
+    container_name: beer-friend-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGODB_URI: ${MONGODB_URI}
+      MONGODB_DB: ${MONGODB_DB:-brewfriend}
+      JWT_SECRET: ${JWT_SECRET}
+    volumes:
+      - beer_uploads:/app/uploads
+    networks:
+      - app_net
+
+  frontend:
+    image: ghcr.io/${GHCR_OWNER}/beer-friend-frontend:${IMAGE_TAG:-latest}
+    container_name: beer-friend-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+      VITE_API_URL: ${VITE_API_URL}
+    ports:
+      - "${FRONTEND_PORT:-8080}:8080"
+    networks:
+      - app_net
+
+networks:
+  app_net:
+    driver: bridge
+
+volumes:
+  beer_uploads:

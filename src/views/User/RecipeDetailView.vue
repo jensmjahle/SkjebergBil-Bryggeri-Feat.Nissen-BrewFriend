@@ -11,9 +11,15 @@
     <template v-else-if="recipe">
       <BaseCard>
         <div class="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1>{{ recipe.name }}</h1>
-            <p class="mt-1 opacity-80">{{ recipe.beerType || t("recipes.common.unknown_type") }}</p>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-3">
+              <img :src="recipeIcon" :alt="recipe.name" class="h-14 w-14 rounded-lg border border-border3 bg-white p-2 object-contain" />
+              <div class="min-w-0">
+                <h1 class="truncate">{{ recipe.name }}</h1>
+                <p class="mt-1 opacity-80">{{ recipe.beerType || t("recipes.common.unknown_type") }}</p>
+                <p class="text-xs opacity-70">v{{ recipe.version || 1 }}</p>
+              </div>
+            </div>
           </div>
 
           <div class="flex flex-wrap gap-2">
@@ -23,7 +29,32 @@
             <router-link :to="{ path: '/oppskrifter/ny', query: { copyFrom: recipe._id } }">
               <BaseButton variant="button2">{{ t("recipes.detail.copy") }}</BaseButton>
             </router-link>
+            <BaseButton
+              type="button"
+              variant="button4"
+              :disabled="deletingVersion || deletingFamily"
+              @click="deleteCurrentVersion"
+            >
+              {{ deletingVersion ? t("common.loading") : t("recipes.actions.delete_version") }}
+            </BaseButton>
+            <BaseButton
+              type="button"
+              variant="button4"
+              :disabled="deletingVersion || deletingFamily"
+              @click="deleteAllVersions"
+            >
+              {{ deletingFamily ? t("common.loading") : t("recipes.actions.delete_recipe") }}
+            </BaseButton>
           </div>
+        </div>
+
+        <div v-if="versionOptions.length > 1" class="mt-4 max-w-sm">
+          <BaseDropdown
+            v-model="selectedVersionId"
+            :label="t('recipes.detail.version')"
+            :options="versionOptions"
+            @update:model-value="switchVersion"
+          />
         </div>
 
         <router-link :to="{ path: '/brygg/nytt', query: { recipeId: recipe._id } }" class="mt-5 block">
@@ -72,8 +103,11 @@
           <div v-if="!recipe.ingredients?.length" class="text-sm opacity-70">{{ t("recipes.detail.no_ingredients") }}</div>
           <div v-for="ing in recipe.ingredients || []" :key="ing.ingredientId" class="rounded-lg border border-border3 p-3">
             <div class="flex flex-wrap items-center justify-between gap-2">
-              <h4>{{ ing.name }}</h4>
-              <span class="rounded-full bg-bg4 px-2 py-1 text-xs">{{ ingredientCategoryLabel(ing.category) }}</span>
+              <div class="flex items-center gap-2">
+                <img :src="ingredientCategoryIcon(ing.category)" :alt="ingredientCategoryText(ing.category)" class="h-7 w-7 rounded-md border border-border3 bg-white p-1 object-contain" />
+                <h4>{{ ing.name }}</h4>
+              </div>
+              <span class="rounded-full bg-bg4 px-2 py-1 text-xs">{{ ingredientCategoryText(ing.category) }}</span>
             </div>
             <p class="mt-1 text-sm opacity-90">{{ [ing.amount, ing.unit].filter(Boolean).join(' ') || '-' }}</p>
             <p class="mt-1 text-sm opacity-85">
@@ -104,7 +138,7 @@
               <h4>{{ step.order }}. {{ step.title }}</h4>
               <span class="rounded-full bg-bg4 px-2 py-1 text-xs">{{ stepTypeLabel(step.stepType) }}</span>
             </div>
-            <p v-if="step.description" class="mt-2 text-sm opacity-90">{{ step.description }}</p>
+            <p v-if="step.description" class="mt-2 whitespace-pre-line text-sm opacity-90">{{ step.description }}</p>
             <div class="mt-2 flex flex-wrap gap-4 text-xs opacity-80">
               <span v-if="step.temperatureC !== null && step.temperatureC !== undefined">{{ t("recipes.detail.temp") }}: {{ step.temperatureC }} °C</span>
               <span v-if="step.durationMinutes !== null && step.durationMinutes !== undefined">{{ t("recipes.detail.time") }}: {{ stepDurationLabel(step) }}</span>
@@ -131,19 +165,36 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
-import { useRoute } from "vue-router";
+import { computed, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import BaseCard from "@/components/base/BaseCard.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
-import { getRecipe } from "@/services/recipes.service.js";
+import BaseDropdown from "@/components/base/BaseDropdown.vue";
+import {
+  deleteRecipeFamily,
+  deleteRecipeVersion,
+  getRecipe,
+  listRecipeVersions,
+} from "@/services/recipes.service.js";
 import { STEP_TYPE_OPTIONS } from "@/components/recipe-steps/index.js";
+import {
+  ingredientCategoryIcon,
+  ingredientCategoryLabel,
+  resolveRecipeIconPath,
+} from "@/utils/recipeAssets.js";
 
 const route = useRoute();
+const router = useRouter();
 const { t, locale } = useI18n();
 const loading = ref(true);
 const error = ref("");
 const recipe = ref(null);
+const versionOptions = ref([]);
+const versionDocs = ref([]);
+const selectedVersionId = ref("");
+const deletingVersion = ref(false);
+const deletingFamily = ref(false);
 
 const resolvedImageSrc = computed(() => {
   const url = recipe.value?.imageUrl;
@@ -152,6 +203,8 @@ const resolvedImageSrc = computed(() => {
   const base = window.env?.VITE_API_URL || "http://localhost:3000";
   return `${base}${url}`;
 });
+
+const recipeIcon = computed(() => resolveRecipeIconPath(recipe.value?.iconPath));
 
 const abvText = computed(() => {
   const d = recipe.value?.defaults || {};
@@ -185,10 +238,8 @@ const literPrice = computed(() => {
   return totalIngredientCost.value / liters;
 });
 
-function ingredientCategoryLabel(category) {
-  if (category === "fermentable") return t("recipes.ingredient_category.fermentable");
-  if (category === "hops") return t("recipes.ingredient_category.hops");
-  return t("recipes.ingredient_category.other");
+function ingredientCategoryText(category) {
+  return ingredientCategoryLabel(t, category);
 }
 
 function ingredientsForStep(stepId) {
@@ -248,12 +299,107 @@ async function loadRecipe() {
   error.value = "";
   try {
     recipe.value = await getRecipe(route.params.recipeId);
+    selectedVersionId.value = recipe.value?._id || "";
+    await loadVersions(recipe.value?._id);
   } catch (err) {
     error.value = err?.response?.data?.error || err?.message || t("recipes.errors.fetch_failed");
+    versionOptions.value = [];
   } finally {
     loading.value = false;
   }
 }
+
+async function loadVersions(recipeId) {
+  if (!recipeId) {
+    versionOptions.value = [];
+    versionDocs.value = [];
+    return;
+  }
+
+  try {
+    const versions = await listRecipeVersions(recipeId);
+    versionDocs.value = Array.isArray(versions) ? versions : [];
+    versionOptions.value = (versions || []).map((versionDoc) => {
+      const labelParts = [`v${versionDoc.version || 1}`];
+      if (versionDoc.isLatest) labelParts.push(t("recipes.detail.latest"));
+      if (versionDoc.updatedAt) {
+        labelParts.push(new Date(versionDoc.updatedAt).toLocaleDateString());
+      }
+      return {
+        label: labelParts.join(" - "),
+        value: versionDoc._id,
+      };
+    });
+  } catch (_err) {
+    versionOptions.value = [];
+    versionDocs.value = [];
+  }
+}
+
+async function switchVersion(recipeId) {
+  if (!recipeId || String(recipeId) === String(route.params.recipeId)) return;
+  await router.push(`/oppskrifter/${recipeId}`);
+}
+
+function nextVersionAfterDelete(currentId) {
+  const remaining = (versionDocs.value || []).filter(
+    (versionDoc) => String(versionDoc?._id || "") !== String(currentId || ""),
+  );
+  if (!remaining.length) return null;
+  const latest = remaining.find((versionDoc) => versionDoc?.isLatest);
+  if (latest?._id) return latest;
+  return [...remaining].sort((a, b) => Number(b?.version || 1) - Number(a?.version || 1))[0];
+}
+
+async function deleteCurrentVersion() {
+  if (!recipe.value?._id) return;
+  const version = recipe.value?.version || 1;
+  const confirmed = window.confirm(
+    t("recipes.detail.confirm_delete_version", { version }),
+  );
+  if (!confirmed) return;
+
+  deletingVersion.value = true;
+  error.value = "";
+  try {
+    const currentId = recipe.value._id;
+    const nextVersion = nextVersionAfterDelete(currentId);
+    await deleteRecipeVersion(currentId);
+    if (!nextVersion?._id) {
+      await router.push("/oppskrifter");
+      return;
+    }
+    await router.push(`/oppskrifter/${nextVersion._id}`);
+  } catch (err) {
+    error.value = err?.response?.data?.error || err?.message || t("recipes.errors.update_failed");
+  } finally {
+    deletingVersion.value = false;
+  }
+}
+
+async function deleteAllVersions() {
+  if (!recipe.value?._id) return;
+  const confirmed = window.confirm(t("recipes.detail.confirm_delete_recipe"));
+  if (!confirmed) return;
+
+  deletingFamily.value = true;
+  error.value = "";
+  try {
+    await deleteRecipeFamily(recipe.value._id);
+    await router.push("/oppskrifter");
+  } catch (err) {
+    error.value = err?.response?.data?.error || err?.message || t("recipes.errors.update_failed");
+  } finally {
+    deletingFamily.value = false;
+  }
+}
+
+watch(
+  () => route.params.recipeId,
+  () => {
+    loadRecipe();
+  },
+);
 
 onMounted(loadRecipe);
 </script>

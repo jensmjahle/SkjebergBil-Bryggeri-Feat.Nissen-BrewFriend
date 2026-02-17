@@ -117,7 +117,7 @@
           />
 
           <div class="space-y-3 rounded-lg border border-border3 p-4">
-            <p v-if="currentStep.description" class="text-sm opacity-90">{{ currentStep.description }}</p>
+            <p v-if="currentStep.description" class="whitespace-pre-line text-sm opacity-90">{{ currentStep.description }}</p>
 
             <div v-if="currentStepDataEntries.length" class="space-y-1 text-sm">
               <p class="text-xs font-semibold uppercase tracking-wide opacity-70">{{ t("brews.current.step_details") }}</p>
@@ -132,8 +132,9 @@
                 <span
                   v-for="ingredient in currentStepIngredients"
                   :key="`active-${ingredient.ingredientId}`"
-                  class="rounded-full border border-border3 px-2 py-1 text-xs"
+                  class="inline-flex items-center gap-1 rounded-full border border-border3 px-2 py-1 text-xs"
                 >
+                  <img :src="ingredientCategoryIcon(ingredient.category)" :alt="ingredientCategoryText(ingredient.category)" class="h-4 w-4 rounded-sm bg-white p-0.5 object-contain" />
                   {{ ingredient.name }}{{ ingredient.amount ? ` (${ingredient.amount}${ingredient.unit ? ` ${ingredient.unit}` : ""})` : "" }}
                 </span>
               </div>
@@ -274,8 +275,11 @@
               class="rounded-lg border border-border3 p-3"
             >
               <div class="flex flex-wrap items-center justify-between gap-2">
-                <h4>{{ ingredient.name }}</h4>
-                <span class="rounded-full bg-bg4 px-2 py-1 text-xs">{{ ingredientCategoryLabel(ingredient.category) }}</span>
+                <div class="flex items-center gap-2">
+                  <img :src="ingredientCategoryIcon(ingredient.category)" :alt="ingredientCategoryText(ingredient.category)" class="h-7 w-7 rounded-md border border-border3 bg-white p-1 object-contain" />
+                  <h4>{{ ingredient.name }}</h4>
+                </div>
+                <span class="rounded-full bg-bg4 px-2 py-1 text-xs">{{ ingredientCategoryText(ingredient.category) }}</span>
               </div>
               <p class="mt-1 text-sm opacity-90">{{ [ingredient.amount, ingredient.unit].filter(Boolean).join(" ") || "-" }}</p>
               <p class="mt-1 text-sm opacity-85">
@@ -311,7 +315,7 @@
                 <h4>{{ step.order }}. {{ step.title }}</h4>
                 <span class="rounded-full bg-bg4 px-2 py-1 text-xs">{{ stepTypeLabel(step.stepType) }}</span>
               </div>
-              <p v-if="step.description" class="mt-2 text-sm opacity-90">{{ step.description }}</p>
+              <p v-if="step.description" class="mt-2 whitespace-pre-line text-sm opacity-90">{{ step.description }}</p>
               <div class="mt-2 flex flex-wrap gap-4 text-xs opacity-80">
                 <span v-if="step.temperatureC !== null && step.temperatureC !== undefined">{{ t("recipes.detail.temp") }}: {{ step.temperatureC }} °C</span>
                 <span v-if="step.durationMinutes !== null && step.durationMinutes !== undefined">{{ t("recipes.detail.time") }}: {{ stepDurationLabel(step) }}</span>
@@ -483,6 +487,10 @@ import {
   on as onBrewLive,
   off as offBrewLive,
 } from "@/services/brewLive.service.js";
+import {
+  ingredientCategoryIcon,
+  ingredientCategoryLabel,
+} from "@/utils/recipeAssets.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -1059,10 +1067,8 @@ function stepTypeLabel(value) {
   return t(`recipes.step_types.${value || "custom"}`);
 }
 
-function ingredientCategoryLabel(category) {
-  if (category === "fermentable") return t("recipes.ingredient_category.fermentable");
-  if (category === "hops") return t("recipes.ingredient_category.hops");
-  return t("recipes.ingredient_category.other");
+function ingredientCategoryText(category) {
+  return ingredientCategoryLabel(t, category);
 }
 
 function ingredientsForStep(stepId) {

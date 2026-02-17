@@ -26,6 +26,11 @@ export async function getRecipe(recipeId) {
   return data;
 }
 
+export async function listRecipeVersions(recipeId) {
+  const { data } = await api.get(`${BASE}/${encodeURIComponent(recipeId)}/versions`);
+  return data;
+}
+
 export async function updateRecipe(recipeId, payload) {
   const { data } = await api.patch(
     `${BASE}/${encodeURIComponent(recipeId)}`,
@@ -37,6 +42,25 @@ export async function updateRecipe(recipeId, payload) {
   return data;
 }
 
+export async function createRecipeVersion(recipeId, payload) {
+  const { data } = await api.post(
+    `${BASE}/${encodeURIComponent(recipeId)}/versions`,
+    payload,
+    {
+      headers: { "Content-Type": "application/json" },
+    },
+  );
+  return data;
+}
+
 export async function deleteRecipe(recipeId) {
   await api.delete(`${BASE}/${encodeURIComponent(recipeId)}`);
+}
+
+export async function deleteRecipeVersion(recipeId) {
+  await api.delete(`${BASE}/${encodeURIComponent(recipeId)}`);
+}
+
+export async function deleteRecipeFamily(recipeId) {
+  await api.delete(`${BASE}/${encodeURIComponent(recipeId)}/group`);
 }

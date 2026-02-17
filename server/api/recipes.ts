@@ -8,6 +8,8 @@ export const recipesRouter = Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const GRAVITY_PATTERN = /^1\.\d{3}$/;
+const INGREDIENT_CATEGORIES = new Set(["fermentable", "hops", "yeast", "other"]);
+const ICON_PATH_PREFIX = "/icons/beer-types/";
 
 function toNumberOrUndefined(value: any) {
   if (value === null || value === undefined || value === "") return undefined;
@@ -19,6 +21,24 @@ function toGravityOrUndefined(value: any) {
   if (value === null || value === undefined || value === "") return undefined;
   const text = String(value).trim();
   return GRAVITY_PATTERN.test(text) ? text : undefined;
+}
+
+function toBoolean(value: any) {
+  if (value === true || value === "true") return true;
+  if (value === false || value === "false") return false;
+  return undefined;
+}
+
+function toIntegerOrUndefined(value: any) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return Math.floor(n);
+}
+
+function normalizeIconPath(value: any) {
+  const text = value === null || value === undefined ? "" : String(value).trim();
+  if (!text) return undefined;
+  return text.startsWith(ICON_PATH_PREFIX) ? text : undefined;
 }
 
 function gravityToNum(value?: string) {
@@ -77,8 +97,13 @@ function computeAbvRange(defaults: any = {}) {
 function attachComputedFields(recipe: any) {
   if (!recipe) return recipe;
   const data = typeof recipe.toObject === "function" ? recipe.toObject() : recipe;
+  const recipeGroupId = data.recipeGroupId ? String(data.recipeGroupId) : String(data._id || "");
+  const version = toIntegerOrUndefined(data.version) || 1;
   return {
     ...data,
+    recipeGroupId,
+    version,
+    isLatest: data.isLatest !== false,
     abvRange: computeAbvRange(data.defaults),
     costSummary: computeCostSummary(data.defaults, data.ingredients),
   };
@@ -110,10 +135,9 @@ function normalizeRecipePayload(payload: any = {}) {
     ? payload.ingredients
         .map((ing: any) => {
           const category = ing?.category ? String(ing.category).trim() : "other";
-          const normalizedCategory =
-            category === "fermentable" || category === "hops" || category === "other"
-              ? category
-              : "other";
+          const normalizedCategory = INGREDIENT_CATEGORIES.has(category)
+            ? category
+            : "other";
 
           const rawStepIds = Array.isArray(ing?.stepIds)
             ? ing.stepIds.map((id: any) => String(id).trim())
@@ -138,6 +162,7 @@ function normalizeRecipePayload(payload: any = {}) {
   return {
     name: String(payload.name || "").trim(),
     beerType: payload.beerType ? String(payload.beerType).trim() : undefined,
+    iconPath: normalizeIconPath(payload.iconPath),
     flavorProfile: payload.flavorProfile
       ? String(payload.flavorProfile).trim()
       : undefined,
@@ -154,6 +179,40 @@ function normalizeRecipePayload(payload: any = {}) {
     },
     steps,
     ingredients,
+  };
+}
+
+function mergeRecipeSource(sourceRaw: any, incomingRaw: any) {
+  const source = sourceRaw && typeof sourceRaw === "object" ? sourceRaw : {};
+  const incoming = incomingRaw && typeof incomingRaw === "object" ? incomingRaw : {};
+
+  const sourceDefaults =
+    source.defaults && typeof source.defaults === "object" ? source.defaults : {};
+  const incomingDefaults =
+    incoming.defaults && typeof incoming.defaults === "object" ? incoming.defaults : {};
+
+  return {
+    name: incoming.name ?? source.name,
+    beerType: incoming.beerType ?? source.beerType,
+    iconPath: incoming.iconPath ?? source.iconPath,
+    flavorProfile: incoming.flavorProfile ?? source.flavorProfile,
+    color: incoming.color ?? source.color,
+    imageUrl: incoming.imageUrl ?? source.imageUrl,
+    defaults: {
+      ogFrom: incomingDefaults.ogFrom ?? sourceDefaults.ogFrom,
+      ogTo: incomingDefaults.ogTo ?? sourceDefaults.ogTo,
+      fgFrom: incomingDefaults.fgFrom ?? sourceDefaults.fgFrom,
+      fgTo: incomingDefaults.fgTo ?? sourceDefaults.fgTo,
+      co2Volumes: incomingDefaults.co2Volumes ?? sourceDefaults.co2Volumes,
+      ibu: incomingDefaults.ibu ?? sourceDefaults.ibu,
+      batchSizeLiters: incomingDefaults.batchSizeLiters ?? sourceDefaults.batchSizeLiters,
+    },
+    steps: Object.prototype.hasOwnProperty.call(incoming, "steps")
+      ? incoming.steps
+      : source.steps,
+    ingredients: Object.prototype.hasOwnProperty.call(incoming, "ingredients")
+      ? incoming.ingredients
+      : source.ingredients,
   };
 }
 
@@ -240,6 +299,23 @@ async function resolveBrewerId(req: any) {
   return String(demoBrewer._id);
 }
 
+async function listVersionsForRecipe(brewerId: string, recipe: any) {
+  const recipeId = String(recipe?._id || "");
+  const recipeGroupId = recipe?.recipeGroupId
+    ? String(recipe.recipeGroupId)
+    : recipeId;
+
+  if (!recipeGroupId) return [];
+
+  const versions = await Recipe.find({ brewerId, recipeGroupId }).sort({
+    version: -1,
+    updatedAt: -1,
+  });
+
+  if (versions.length > 0) return versions;
+  return recipe ? [recipe] : [];
+}
+
 recipesRouter.post("/", async (req: any, res) => {
   try {
     const brewerId = await resolveBrewerId(req);
@@ -254,10 +330,15 @@ recipesRouter.post("/", async (req: any, res) => {
       return res.status(400).json({ error: gravityError });
     }
 
+    const recipeGroupId = randomUUID();
     const recipe = await Recipe.create({
       brewerId,
+      recipeGroupId,
+      version: 1,
+      isLatest: true,
       name: payload.name,
       beerType: payload.beerType,
+      iconPath: payload.iconPath,
       flavorProfile: payload.flavorProfile,
       color: payload.color,
       imageUrl: payload.imageUrl,
@@ -283,8 +364,15 @@ recipesRouter.get("/", async (req: any, res) => {
       : "";
     const hasDefaults = req.query?.hasDefaults ? String(req.query.hasDefaults) : "";
     const sort = req.query?.sort ? String(req.query.sort) : "newest";
+    const includeOlderVersions = toBoolean(req.query?.includeOlderVersions) || false;
 
     const clauses: any[] = [{ brewerId }];
+
+    if (!includeOlderVersions) {
+      clauses.push({
+        $or: [{ isLatest: true }, { isLatest: { $exists: false } }],
+      });
+    }
 
     if (q) {
       const rx = new RegExp(escapeRegex(q), "i");
@@ -377,6 +465,88 @@ recipesRouter.get("/:id", async (req: any, res) => {
   }
 });
 
+recipesRouter.get("/:id/versions", async (req: any, res) => {
+  try {
+    const brewerId = await resolveBrewerId(req);
+    const recipe = await Recipe.findOne({ _id: req.params.id, brewerId });
+    if (!recipe) {
+      return res.status(404).json({ error: "Recipe not found" });
+    }
+
+    const versions = await listVersionsForRecipe(brewerId, recipe);
+    return res.json(versions.map((doc: any) => attachComputedFields(doc)));
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || "Failed to list recipe versions" });
+  }
+});
+
+recipesRouter.post("/:id/versions", async (req: any, res) => {
+  try {
+    const brewerId = await resolveBrewerId(req);
+    const baseRecipe = await Recipe.findOne({ _id: req.params.id, brewerId });
+    if (!baseRecipe) {
+      return res.status(404).json({ error: "Recipe not found" });
+    }
+
+    const baseData = typeof baseRecipe.toObject === "function"
+      ? baseRecipe.toObject()
+      : baseRecipe;
+    const recipeGroupId = baseData.recipeGroupId
+      ? String(baseData.recipeGroupId)
+      : String(baseData._id);
+    const baseVersion = toIntegerOrUndefined(baseData.version) || 1;
+    const latestFlag = baseData.isLatest !== false;
+
+    if (!baseData.recipeGroupId || !baseData.version || baseData.isLatest === undefined) {
+      baseRecipe.recipeGroupId = recipeGroupId;
+      baseRecipe.version = baseVersion;
+      baseRecipe.isLatest = latestFlag;
+      await baseRecipe.save();
+    }
+
+    const payload = normalizeRecipePayload(
+      mergeRecipeSource(baseData, req.body || {}),
+    );
+
+    if (!payload.name || payload.name.length < 2) {
+      return res.status(400).json({ error: "Recipe name is required" });
+    }
+
+    const gravityError = validateGravityRange(payload.defaults);
+    if (gravityError) {
+      return res.status(400).json({ error: gravityError });
+    }
+
+    const newestVersionDoc = await Recipe.findOne({ brewerId, recipeGroupId }).sort({
+      version: -1,
+      updatedAt: -1,
+    });
+    const nextVersion = (toIntegerOrUndefined(newestVersionDoc?.version) || baseVersion) + 1;
+
+    await Recipe.updateMany({ brewerId, recipeGroupId }, { $set: { isLatest: false } });
+
+    const recipe = await Recipe.create({
+      brewerId,
+      recipeGroupId,
+      version: nextVersion,
+      isLatest: true,
+      name: payload.name,
+      beerType: payload.beerType,
+      iconPath: payload.iconPath,
+      flavorProfile: payload.flavorProfile,
+      color: payload.color,
+      imageUrl: payload.imageUrl,
+      defaults: payload.defaults,
+      steps: payload.steps,
+      ingredients: payload.ingredients,
+    });
+
+    return res.status(201).json(attachComputedFields(recipe));
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || "Failed to create recipe version" });
+  }
+});
+
 recipesRouter.patch("/:id", async (req: any, res) => {
   try {
     const brewerId = await resolveBrewerId(req);
@@ -389,6 +559,7 @@ recipesRouter.patch("/:id", async (req: any, res) => {
     const updates = {
       ...(payload.name ? { name: payload.name } : {}),
       ...(payload.beerType !== undefined ? { beerType: payload.beerType } : {}),
+      ...(payload.iconPath !== undefined ? { iconPath: payload.iconPath } : {}),
       ...(payload.flavorProfile !== undefined
         ? { flavorProfile: payload.flavorProfile }
         : {}),
@@ -422,8 +593,55 @@ recipesRouter.delete("/:id", async (req: any, res) => {
     if (!recipe) {
       return res.status(404).json({ error: "Recipe not found" });
     }
+
+    const recipeData =
+      typeof recipe.toObject === "function" ? recipe.toObject() : recipe;
+    const wasLatest = recipeData?.isLatest !== false;
+    const recipeGroupId = recipeData?.recipeGroupId
+      ? String(recipeData.recipeGroupId)
+      : String(recipeData?._id || "");
+
+    if (wasLatest && recipeGroupId) {
+      const replacement = await Recipe.findOne({ brewerId, recipeGroupId }).sort({
+        version: -1,
+        updatedAt: -1,
+      });
+      if (replacement) {
+        replacement.isLatest = true;
+        if (!replacement.recipeGroupId) replacement.recipeGroupId = recipeGroupId;
+        if (!replacement.version) replacement.version = 1;
+        await replacement.save();
+      }
+    }
+
     return res.status(204).send();
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Failed to delete recipe" });
+  }
+});
+
+recipesRouter.delete("/:id/group", async (req: any, res) => {
+  try {
+    const brewerId = await resolveBrewerId(req);
+    const recipe = await Recipe.findOne({ _id: req.params.id, brewerId });
+    if (!recipe) {
+      return res.status(404).json({ error: "Recipe not found" });
+    }
+
+    const recipeData =
+      typeof recipe.toObject === "function" ? recipe.toObject() : recipe;
+    const recipeGroupId = recipeData?.recipeGroupId
+      ? String(recipeData.recipeGroupId)
+      : "";
+
+    if (recipeGroupId) {
+      await Recipe.deleteMany({ brewerId, recipeGroupId });
+    } else {
+      await Recipe.deleteOne({ _id: recipe._id, brewerId });
+    }
+
+    return res.status(204).send();
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || "Failed to delete recipe group" });
   }
 });
