@@ -38,6 +38,8 @@ jobs:
           file: Dockerfile.server
           push: true
           platforms: linux/amd64,linux/arm64
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/beer-friend-backend:${{ github.event.release.tag_name }}
 
@@ -48,32 +50,7 @@ jobs:
           file: Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/beer-friend-frontend:${{ github.event.release.tag_name }}
-
-      - name: Make container packages public
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const repository = await github.rest.repos.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-            });
-
-            const packages = ['beer-friend-backend', 'beer-friend-frontend'];
-            for (const package_name of packages) {
-              if (repository.data.owner.type === 'Organization') {
-                await github.rest.packages.updatePackageForOrg({
-                  org: context.repo.owner,
-                  package_type: 'container',
-                  package_name,
-                  visibility: 'public',
-                });
-              } else {
-                await github.rest.packages.updatePackageForAuthenticatedUser({
-                  package_type: 'container',
-                  package_name,
-                  visibility: 'public',
-                });
-              }
-            }
