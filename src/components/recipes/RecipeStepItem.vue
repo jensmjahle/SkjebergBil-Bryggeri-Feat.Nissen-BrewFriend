@@ -1,7 +1,22 @@
 <template>
-  <div class="border-t border-border3 py-2">
+  <div
+    class="border-t border-border3 py-2"
+    :class="{
+      'cursor-pointer rounded-md px-2 transition-colors hover:bg-bg4': clickable,
+      'bg-bg4 text-text4': active && !completed,
+      'step-item--completed border-status-completed-border bg-status-completed text-status-completed-text': completed,
+    }"
+    :role="clickable ? 'button' : undefined"
+    :tabindex="clickable ? 0 : undefined"
+    @click="selectStep"
+    @keydown.enter="selectStep"
+    @keydown.space.prevent="selectStep"
+  >
     <div class="flex flex-wrap items-center justify-between gap-2">
-      <h4>{{ stepLabel }}</h4>
+      <div class="flex min-w-0 items-center gap-2">
+        <Check v-if="completed" class="h-4 w-4 shrink-0" aria-hidden="true" />
+        <h4>{{ stepLabel }}</h4>
+      </div>
       <span class="rounded-full bg-bg4 text-text4 px-2 py-1 text-xs">{{ stepTypeLabel(step?.stepType) }}</span>
     </div>
 
@@ -37,6 +52,7 @@
 <script setup>
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { Check } from "lucide-vue-next";
 
 const props = defineProps({
   step: {
@@ -47,7 +63,21 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  clickable: {
+    type: Boolean,
+    default: false,
+  },
+  active: {
+    type: Boolean,
+    default: false,
+  },
+  completed: {
+    type: Boolean,
+    default: false,
+  },
 });
+
+const emit = defineEmits(["select"]);
 
 const { t } = useI18n();
 const fermentationStepTypes = ["primary_fermentation", "secondary_fermentation", "cold_crash"];
@@ -75,4 +105,15 @@ function stepDurationLabel(step) {
   }
   return `${Math.round(minutes)} ${t("recipes.detail.minutes")}`;
 }
+
+function selectStep() {
+  if (props.clickable) emit("select");
+}
 </script>
+
+<style scoped>
+.step-item--completed h4,
+.step-item--completed p {
+  color: var(--color-status-completed-text);
+}
+</style>

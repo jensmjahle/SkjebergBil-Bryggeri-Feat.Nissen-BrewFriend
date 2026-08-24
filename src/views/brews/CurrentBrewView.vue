@@ -1,5 +1,5 @@
 ﻿<template>
-  <section class="mx-auto w-full max-w-6xl px-4 py-8 space-y-2 md:space-y-6">
+  <section class="mx-auto w-full px-2 pb-8 pt-3 space-y-2 md:space-y-6">
     <BaseCard v-if="loading">
       <p>{{ t("common.loading") }}</p>
     </BaseCard>
@@ -9,20 +9,22 @@
     </BaseCard>
 
     <template v-else-if="brew">
-      <div class="space-y-3">
+      <div class="lg:sticky lg:top-14 lg:z-20 lg:bg-bg1 lg:py-2">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0 flex-1">
             <h1 class="truncate">{{ brew.name }}</h1>
-            <p class="mt-1 text-sm opacity-80">{{ statusLabel(brew.status) }}</p>
-            <p v-if="brew.progress?.brewStartedAt" class="mt-1 text-xs opacity-70">
-              {{ t("brews.fields.brew_started_at") }}: {{ formatDateTime(brew.progress.brewStartedAt) }}
-            </p>
-            <p v-if="brew.progress?.brewStartedAt" class="mt-1 text-xs opacity-70">
-              {{ t("brews.fields.brew_day_elapsed") }}: {{ formatStopwatch(brewDayElapsedSeconds) }}
-            </p>
-            <p class="mt-1 text-xs opacity-70">
-              {{ t("brews.fields.total_step_time") }}: {{ formatStopwatch(totalStepElapsedSeconds) }}
-            </p>
+            <div class="mt-1 space-y-1 lg:flex lg:flex-wrap lg:items-center lg:gap-x-2 lg:gap-y-1 lg:space-y-0">
+              <p class="text-sm opacity-80">{{ statusLabel(brew.status) }}</p>
+              <p v-if="brew.progress?.brewStartedAt" class="text-xs opacity-70">
+                {{ t("brews.fields.brew_started_at") }}: {{ formatDateTime(brew.progress.brewStartedAt) }}
+              </p>
+              <p v-if="brew.progress?.brewStartedAt" class="text-xs opacity-70">
+                {{ t("brews.fields.brew_day_elapsed") }}: {{ formatStopwatch(brewDayElapsedSeconds) }}
+              </p>
+              <p class="text-xs opacity-70">
+                {{ t("brews.fields.total_step_time") }}: {{ formatStopwatch(totalStepElapsedSeconds) }}
+              </p>
+            </div>
           </div>
 
           <div class="flex items-center gap-2">
@@ -72,7 +74,9 @@
             </div>
           </div>
         </div>
+      </div>
 
+      <div class="space-y-3">
         <BaseToggle
           class="sm:hidden"
           :model-value="activePanel"
@@ -89,7 +93,13 @@
       </div>
 
       <template v-if="activePanel === 'progress'">
-        <BaseCard v-if="currentStep" class="space-y-5">
+        <div class="lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,7fr)] lg:items-start lg:gap-6">
+        <BaseCard
+          v-if="currentStep"
+          class="space-y-5 lg:sticky lg:top-36 lg:col-start-2 lg:row-start-1 lg:max-h-[calc(100vh-10rem)] lg:min-w-0 lg:overflow-y-auto"
+        >
+          <div class="lg:grid lg:grid-cols-[minmax(0,1fr)_16.25rem] lg:gap-5">
+          <div class="space-y-5">
           <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p class="text-xs uppercase tracking-wide opacity-70">
@@ -107,14 +117,6 @@
             <p>{{ t("recipes.detail.time") }}: {{ stepDurationLabel(currentStep) }}</p>
             <p>{{ t("recipes.detail.temp") }}: {{ currentStep.temperatureC ?? "-" }} °C</p>
           </div>
-
-          <CircularCountdown
-            v-if="showRoundTimer"
-            :remaining-seconds="timerRemainingSeconds"
-            :total-seconds="timerTotalSeconds"
-            :label="t('brews.current.timer_remaining')"
-            :show-days="isCurrentStepDayBased"
-          />
 
           <div class="space-y-3 md:rounded-lg md:border border-border3 md:p-4">
             <p v-if="currentStep.description" class="whitespace-pre-line text-sm opacity-90">{{ currentStep.description }}</p>
@@ -169,6 +171,18 @@
             </div>
           </div>
 
+          </div>
+
+          <aside class="mt-5 space-y-3 lg:mt-0">
+            <CircularCountdown
+              v-if="showRoundTimer"
+              class="mx-auto"
+              :remaining-seconds="timerRemainingSeconds"
+              :total-seconds="timerTotalSeconds"
+              :label="t('brews.current.timer_remaining')"
+              :show-days="isCurrentStepDayBased"
+            />
+
           <div class="space-y-2">
             <div class="grid grid-cols-3 gap-2">
               <BaseButton type="button" variant="button3" :disabled="currentStepIndex <= 0" @click="previousStep">
@@ -195,47 +209,27 @@
               </BaseButton>
             </div>
           </div>
-        </BaseCard>
-
-        <BaseCard v-if="steps.length" class="space-y-3">
-          <h3>{{ t("brews.current.all_steps") }}</h3>
-          <div class="space-y-2">
-            <div
-              v-for="(step, index) in steps"
-              :key="step.stepId || index"
-              class="flex flex-wrap items-center justify-between gap-2 rounded-lg border-t md:border border-border3 md:px-3 py-2"
-              :class="{ 'border-button1-border bg-bg4 text-text4': index === currentStepIndex }"
-            >
-              <div>
-                <p class="font-medium">{{ index + 1 }}. {{ step.title }}</p>
-                <p class="text-xs opacity-70">{{ stepTypeLabel(step.stepType) }}</p>
-                <p v-if="stepProgress(step.stepId)?.startedAt" class="text-xs opacity-70">
-                  {{ t("brews.fields.step_started_at") }}: {{ formatDateTime(stepProgress(step.stepId)?.startedAt) }}
-                </p>
-                <p v-if="stepProgress(step.stepId)?.completedAt" class="text-xs opacity-70">
-                  {{ t("brews.fields.step_completed_at") }}: {{ formatDateTime(stepProgress(step.stepId)?.completedAt) }}
-                </p>
-                <p
-                  v-if="stepProgress(step.stepId)?.loggedDurationSeconds !== undefined"
-                  class="text-xs opacity-70"
-                >
-                  {{ t("brews.fields.step_used_time") }}: {{ formatDuration(stepProgress(step.stepId)?.loggedDurationSeconds) }}
-                </p>
-                <p v-if="stepProgress(step.stepId)?.note" class="text-xs opacity-75">
-                  {{ t("brews.current.step_note_label") }}: {{ stepProgress(step.stepId)?.note }}
-                </p>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="rounded-full bg-bg4 text-text4 px-2 py-1 text-xs">
-                  {{ stepStatusLabel(stepProgress(step.stepId)?.status || "pending", stepProgress(step.stepId)) }}
-                </span>
-                <BaseButton type="button" variant="button3" @click="showStep(index)">
-                  {{ t("brews.actions.show_step") }}
-                </BaseButton>
-              </div>
-            </div>
+          </aside>
           </div>
         </BaseCard>
+
+        <BaseCard v-if="steps.length" class="space-y-3 lg:col-start-1 lg:row-start-1 lg:min-w-0">
+          <h3>{{ t("brews.current.all_steps") }}</h3>
+          <div class="space-y-2">
+            <RecipeStepItem
+              v-for="(step, index) in steps"
+              :key="step.stepId || index"
+              :step="step"
+              :ingredients="ingredients"
+              :clickable="true"
+              :active="index === currentStepIndex"
+              :completed="stepProgress(step.stepId)?.status === 'completed'"
+              @select="showStep(index)"
+            />
+          </div>
+        </BaseCard>
+
+        </div>
 
       </template>
 
