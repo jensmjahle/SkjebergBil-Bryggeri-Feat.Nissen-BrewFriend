@@ -120,6 +120,7 @@ const navGroups = computed(() => [
         label: t("navbar.user.items.hydrometer_correction"),
         to: "/verktoy/hydrometer-korrigering",
       },
+      { label: t("navbar.user.items.cordial_mix"), to: "/verktoy/saftblanding" },
     ],
   },
 ]);

@@ -181,6 +181,7 @@ const quickActions = computed(() => [
   { to: "/oppskrifter/ny", label: t("navbar.user.items.new_recipe"), variant: "button3" },
   { to: "/verktoy/alkoholmaler", label: t("navbar.user.items.alcohol_calc"), variant: "button3" },
   { to: "/verktoy/co2-volumer", label: t("navbar.user.items.co2_volumes"), variant: "button3" },
+  { to: "/verktoy/saftblanding", label: t("navbar.user.items.cordial_mix"), variant: "button3" },
 ]);
 
 function statusLabel(status) {

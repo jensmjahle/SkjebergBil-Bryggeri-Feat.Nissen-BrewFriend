@@ -106,6 +106,12 @@ const routes = [
         component: ToolsView,
         props: { initialTool: "hydrometer" },
       },
+      {
+        path: "verktoy/saftblanding",
+        name: "verktoy-saftblanding",
+        component: ToolsView,
+        props: { initialTool: "cordial" },
+      },
     ],
   },
   {

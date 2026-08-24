@@ -20,6 +20,19 @@ const defaultState = () => ({
     sampleTempC: 24,
     calibrationTempC: 20,
   },
+  cordial: {
+    ingredients: [
+      { id: "wine", name: "Vin", volume: 7.69, abv: 13 },
+      { id: "water", name: "Vann", volume: 12.31, abv: 0 },
+    ],
+    targetVolume: 20,
+    targetAbv: 5,
+    locks: {
+      targetVolume: false,
+      targetAbv: false,
+      ingredientVolumes: {},
+    },
+  },
 });
 
 function loadState() {
@@ -32,6 +45,21 @@ function loadState() {
       alcohol: { ...defaults.alcohol, ...(parsed?.alcohol || {}) },
       co2: { ...defaults.co2, ...(parsed?.co2 || {}) },
       hydrometer: { ...defaults.hydrometer, ...(parsed?.hydrometer || {}) },
+      cordial: {
+        ...defaults.cordial,
+        ...(parsed?.cordial || {}),
+        ingredients: Array.isArray(parsed?.cordial?.ingredients)
+          ? parsed.cordial.ingredients
+          : defaults.cordial.ingredients,
+        locks: {
+          ...defaults.cordial.locks,
+          ...(parsed?.cordial?.locks || {}),
+          ingredientVolumes: {
+            ...defaults.cordial.locks.ingredientVolumes,
+            ...(parsed?.cordial?.locks?.ingredientVolumes || {}),
+          },
+        },
+      },
     };
   } catch {
     return defaultState();
@@ -53,11 +81,16 @@ export const useToolsStore = defineStore("tools", {
       this.hydrometer = { ...this.hydrometer, ...payload };
       this.persist();
     },
+    setCordial(payload) {
+      this.cordial = { ...this.cordial, ...payload };
+      this.persist();
+    },
     persist() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         alcohol: this.alcohol,
         co2: this.co2,
         hydrometer: this.hydrometer,
+        cordial: this.cordial,
       }));
     },
   },

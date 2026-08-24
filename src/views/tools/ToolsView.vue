@@ -14,12 +14,16 @@
         <BaseButton :variant="activeTool === 'hydrometer' ? 'button1' : 'button3'" @click="activeTool = 'hydrometer'">
           Hydrometer-korrigering
         </BaseButton>
+        <BaseButton :variant="activeTool === 'cordial' ? 'button1' : 'button3'" @click="activeTool = 'cordial'">
+          Saftblanding
+        </BaseButton>
       </div>
     </BaseCard>
 
     <AlcoholCalculatorTool v-if="activeTool === 'alcohol'" />
     <Co2CalculatorTool v-else-if="activeTool === 'co2'" />
-    <HydrometerCorrectionTool v-else />
+    <HydrometerCorrectionTool v-else-if="activeTool === 'hydrometer'" />
+    <CordialMixTool v-else />
   </section>
 </template>
 
@@ -31,6 +35,7 @@ import BaseButton from "@/components/base/BaseButton.vue";
 import AlcoholCalculatorTool from "@/components/tools/AlcoholCalculatorTool.vue";
 import Co2CalculatorTool from "@/components/tools/Co2CalculatorTool.vue";
 import HydrometerCorrectionTool from "@/components/tools/HydrometerCorrectionTool.vue";
+import CordialMixTool from "@/components/tools/CordialMixTool.vue";
 
 const props = defineProps({
   initialTool: {

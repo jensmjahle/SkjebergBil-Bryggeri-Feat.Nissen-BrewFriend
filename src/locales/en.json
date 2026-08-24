@@ -351,7 +351,8 @@
         "recipes": "Recipes",
         "alcohol_calc": "Alcohol Calculator",
         "co2_volumes": "CO2 Volumes",
-        "hydrometer_correction": "Hydrometer Correction"
+        "hydrometer_correction": "Hydrometer Correction",
+        "cordial_mix": "Cordial Mix"
       }
     }
   },
