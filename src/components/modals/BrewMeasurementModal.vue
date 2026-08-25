@@ -1,13 +1,25 @@
 <template>
   <div
     v-if="open"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+    class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
     @click.self="$emit('close')"
   >
-    <div class="w-full max-w-lg rounded-xl border border-border3 bg-bg2 p-4 shadow-2xl">
-      <h3 class="mb-3">{{ t("brews.actions.add_measurement") }}</h3>
+    <div
+      class="flex max-h-[85svh] w-full max-w-lg flex-col rounded-t-xl border border-border3 bg-bg2 shadow-2xl sm:max-h-[90vh] sm:rounded-xl"
+    >
+      <div class="flex items-center justify-between gap-2 border-b border-border3 px-4 py-3">
+        <h3 class="min-w-0 truncate">{{ t("brews.actions.add_measurement") }}</h3>
+        <button
+          type="button"
+          class="rounded-md p-1 opacity-70 transition-opacity hover:opacity-100"
+          :aria-label="t('common.close')"
+          @click="$emit('close')"
+        >
+          <X class="h-5 w-5" />
+        </button>
+      </div>
 
-      <div class="grid gap-3 md:grid-cols-2">
+      <div class="grid flex-1 grid-cols-2 gap-x-3 gap-y-2 overflow-y-auto px-4 py-3">
         <BaseInput
           v-model.number="form.gravity"
           :model-modifiers="{ number: true }"
@@ -68,14 +80,14 @@
           step="0.1"
           :label="t('brews.measurements.ibu')"
         />
-        <BaseInput v-model="form.note" :label="t('recipes.fields.notes')" />
+        <BaseInput v-model="form.note" class="col-span-2" :label="t('recipes.fields.notes')" />
       </div>
 
-      <div class="mt-4 flex justify-end gap-2">
-        <BaseButton type="button" variant="button3" @click="$emit('close')">
+      <div class="flex justify-end gap-2 border-t border-border3 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-3">
+        <BaseButton type="button" variant="button3" class="flex-1 sm:flex-none" @click="$emit('close')">
           {{ t("common.cancel") }}
         </BaseButton>
-        <BaseButton type="button" :disabled="loading" @click="submit">
+        <BaseButton type="button" :disabled="loading" class="flex-1 sm:flex-none" @click="submit">
           {{ loading ? t("common.saving") : t("brews.actions.add_measurement") }}
         </BaseButton>
       </div>
@@ -86,6 +98,7 @@
 <script setup>
 import { reactive, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { X } from "lucide-vue-next";
 import BaseInput from "@/components/base/BaseInput.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
 

@@ -1,5 +1,13 @@
 <template>
-  <div class="border-t border-border3 py-2">
+  <div
+    class="border-t border-border3 py-2"
+    :class="{ 'cursor-pointer rounded-md px-2 transition-colors hover:bg-bg4': clickable }"
+    :role="clickable ? 'button' : undefined"
+    :tabindex="clickable ? 0 : undefined"
+    @click="selectIngredient"
+    @keydown.enter="selectIngredient"
+    @keydown.space.prevent="selectIngredient"
+  >
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-2">
         <img
@@ -12,23 +20,21 @@
       <span class="rounded-full bg-bg4 text-text4 px-2 py-1 text-xs">{{ categoryLabel }}</span>
     </div>
 
-    <p class="mt-1 text-sm opacity-90">{{ amountText }}</p>
-    <p class="mt-1 text-sm opacity-85">
-      {{ t("recipes.fields.price") }}: {{ priceText }}
+    <p class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm opacity-90">
+      <span>{{ amountText }}</span>
+      <span class="opacity-85">{{ t("recipes.fields.price") }}: {{ priceText }}</span>
     </p>
     <p v-if="ingredient?.notes" class="mt-1 text-sm opacity-80">{{ ingredient.notes }}</p>
 
-    <div v-if="stepTags.length" class="mt-2 space-y-1">
-      <p class="text-xs font-semibold uppercase opacity-70">{{ t("recipes.detail.used_in_steps") }}</p>
-      <div class="mt-1 flex flex-wrap gap-2">
-        <span
-          v-for="stepTag in stepTags"
-          :key="`${ingredient?.ingredientId}-${stepTag}`"
-          class="rounded-full border border-border3 px-2 py-1 text-xs"
-        >
-          {{ stepTag }}
-        </span>
-      </div>
+    <div v-if="stepTags.length" class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+      <span class="text-xs font-semibold uppercase opacity-70">{{ t("recipes.detail.used_in_steps") }}:</span>
+      <span
+        v-for="stepTag in stepTags"
+        :key="`${ingredient?.ingredientId}-${stepTag}`"
+        class="rounded-full border border-border3 px-2 py-1 text-xs"
+      >
+        {{ stepTag }}
+      </span>
     </div>
   </div>
 </template>
@@ -47,7 +53,13 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  clickable: {
+    type: Boolean,
+    default: false,
+  },
 });
+
+const emit = defineEmits(["select"]);
 
 const { t, locale } = useI18n();
 
@@ -75,6 +87,10 @@ const stepTags = computed(() => {
 
 function stepTypeLabel(value) {
   return t(`recipes.step_types.${value || "custom"}`);
+}
+
+function selectIngredient() {
+  if (props.clickable) emit("select");
 }
 
 function formatCurrency(value) {

@@ -54,9 +54,8 @@
           <p class="text-sm opacity-80">{{ t("recipes.metrics.abv_estimated") }}: {{ abvText }}</p>
         </div>
 
-        <div class="flex gap-2">
-          <BaseButton type="button" :variant="activeTab === 'steps' ? 'button1' : 'button3'" @click="activeTab = 'steps'">{{ t("recipes.tabs.steps") }}</BaseButton>
-          <BaseButton type="button" :variant="activeTab === 'ingredients' ? 'button1' : 'button3'" @click="activeTab = 'ingredients'">{{ t("recipes.tabs.ingredients") }}</BaseButton>
+        <div class="flex">
+          <BaseToggle v-model="activeTab" :options="recipeTabOptions" />
         </div>
 
         <div v-if="activeTab === 'steps'" class="space-y-3">
@@ -64,16 +63,27 @@
             <div class="w-full sm:max-w-xs">
               <BaseDropdown v-model="selectedStepType" :label="t('recipes.fields.add_step_type')" :options="stepTypeOptions" :placeholder="t('recipes.create.select_step')" />
             </div>
-            <BaseButton type="button" variant="button2" @click="addStepByType">{{ t("recipes.actions.add_step") }}</BaseButton>
+            <BaseButton type="button" variant="button2" :icon="Plus" @click="addStepByType">{{ t("recipes.actions.add_step") }}</BaseButton>
           </div>
 
-          <div v-for="(step, idx) in form.steps" :key="step.stepId || idx" class="space-y-2">
-            <component :is="resolveStepComponent(step.stepType)" :model-value="step" :step-number="idx + 1" @update:model-value="updateStep(idx, $event)" />
-            <div class="flex flex-wrap justify-end gap-2">
-              <BaseButton type="button" variant="button3" :disabled="idx === 0" @click="moveStep(idx, -1)">{{ t("recipes.actions.up") }}</BaseButton>
-              <BaseButton type="button" variant="button3" :disabled="idx === form.steps.length - 1" @click="moveStep(idx, 1)">{{ t("recipes.actions.down") }}</BaseButton>
-              <BaseButton type="button" variant="button4" @click="removeStep(idx)">{{ t("recipes.actions.remove") }}</BaseButton>
-            </div>
+          <RecipeStepEditorItem
+            v-for="(step, idx) in form.steps"
+            :key="step.stepId || idx"
+            :step="step"
+            :index="idx"
+            :total="form.steps.length"
+            :ingredients="form.ingredients"
+            :open="isStepOpen(step.stepId)"
+            :is-new="isStepNew(step.stepId)"
+            @update:step="updateStep(idx, $event)"
+            @open="openStep(step.stepId)"
+            @close="closeStep(step.stepId)"
+            @move="moveStep(idx, $event)"
+            @remove="removeStep(idx)"
+          />
+
+          <div v-if="form.steps.length" class="flex justify-end">
+            <BaseButton type="button" variant="button2" :icon="Plus" @click="addStepByType">{{ t("recipes.actions.add_step") }}</BaseButton>
           </div>
         </div>
 
@@ -82,45 +92,24 @@
             <div class="w-full sm:max-w-xs">
               <BaseDropdown v-model="selectedIngredientCategory" :label="t('recipes.fields.category')" :options="ingredientCategoryOptions" :placeholder="t('recipes.create.select_category')" />
             </div>
-            <BaseButton type="button" variant="button2" @click="addIngredient">{{ t("recipes.actions.add_ingredient") }}</BaseButton>
+            <BaseButton type="button" variant="button2" :icon="Plus" @click="addIngredient">{{ t("recipes.actions.add_ingredient") }}</BaseButton>
           </div>
 
-          <BaseCard v-for="(ingredient, idx) in form.ingredients" :key="ingredient.ingredientId" class="space-y-3">
-            <div class="flex items-center gap-2 text-sm">
-              <img :src="ingredientCategoryIcon(ingredient.category)" :alt="ingredientCategoryText(ingredient.category)" class="h-7 w-7 rounded-md border border-border3 bg-white p-1 object-contain" />
-              <span class="opacity-80">{{ ingredientCategoryText(ingredient.category) }}</span>
-            </div>
+          <RecipeIngredientEditorItem
+            v-for="(ingredient, idx) in form.ingredients"
+            :key="ingredient.ingredientId"
+            :ingredient="ingredient"
+            :steps="form.steps"
+            :open="isIngredientOpen(ingredient.ingredientId)"
+            :is-new="isIngredientNew(ingredient.ingredientId)"
+            @open="openIngredient(ingredient.ingredientId)"
+            @close="closeIngredient(ingredient.ingredientId)"
+            @remove="removeIngredient(idx)"
+          />
 
-            <div class="grid gap-3 md:grid-cols-2">
-              <BaseInput v-model="ingredient.name" :label="t('recipes.fields.name')" />
-              <BaseDropdown v-model="ingredient.category" :label="t('recipes.fields.category')" :options="ingredientCategoryOptions" :placeholder="t('recipes.create.select_category')" />
-              <BaseInput v-model="ingredient.amount" :label="t('recipes.fields.amount')" />
-              <BaseInput v-model="ingredient.unit" :label="t('recipes.fields.unit')" />
-              <BaseInput
-                v-model.number="ingredient.price"
-                :model-modifiers="{ number: true }"
-                type="number"
-                step="0.01"
-                :label="t('recipes.fields.price')"
-              />
-            </div>
-            <BaseInput v-model="ingredient.notes" :label="t('recipes.fields.notes')" />
-
-            <div>
-              <p class="mb-2 text-sm font-medium">{{ t("recipes.fields.link_to_steps") }}</p>
-              <div v-if="!form.steps.length" class="text-sm opacity-70">{{ t("recipes.create.add_steps_first") }}</div>
-              <div v-else class="grid gap-2 sm:grid-cols-2">
-                <label v-for="step in form.steps" :key="`${ingredient.ingredientId}-${step.stepId}`" class="flex items-center gap-2 text-sm">
-                  <input type="checkbox" :checked="ingredient.stepIds.includes(step.stepId)" @change="toggleIngredientStep(ingredient, step.stepId)" />
-                  <span>{{ step.title || stepTypeLabel(step.stepType) }}</span>
-                </label>
-              </div>
-            </div>
-
-            <div class="flex justify-end">
-              <BaseButton type="button" variant="button4" @click="removeIngredient(idx)">{{ t("recipes.actions.remove_ingredient") }}</BaseButton>
-            </div>
-          </BaseCard>
+          <div v-if="form.ingredients.length" class="flex justify-end">
+            <BaseButton type="button" variant="button2" :icon="Plus" @click="addIngredient">{{ t("recipes.actions.add_ingredient") }}</BaseButton>
+          </div>
 
           <div v-if="form.ingredients.length" class="rounded-lg border border-border3 p-4">
             <h4>{{ t("recipes.detail.cost_summary") }}</h4>
@@ -156,13 +145,15 @@ import BaseCard from "@/components/base/BaseCard.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
 import BaseInput from "@/components/base/BaseInput.vue";
 import BaseDropdown from "@/components/base/BaseDropdown.vue";
+import BaseToggle from "@/components/base/BaseToggle.vue";
+import { Plus } from "lucide-vue-next";
 import RecipeIconPicker from "@/components/recipes/RecipeIconPicker.vue";
+import RecipeStepEditorItem from "@/components/recipes/RecipeStepEditorItem.vue";
+import RecipeIngredientEditorItem from "@/components/recipes/RecipeIngredientEditorItem.vue";
 import { getRecipe, updateRecipe, uploadRecipeImage } from "@/services/recipes.service.js";
-import { STEP_COMPONENTS, STEP_TYPE_OPTIONS, createDefaultStep } from "@/components/recipe-steps/index.js";
+import { STEP_TYPE_OPTIONS, createDefaultStep } from "@/components/recipe-steps/index.js";
 import {
   DEFAULT_RECIPE_ICON_PATH,
-  ingredientCategoryIcon,
-  ingredientCategoryLabel,
   ingredientCategoryOptions as buildIngredientCategoryOptions,
 } from "@/utils/recipeAssets.js";
 
@@ -179,6 +170,10 @@ const imageUploadMessage = ref("");
 const activeTab = ref("steps");
 const selectedStepType = ref("mash");
 const selectedIngredientCategory = ref("fermentable");
+const openStepIds = ref([]);
+const newStepIds = ref([]);
+const openIngredientIds = ref([]);
+const newIngredientIds = ref([]);
 
 const beerTypeOptions = computed(() => [
   { label: "IPA", value: "IPA" },
@@ -197,6 +192,11 @@ const ingredientCategoryOptions = computed(() => buildIngredientCategoryOptions(
 const stepTypeOptions = computed(() =>
   STEP_TYPE_OPTIONS.map((step) => ({ label: t(`recipes.step_types.${step.value}`), value: step.value })),
 );
+
+const recipeTabOptions = computed(() => [
+  { label: t("recipes.tabs.steps"), value: "steps" },
+  { label: t("recipes.tabs.ingredients"), value: "ingredients" },
+]);
 
 function newIngredientId() {
   if (globalThis.crypto?.randomUUID) return `ingredient-${globalThis.crypto.randomUUID()}`;
@@ -267,14 +267,6 @@ const isGravityValid = computed(() => {
   return fields.every((v) => gravityPattern.test(v || ""));
 });
 
-function stepTypeLabel(value) {
-  return t(`recipes.step_types.${value || "custom"}`);
-}
-
-function ingredientCategoryText(category) {
-  return ingredientCategoryLabel(t, category);
-}
-
 function formatCurrency(value) {
   const amount = Number(value);
   if (!Number.isFinite(amount)) return "-";
@@ -286,13 +278,28 @@ function formatCurrency(value) {
     maximumFractionDigits: 2,
   }).format(amount);
 }
-function resolveStepComponent(stepType) { return STEP_COMPONENTS[stepType] || STEP_COMPONENTS.custom; }
-function addStepByType() { form.steps.push(createDefaultStep(selectedStepType.value || "custom")); }
+function isStepOpen(stepId) { return openStepIds.value.includes(stepId); }
+function isStepNew(stepId) { return newStepIds.value.includes(stepId); }
+function openStep(stepId) {
+  if (!stepId || isStepOpen(stepId)) return;
+  openStepIds.value = [...openStepIds.value, stepId];
+}
+function closeStep(stepId) {
+  openStepIds.value = openStepIds.value.filter((id) => id !== stepId);
+  newStepIds.value = newStepIds.value.filter((id) => id !== stepId);
+}
+function addStepByType() {
+  const step = createDefaultStep(selectedStepType.value || "custom");
+  form.steps.push(step);
+  openStepIds.value = [...openStepIds.value, step.stepId];
+  newStepIds.value = [...newStepIds.value, step.stepId];
+}
 function updateStep(index, value) { form.steps.splice(index, 1, value); }
 function removeStep(index) {
   const removed = form.steps[index];
   form.steps.splice(index, 1);
   if (removed?.stepId) {
+    closeStep(removed.stepId);
     form.ingredients.forEach((ing) => {
       ing.stepIds = ing.stepIds.filter((id) => id !== removed.stepId);
     });
@@ -306,14 +313,26 @@ function moveStep(index, direction) {
   form.steps[target] = tmp;
 }
 
-function addIngredient() {
-  form.ingredients.push({ ingredientId: newIngredientId(), name: "", category: selectedIngredientCategory.value || "other", amount: "", unit: "", price: null, notes: "", stepIds: [] });
+function isIngredientOpen(ingredientId) { return openIngredientIds.value.includes(ingredientId); }
+function isIngredientNew(ingredientId) { return newIngredientIds.value.includes(ingredientId); }
+function openIngredient(ingredientId) {
+  if (!ingredientId || isIngredientOpen(ingredientId)) return;
+  openIngredientIds.value = [...openIngredientIds.value, ingredientId];
 }
-function removeIngredient(index) { form.ingredients.splice(index, 1); }
-function toggleIngredientStep(ingredient, stepId) {
-  const set = new Set(ingredient.stepIds || []);
-  if (set.has(stepId)) set.delete(stepId); else set.add(stepId);
-  ingredient.stepIds = Array.from(set);
+function closeIngredient(ingredientId) {
+  openIngredientIds.value = openIngredientIds.value.filter((id) => id !== ingredientId);
+  newIngredientIds.value = newIngredientIds.value.filter((id) => id !== ingredientId);
+}
+function addIngredient() {
+  const ingredient = { ingredientId: newIngredientId(), name: "", category: selectedIngredientCategory.value || "other", amount: "", unit: "", price: null, notes: "", stepIds: [] };
+  form.ingredients.push(ingredient);
+  openIngredientIds.value = [...openIngredientIds.value, ingredient.ingredientId];
+  newIngredientIds.value = [...newIngredientIds.value, ingredient.ingredientId];
+}
+function removeIngredient(index) {
+  const removed = form.ingredients[index];
+  form.ingredients.splice(index, 1);
+  if (removed?.ingredientId) closeIngredient(removed.ingredientId);
 }
 
 function sanitizeNumber(value) {
@@ -321,6 +340,10 @@ function sanitizeNumber(value) {
 }
 
 function hydrateForm(recipe) {
+  openStepIds.value = [];
+  newStepIds.value = [];
+  openIngredientIds.value = [];
+  newIngredientIds.value = [];
   form.name = recipe?.name || "";
   form.beerType = recipe?.beerType || "";
   form.iconPath = recipe?.iconPath || DEFAULT_RECIPE_ICON_PATH;
