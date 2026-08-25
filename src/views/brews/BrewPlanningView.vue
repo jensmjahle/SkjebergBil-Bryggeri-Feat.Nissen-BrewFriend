@@ -303,6 +303,8 @@ const recipeSyncing = ref(false);
 const recipeSyncAction = ref("");
 const recipeSyncMessage = ref("");
 const suppressBatchAutoScale = ref(false);
+const scaleBaseline = { liters: null, amounts: new Map() };
+let applyingBatchScale = false;
 const successMessage = ref("");
 const errorMessage = ref("");
 const brew = ref(null);
@@ -437,6 +439,13 @@ function toPositiveNumber(value) {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) return null;
   return n;
+}
+
+function captureScaleBaseline() {
+  scaleBaseline.liters = toPositiveNumber(form.snapshot.defaults.batchSizeLiters);
+  scaleBaseline.amounts = new Map(
+    form.snapshot.ingredients.map((ingredient) => [ingredient.ingredientId, ingredient.amount]),
+  );
 }
 
 function scaleIngredientAmountText(amountValue, ratio) {
@@ -602,6 +611,7 @@ function hydrateForm(brewDoc) {
         stepIds: Array.isArray(ing.stepIds) ? ing.stepIds : [],
       }))
     : [];
+  captureScaleBaseline();
   suppressBatchAutoScale.value = false;
 }
 
@@ -895,16 +905,36 @@ async function bootstrap() {
 
 watch(
   () => form.snapshot.defaults.batchSizeLiters,
-  (nextValue, previousValue) => {
+  (nextValue) => {
     if (suppressBatchAutoScale.value) return;
     const nextLiters = toPositiveNumber(nextValue);
-    const previousLiters = toPositiveNumber(previousValue);
-    if (!nextLiters || !previousLiters || nextLiters === previousLiters) return;
-
-    const ratio = nextLiters / previousLiters;
+    if (!nextLiters) return;
+    if (!scaleBaseline.liters) {
+      captureScaleBaseline();
+      return;
+    }
+    const ratio = nextLiters / scaleBaseline.liters;
+    applyingBatchScale = true;
     form.snapshot.ingredients.forEach((ingredient) => {
-      ingredient.amount = scaleIngredientAmountText(ingredient.amount, ratio);
+      if (!scaleBaseline.amounts.has(ingredient.ingredientId)) return;
+      ingredient.amount = scaleIngredientAmountText(
+        scaleBaseline.amounts.get(ingredient.ingredientId),
+        ratio,
+      );
     });
+    applyingBatchScale = false;
+  },
+  { flush: "sync" },
+);
+
+watch(
+  () =>
+    form.snapshot.ingredients
+      .map((ingredient) => `${ingredient.ingredientId}:${ingredient.amount ?? ""}`)
+      .join("|"),
+  () => {
+    if (applyingBatchScale || suppressBatchAutoScale.value) return;
+    captureScaleBaseline();
   },
   { flush: "sync" },
 );

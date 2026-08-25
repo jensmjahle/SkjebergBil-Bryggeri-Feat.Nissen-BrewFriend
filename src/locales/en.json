@@ -90,6 +90,7 @@
     "actions": {
       "create": "Create recipe",
       "save": "Save changes",
+      "save_new_version": "Save as new version",
       "delete_version": "Delete version",
       "delete_recipe": "Delete recipe",
       "add_step": "Add step",
@@ -108,6 +109,7 @@
       "update_failed": "Could not update recipe",
       "upload_failed": "Could not upload image",
       "copy_load_failed": "Could not load recipe for copying",
+      "version_failed": "Could not create new recipe version",
       "gravity_format": "OG/FG must be in format 1.056"
     },
     "sort": {
@@ -162,11 +164,15 @@
     "edit": {
       "title": "Edit Recipe",
       "subtitle": "Update the recipe and save your changes.",
-      "saved": "Recipe updated."
+      "saved": "Recipe updated.",
+      "new_version_title": "New Recipe Version",
+      "new_version_subtitle": "Adjust the recipe and save it as a new version.",
+      "version_created": "New recipe version created."
     },
     "detail": {
       "edit": "Edit",
       "copy": "Copy Recipe",
+      "new_version": "New version",
       "confirm_delete_version": "Delete version v{version}? This cannot be undone.",
       "confirm_delete_recipe": "Delete the entire recipe with all versions? This cannot be undone.",
       "start_brew": "Start Brew",

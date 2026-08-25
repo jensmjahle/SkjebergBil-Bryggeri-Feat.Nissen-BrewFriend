@@ -29,6 +29,9 @@
             <router-link :to="{ path: '/oppskrifter/ny', query: { copyFrom: recipe._id } }">
               <BaseButton variant="button2">{{ t("recipes.detail.copy") }}</BaseButton>
             </router-link>
+            <router-link :to="{ path: `/oppskrifter/${recipe._id}/rediger`, query: { nyVersjon: '1' } }">
+              <BaseButton variant="button2">{{ t("recipes.detail.new_version") }}</BaseButton>
+            </router-link>
             <BaseButton
               type="button"
               variant="button4"

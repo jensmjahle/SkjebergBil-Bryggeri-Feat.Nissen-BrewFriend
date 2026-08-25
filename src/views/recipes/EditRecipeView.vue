@@ -2,8 +2,10 @@
   <section class="mx-auto w-full max-w-5xl px-4 py-8">
     <BaseCard>
       <div class="mb-6">
-        <h1>{{ t("recipes.edit.title") }}</h1>
-        <p class="mt-2 opacity-80">{{ t("recipes.edit.subtitle") }}</p>
+        <h1>{{ isNewVersionMode ? t("recipes.edit.new_version_title") : t("recipes.edit.title") }}</h1>
+        <p class="mt-2 opacity-80">
+          {{ isNewVersionMode ? t("recipes.edit.new_version_subtitle") : t("recipes.edit.subtitle") }}
+        </p>
       </div>
 
       <div v-if="loading" class="py-4">{{ t("common.loading") }}</div>
@@ -125,7 +127,15 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
-          <BaseButton type="submit" :disabled="isSubmitting || !isGravityValid">{{ isSubmitting ? t("common.saving") : t("recipes.actions.save") }}</BaseButton>
+          <BaseButton type="submit" :disabled="isSubmitting || !isGravityValid">
+            {{
+              isSubmitting
+                ? t("common.saving")
+                : isNewVersionMode
+                  ? t("recipes.actions.save_new_version")
+                  : t("recipes.actions.save")
+            }}
+          </BaseButton>
           <router-link :to="`/oppskrifter/${route.params.recipeId}`">
             <BaseButton type="button" variant="button3">{{ t("common.cancel") }}</BaseButton>
           </router-link>
@@ -139,7 +149,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import BaseCard from "@/components/base/BaseCard.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
@@ -150,7 +160,12 @@ import { Plus } from "lucide-vue-next";
 import RecipeIconPicker from "@/components/recipes/RecipeIconPicker.vue";
 import RecipeStepEditorItem from "@/components/recipes/RecipeStepEditorItem.vue";
 import RecipeIngredientEditorItem from "@/components/recipes/RecipeIngredientEditorItem.vue";
-import { getRecipe, updateRecipe, uploadRecipeImage } from "@/services/recipes.service.js";
+import {
+  createRecipeVersion,
+  getRecipe,
+  updateRecipe,
+  uploadRecipeImage,
+} from "@/services/recipes.service.js";
 import { STEP_TYPE_OPTIONS, createDefaultStep } from "@/components/recipe-steps/index.js";
 import {
   DEFAULT_RECIPE_ICON_PATH,
@@ -158,7 +173,12 @@ import {
 } from "@/utils/recipeAssets.js";
 
 const route = useRoute();
+const router = useRouter();
 const { t, locale } = useI18n();
+
+const isNewVersionMode = computed(
+  () => String(route.query.nyVersjon || route.query.newVersion || "") === "1",
+);
 const gravityPattern = /^1\.\d{3}$/;
 
 const loading = ref(true);
@@ -421,7 +441,7 @@ async function handleSubmit() {
   successMessage.value = "";
   errorMessage.value = "";
   try {
-    await updateRecipe(route.params.recipeId, {
+    const payload = {
       name: form.name.trim(),
       beerType: form.beerType || undefined,
       iconPath: form.iconPath || undefined,
@@ -462,10 +482,26 @@ async function handleSubmit() {
           stepIds: (ing.stepIds || []).filter((id) => form.steps.some((s) => s.stepId === id)),
         }))
         .filter((ing) => ing.name),
-    });
+    };
+
+    if (isNewVersionMode.value) {
+      const created = await createRecipeVersion(route.params.recipeId, payload);
+      successMessage.value = t("recipes.edit.version_created");
+      if (created?._id) {
+        await router.push(`/oppskrifter/${created._id}`);
+      }
+      return;
+    }
+
+    await updateRecipe(route.params.recipeId, payload);
     successMessage.value = t("recipes.edit.saved");
   } catch (err) {
-    errorMessage.value = err?.response?.data?.error || err?.message || t("recipes.errors.update_failed");
+    errorMessage.value =
+      err?.response?.data?.error ||
+      err?.message ||
+      (isNewVersionMode.value
+        ? t("recipes.errors.version_failed")
+        : t("recipes.errors.update_failed"));
   } finally {
     isSubmitting.value = false;
   }
