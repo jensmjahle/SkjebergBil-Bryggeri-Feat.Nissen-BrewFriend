@@ -1192,6 +1192,78 @@ brewsRouter.post("/:id/measurements", async (req: any, res) => {
   }
 });
 
+const MEASUREMENT_NUMERIC_FIELDS = [
+  "gravity",
+  "temperatureC",
+  "og",
+  "fg",
+  "sg",
+  "ph",
+  "co2Volumes",
+  "ibu",
+] as const;
+
+brewsRouter.patch("/:id/measurements/:measurementId", async (req: any, res) => {
+  try {
+    const brewerId = await resolveBrewerId(req);
+    const brew = await Brew.findOne({ _id: req.params.id, brewerId });
+    if (!brew) {
+      return res.status(404).json({ error: "Brew not found" });
+    }
+
+    const measurement = (brew.measurements as any).id(req.params.measurementId);
+    if (!measurement) {
+      return res.status(404).json({ error: "Measurement not found" });
+    }
+
+    // Only fields present in the body are touched, and a field sent as null or
+    // an empty string clears the value instead of storing a 0.
+    for (const field of MEASUREMENT_NUMERIC_FIELDS) {
+      if (!(field in (req.body || {}))) continue;
+      measurement[field] = toNumberOrUndefined(req.body[field]);
+    }
+
+    if ("takenAt" in (req.body || {})) {
+      const takenAt = toDateOrUndefined(req.body.takenAt);
+      if (takenAt) measurement.takenAt = takenAt;
+    }
+
+    if ("note" in (req.body || {})) {
+      measurement.note = toStringOrUndefined(req.body.note);
+    }
+
+    await brew.save();
+    notifyBrewUpdated(brew);
+
+    return res.json((brew.measurements as any).id(req.params.measurementId));
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || "Failed to update measurement" });
+  }
+});
+
+brewsRouter.delete("/:id/measurements/:measurementId", async (req: any, res) => {
+  try {
+    const brewerId = await resolveBrewerId(req);
+    const brew = await Brew.findOne({ _id: req.params.id, brewerId });
+    if (!brew) {
+      return res.status(404).json({ error: "Brew not found" });
+    }
+
+    const measurement = (brew.measurements as any).id(req.params.measurementId);
+    if (!measurement) {
+      return res.status(404).json({ error: "Measurement not found" });
+    }
+
+    measurement.deleteOne();
+    await brew.save();
+    notifyBrewUpdated(brew);
+
+    return res.status(204).send();
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || "Failed to delete measurement" });
+  }
+});
+
 brewsRouter.get("/:id/graph", async (req: any, res) => {
   try {
     const metric = String(req.query.metric || "temperatureC");

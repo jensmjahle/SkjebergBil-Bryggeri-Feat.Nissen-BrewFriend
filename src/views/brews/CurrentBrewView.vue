@@ -286,7 +286,7 @@
                 <strong>{{ formatDuration(fermentationRemainingSeconds) }}</strong>
               </p>
             </div>
-            <BaseButton type="button" :disabled="addingMeasurement" @click="measurementModalOpen = true">
+            <BaseButton type="button" :disabled="addingMeasurement" @click="openNewMeasurement">
               {{ t("brews.actions.add_measurement") }}
             </BaseButton>
           </div>
@@ -294,32 +294,35 @@
           <div class="grid gap-2 text-sm opacity-90 sm:grid-cols-2 lg:grid-cols-3">
             <p>{{ t("brews.fields.target_og") }}: {{ targetOgRangeText }}</p>
             <p>{{ t("brews.fields.target_fg") }}: {{ targetFgRangeText }}</p>
-            <p>{{ t("brews.fields.target_gravity") }}: {{ formatValue(targetGravityValue) }}</p>
-            <p>{{ t("brews.fields.target_sg") }}: {{ formatValue(targetSgValue) }}</p>
             <p>{{ t("brews.fields.target_ph") }}: {{ formatValue(targetPhValue) }}</p>
             <p>{{ t("brews.fields.target_co2") }}: {{ formatValue(targetCo2Value) }}</p>
             <p>{{ t("brews.fields.target_ibu") }}: {{ formatValue(targetIbuValue) }}</p>
-            <p>{{ t("brews.fields.actual_abv") }}: {{ actualAbvText }}</p>
+            <p>{{ t("brews.fields.actual_abv") }}: {{ abvText }}</p>
           </div>
 
-          <div class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-            <BaseInput
-              v-model="actualOgInput"
-              :label="t('brews.fields.actual_og')"
-              placeholder="1.056"
-            />
-            <BaseInput
-              v-model="actualFgInput"
-              :label="t('brews.fields.actual_fg')"
-              placeholder="1.012"
-            />
-            <BaseButton
-              type="button"
-              :disabled="savingActualMetrics"
-              @click="saveActualMetrics"
-            >
-              {{ savingActualMetrics ? t("common.saving") : t("brews.actions.save_actual_metrics") }}
-            </BaseButton>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div class="flex items-end gap-2">
+              <BaseInput
+                v-model="actualOgInput"
+                class="flex-1"
+                :label="t('brews.fields.actual_og')"
+                placeholder="1.056"
+              />
+              <BaseButton type="button" :disabled="savingActualOg" @click="saveActualOg">
+                {{ savingActualOg ? t("common.saving") : t("common.save") }}
+              </BaseButton>
+            </div>
+            <div class="flex items-end gap-2">
+              <BaseInput
+                v-model="actualFgInput"
+                class="flex-1"
+                :label="t('brews.fields.actual_fg')"
+                placeholder="1.012"
+              />
+              <BaseButton type="button" :disabled="savingActualFg" @click="saveActualFg">
+                {{ savingActualFg ? t("common.saving") : t("common.save") }}
+              </BaseButton>
+            </div>
           </div>
 
           <p v-if="measurementMessage" class="text-sm opacity-80">{{ measurementMessage }}</p>
@@ -340,7 +343,6 @@
           </div>
 
           <GravityProgressChart
-            :labels="measurementChartLabels"
             :datasets="measurementChartDatasets"
             :empty-text="t('brews.current.no_measurements')"
           />
@@ -360,20 +362,38 @@
               :key="measurement._id || measurement.takenAt"
               class="rounded-lg border border-border3 p-3 text-sm"
             >
-              <p class="font-medium">{{ formatDateTime(measurement.takenAt) }}</p>
-              <p class="opacity-80">
-                {{ t("brews.measurements.gravity") }}: {{ formatValue(measurement.gravity) }} |
-                {{ t("brews.measurements.temperature") }}: {{ formatValue(measurement.temperatureC) }} °C |
-                {{ t("brews.measurements.ph") }}: {{ formatValue(measurement.ph) }}
+              <div class="flex items-start justify-between gap-2">
+                <p class="font-medium">{{ formatDateTime(measurement.takenAt) }}</p>
+                <div class="flex shrink-0 gap-1">
+                  <button
+                    type="button"
+                    class="rounded-md p-1 opacity-70 transition-opacity hover:opacity-100"
+                    :aria-label="t('brews.actions.edit_measurement')"
+                    :title="t('brews.actions.edit_measurement')"
+                    :disabled="addingMeasurement"
+                    @click="openEditMeasurement(measurement)"
+                  >
+                    <Pencil class="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-md p-1 opacity-70 transition-opacity hover:opacity-100"
+                    :aria-label="t('brews.actions.delete_measurement')"
+                    :title="t('brews.actions.delete_measurement')"
+                    :disabled="addingMeasurement"
+                    @click="removeMeasurement(measurement)"
+                  >
+                    <Trash2 class="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <p v-if="!measurementReadings(measurement).length" class="opacity-60">
+                {{ t("brews.current.measurement_empty") }}
               </p>
-              <p class="opacity-80">
-                {{ t("brews.measurements.og") }}: {{ formatValue(measurement.og) }} |
-                {{ t("brews.measurements.fg") }}: {{ formatValue(measurement.fg) }} |
-                {{ t("brews.measurements.sg") }}: {{ formatValue(measurement.sg) }}
-              </p>
-              <p class="opacity-80">
-                {{ t("brews.measurements.co2_volumes") }}: {{ formatValue(measurement.co2Volumes) }} |
-                {{ t("brews.measurements.ibu") }}: {{ formatValue(measurement.ibu) }}
+              <p v-else class="opacity-80">
+                <span v-for="(reading, index) in measurementReadings(measurement)" :key="reading.key">
+                  <span v-if="index > 0"> | </span>{{ reading.label }}: {{ reading.value }}
+                </span>
               </p>
               <p v-if="measurement.note" class="opacity-80">{{ measurement.note }}</p>
             </div>
@@ -384,7 +404,8 @@
       <BrewMeasurementModal
         :open="measurementModalOpen"
         :loading="addingMeasurement"
-        @close="measurementModalOpen = false"
+        :measurement="editingMeasurement"
+        @close="closeMeasurementModal"
         @submit="submitMeasurement"
       />
     </template>
@@ -395,7 +416,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { EllipsisVertical } from "lucide-vue-next";
+import { EllipsisVertical, Pencil, Trash2 } from "lucide-vue-next";
 import BaseCard from "@/components/base/BaseCard.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
 import BaseInput from "@/components/base/BaseInput.vue";
@@ -409,6 +430,8 @@ import RecipeStepItem from "@/components/recipes/RecipeStepItem.vue";
 import BrewMeasurementModal from "@/components/modals/BrewMeasurementModal.vue";
 import {
   addBrewMeasurement,
+  deleteBrewMeasurement,
+  updateBrewMeasurement,
   completeBrewStep,
   deleteBrew,
   getBrew,
@@ -442,11 +465,13 @@ const activePanel = ref("progress");
 const nowTs = ref(Date.now());
 const addingMeasurement = ref(false);
 const measurementModalOpen = ref(false);
+const editingMeasurement = ref(null);
 const measurementMessage = ref("");
 const lastAlarmKey = ref("");
 const actualOgInput = ref("");
 const actualFgInput = ref("");
-const savingActualMetrics = ref(false);
+const savingActualOg = ref(false);
+const savingActualFg = ref(false);
 const stepNoteInput = ref("");
 const savingStepNote = ref(false);
 const stepNoteMessage = ref("");
@@ -604,16 +629,6 @@ const targetFgRangeText = computed(() => {
   return `${defaults.fgFrom || "-"} - ${defaults.fgTo || "-"}`;
 });
 
-const targetGravityValue = computed(() => {
-  const value = Number(brew.value?.targetMetrics?.gravity);
-  return Number.isFinite(value) ? Number(value.toFixed(3)) : "-";
-});
-
-const targetSgValue = computed(() => {
-  const value = Number(brew.value?.targetMetrics?.sg);
-  return Number.isFinite(value) ? Number(value.toFixed(3)) : "-";
-});
-
 const targetPhValue = computed(() => {
   const value = Number(brew.value?.targetMetrics?.ph);
   return Number.isFinite(value) ? Number(value.toFixed(2)) : "-";
@@ -651,12 +666,34 @@ const recipeLiterPrice = computed(() => {
   return recipeTotalIngredientCost.value / liters;
 });
 
-const actualAbvText = computed(() => {
-  const og = parseGravityValue(actualOgInput.value);
-  const fg = parseGravityValue(actualFgInput.value);
-  if (og === null || fg === null) return "-";
-  const abv = Math.max(0, (og - fg) * 131.25);
-  return `${abv.toFixed(2)}%`;
+function abvFrom(og, fg) {
+  if (!Number.isFinite(og) || !Number.isFinite(fg)) return null;
+  return Math.max(0, (og - fg) * 131.25);
+}
+
+function formatAbv(abv) {
+  return abv === null ? "-" : `${abv.toFixed(2)}%`;
+}
+
+const plannedAbv = computed(() => abvFrom(Number(targetOg.value), Number(targetFg.value)));
+
+// Once a real FG is saved the ABV is recalculated from it. A saved OG is used
+// when there is one, otherwise the planned OG stands in.
+const actualAbv = computed(() => {
+  const savedFg = parseGravityValue(actualFgInput.value);
+  if (savedFg === null) return null;
+  const savedOg = parseGravityValue(actualOgInput.value);
+  const og = savedOg === null ? Number(targetOg.value) : savedOg;
+  return abvFrom(og, savedFg);
+});
+
+const abvText = computed(() => {
+  if (actualAbv.value === null) return formatAbv(plannedAbv.value);
+  if (plannedAbv.value === null) return formatAbv(actualAbv.value);
+  return t("brews.current.actual_abv_planned", {
+    actual: formatAbv(actualAbv.value),
+    planned: formatAbv(plannedAbv.value),
+  });
 });
 
 const targetOg = computed(() => {
@@ -756,107 +793,66 @@ const expectedTemperatureSegments = computed(() => {
   return segments;
 });
 
-const measurementChartTimes = computed(() => {
-  const points = new Set();
-
+// Every series is plotted as {x: timestamp, y: value} so the chart can use a real
+// time axis. Measurements without a given value are simply left out of that
+// series instead of being plotted as a gap or a zero.
+function measurementPoints(readValue) {
+  const points = [];
   for (const measurement of measurementSeries.value) {
     const ts = new Date(measurement?.takenAt).getTime();
-    if (Number.isFinite(ts)) points.add(ts);
+    if (!Number.isFinite(ts)) continue;
+    const value = readValue(measurement);
+    if (!Number.isFinite(value)) continue;
+    points.push({ x: ts, y: value });
   }
+  return points;
+}
 
-  if (Number.isFinite(fermentationStartMs.value)) {
-    points.add(fermentationStartMs.value);
-  }
-  if (Number.isFinite(fermentationEndMs.value)) {
-    points.add(fermentationEndMs.value);
-  }
-
-  if (
-    Number.isFinite(fermentationStartMs.value) &&
-    Number.isFinite(fermentationEndMs.value) &&
-    fermentationEndMs.value > fermentationStartMs.value
-  ) {
-    const extraPoints = 12;
-    const stepSize = (fermentationEndMs.value - fermentationStartMs.value) / (extraPoints - 1);
-    for (let idx = 0; idx < extraPoints; idx += 1) {
-      points.add(Math.round(fermentationStartMs.value + stepSize * idx));
-    }
-  }
-
-  return [...points].sort((a, b) => a - b);
-});
-
-const measurementChartLabels = computed(() =>
-  measurementChartTimes.value.map((ts) =>
-    new Date(ts).toLocaleString([], {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-  ),
+const actualGravityPoints = computed(() =>
+  measurementPoints((measurement) => Number(measurementGravityValue(measurement))),
 );
 
-const gravityByTime = computed(() => {
-  const map = new Map();
-  for (const measurement of measurementSeries.value) {
-    const ts = new Date(measurement?.takenAt).getTime();
-    if (!Number.isFinite(ts)) continue;
-    map.set(ts, measurementGravityValue(measurement));
-  }
-  return map;
-});
+const actualTemperaturePoints = computed(() =>
+  measurementPoints((measurement) => Number(measurement?.temperatureC)),
+);
 
-const temperatureByTime = computed(() => {
-  const map = new Map();
-  for (const measurement of measurementSeries.value) {
-    const ts = new Date(measurement?.takenAt).getTime();
-    const value = Number(measurement?.temperatureC);
-    if (!Number.isFinite(ts)) continue;
-    map.set(ts, Number.isFinite(value) ? value : null);
-  }
-  return map;
-});
-
-const phByTime = computed(() => {
-  const map = new Map();
-  for (const measurement of measurementSeries.value) {
-    const ts = new Date(measurement?.takenAt).getTime();
+// pH is never 0 either, so treat a stored 0 as "not measured".
+const actualPhPoints = computed(() =>
+  measurementPoints((measurement) => {
     const value = Number(measurement?.ph);
-    if (!Number.isFinite(ts)) continue;
-    map.set(ts, Number.isFinite(value) ? value : null);
-  }
-  return map;
+    return value > 0 ? value : NaN;
+  }),
+);
+
+const expectedCurveTimes = computed(() => {
+  const start = fermentationStartMs.value;
+  const end = fermentationEndMs.value;
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return [];
+
+  const segments = 60;
+  const stepSize = (end - start) / segments;
+  return Array.from({ length: segments + 1 }, (_, idx) => Math.round(start + stepSize * idx));
 });
 
-const actualGravitySeries = computed(() =>
-  measurementChartTimes.value.map((ts) => {
-    const value = gravityByTime.value.get(ts);
-    return Number.isFinite(value) ? value : null;
-  }),
+const expectedGravityPoints = computed(() =>
+  expectedCurveTimes.value
+    .map((ts) => ({ x: ts, y: expectedGravityAt(ts) }))
+    .filter((point) => Number.isFinite(point.y)),
 );
 
-const actualTemperatureSeries = computed(() =>
-  measurementChartTimes.value.map((ts) => {
-    const value = temperatureByTime.value.get(ts);
-    return Number.isFinite(value) ? value : null;
-  }),
-);
-
-const actualPhSeries = computed(() =>
-  measurementChartTimes.value.map((ts) => {
-    const value = phByTime.value.get(ts);
-    return Number.isFinite(value) ? value : null;
-  }),
-);
-
-const expectedGravitySeries = computed(() =>
-  measurementChartTimes.value.map((ts) => expectedGravityAt(ts)),
-);
-
-const expectedTemperatureSeries = computed(() =>
-  measurementChartTimes.value.map((ts) => expectedTemperatureAt(ts)),
-);
+// The expected temperature is constant within each fermentation step, so the
+// segment boundaries are enough to draw it as a staircase.
+const expectedTemperaturePoints = computed(() => {
+  const points = [];
+  for (const segment of expectedTemperatureSegments.value) {
+    const temperature = Number(segment?.temperature);
+    if (!Number.isFinite(temperature)) continue;
+    const value = Number(temperature.toFixed(2));
+    points.push({ x: segment.from, y: value });
+    points.push({ x: segment.to, y: value });
+  }
+  return points;
+});
 
 const measurementChartDatasets = computed(() => {
   const datasets = [];
@@ -864,7 +860,7 @@ const measurementChartDatasets = computed(() => {
   if (seriesVisibility.value.gravity) {
     datasets.push({
       label: t("brews.current.series_gravity"),
-      data: actualGravitySeries.value,
+      data: actualGravityPoints.value,
       borderColor: "rgb(16, 185, 129)",
       backgroundColor: "rgba(16, 185, 129, 0.15)",
       fill: false,
@@ -877,7 +873,7 @@ const measurementChartDatasets = computed(() => {
   if (seriesVisibility.value.expectedGravity) {
     datasets.push({
       label: t("brews.current.series_expected_gravity"),
-      data: expectedGravitySeries.value,
+      data: expectedGravityPoints.value,
       borderColor: "rgb(245, 158, 11)",
       borderDash: [6, 6],
       fill: false,
@@ -891,7 +887,7 @@ const measurementChartDatasets = computed(() => {
   if (seriesVisibility.value.temperature) {
     datasets.push({
       label: t("brews.current.series_temperature"),
-      data: actualTemperatureSeries.value,
+      data: actualTemperaturePoints.value,
       borderColor: "rgb(59, 130, 246)",
       fill: false,
       pointRadius: 3,
@@ -903,7 +899,7 @@ const measurementChartDatasets = computed(() => {
   if (seriesVisibility.value.expectedTemperature) {
     datasets.push({
       label: t("brews.current.series_expected_temperature"),
-      data: expectedTemperatureSeries.value,
+      data: expectedTemperaturePoints.value,
       borderColor: "rgb(147, 197, 253)",
       borderDash: [5, 5],
       fill: false,
@@ -917,7 +913,7 @@ const measurementChartDatasets = computed(() => {
   if (seriesVisibility.value.ph) {
     datasets.push({
       label: t("brews.current.series_ph"),
-      data: actualPhSeries.value,
+      data: actualPhPoints.value,
       borderColor: "rgb(236, 72, 153)",
       fill: false,
       pointRadius: 3,
@@ -938,7 +934,8 @@ function measurementGravityValue(measurement) {
   ];
   for (const value of candidates) {
     const numeric = Number(value);
-    if (Number.isFinite(numeric)) return numeric;
+    // A gravity is always around 1.000, so a 0 is a missing value, not a reading.
+    if (Number.isFinite(numeric) && numeric > 0) return numeric;
   }
   return null;
 }
@@ -960,34 +957,6 @@ function expectedGravityAt(timestampMs) {
   const steepness = 4.5;
   const normalized = (1 - Math.exp(-steepness * ratio)) / (1 - Math.exp(-steepness));
   return Number((og - (og - fg) * normalized).toFixed(3));
-}
-
-function expectedTemperatureAt(timestampMs) {
-  const ts = Number(timestampMs);
-  if (!Number.isFinite(ts)) return null;
-
-  const segments = expectedTemperatureSegments.value;
-  if (!segments.length) return null;
-
-  const firstWithTemperature = segments.find((segment) =>
-    Number.isFinite(Number(segment?.temperature)),
-  );
-  if (!firstWithTemperature) return null;
-
-  if (ts <= segments[0].from) return Number(firstWithTemperature.temperature);
-
-  for (const segment of segments) {
-    if (ts >= segment.from && ts <= segment.to) {
-      const temperature = Number(segment.temperature);
-      return Number.isFinite(temperature) ? Number(temperature.toFixed(2)) : null;
-    }
-  }
-
-  const lastWithTemperature = [...segments]
-    .reverse()
-    .find((segment) => Number.isFinite(Number(segment?.temperature)));
-  if (!lastWithTemperature) return null;
-  return Number(Number(lastWithTemperature.temperature).toFixed(2));
 }
 
 function statusLabel(status) {
@@ -1080,6 +1049,44 @@ function formatDateTime(value) {
 function formatValue(value) {
   if (value === null || value === undefined || value === "") return "-";
   return value;
+}
+
+// Gravity and pH are never 0, so a stored 0 means the field was left blank.
+function isPositiveReading(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0;
+}
+
+const measurementFields = [
+  { key: "gravity", labelKey: "brews.measurements.gravity", positiveOnly: true },
+  { key: "temperatureC", labelKey: "brews.measurements.temperature", suffix: " °C" },
+  { key: "ph", labelKey: "brews.measurements.ph", positiveOnly: true },
+  { key: "og", labelKey: "brews.measurements.og", positiveOnly: true },
+  { key: "fg", labelKey: "brews.measurements.fg", positiveOnly: true },
+  { key: "sg", labelKey: "brews.measurements.sg", positiveOnly: true },
+  { key: "co2Volumes", labelKey: "brews.measurements.co2_volumes" },
+  { key: "ibu", labelKey: "brews.measurements.ibu" },
+];
+
+// A measurement only carries the fields that were actually filled in, so the
+// list shows those and leaves the rest out entirely.
+function measurementReadings(measurement) {
+  const readings = [];
+
+  for (const field of measurementFields) {
+    const raw = measurement?.[field.key];
+    if (raw === null || raw === undefined || raw === "") continue;
+    const numeric = Number(raw);
+    if (!Number.isFinite(numeric)) continue;
+    if (field.positiveOnly && !isPositiveReading(numeric)) continue;
+    readings.push({
+      key: field.key,
+      label: t(field.labelKey),
+      value: `${numeric}${field.suffix || ""}`,
+    });
+  }
+
+  return readings;
 }
 
 function formatCurrency(value) {
@@ -1215,30 +1222,38 @@ async function deleteBrewAction() {
   }
 }
 
-async function saveActualMetrics() {
+// OG and FG are saved one at a time - the backend only touches the fields that
+// are present in the payload, so saving one leaves the other untouched.
+async function saveActualMetric(field, rawValue, savingFlag, successKey) {
   if (!brew.value?._id) return;
 
-  const og = parseGravityValue(actualOgInput.value);
-  const fg = parseGravityValue(actualFgInput.value);
-
-  if (og === null || fg === null) {
+  const value = parseGravityValue(rawValue);
+  if (value === null) {
     error.value = t("brews.current.actual_format_error");
     return;
   }
 
-  savingActualMetrics.value = true;
+  savingFlag.value = true;
   error.value = "";
   try {
     brew.value = await updateBrew(brew.value._id, {
-      actualMetrics: { og, fg },
+      actualMetrics: { [field]: value },
     });
     hydrateActualMetricsInputs();
-    measurementMessage.value = t("brews.current.actual_saved");
+    measurementMessage.value = t(successKey);
   } catch (err) {
     error.value = err?.response?.data?.error || err?.message || t("brews.errors.save_failed");
   } finally {
-    savingActualMetrics.value = false;
+    savingFlag.value = false;
   }
+}
+
+function saveActualOg() {
+  return saveActualMetric("og", actualOgInput.value, savingActualOg, "brews.current.og_saved");
+}
+
+function saveActualFg() {
+  return saveActualMetric("fg", actualFgInput.value, savingActualFg, "brews.current.fg_saved");
 }
 
 async function saveCurrentStepNote() {
@@ -1377,14 +1392,55 @@ async function resetCurrentStepAction() {
   }
 }
 
-async function submitMeasurement(payload) {
-  if (!brew.value?._id) return;
+function openNewMeasurement() {
+  editingMeasurement.value = null;
+  measurementModalOpen.value = true;
+}
+
+function openEditMeasurement(measurement) {
+  editingMeasurement.value = measurement;
+  measurementModalOpen.value = true;
+}
+
+function closeMeasurementModal() {
+  measurementModalOpen.value = false;
+  editingMeasurement.value = null;
+}
+
+async function removeMeasurement(measurement) {
+  const measurementId = measurement?._id;
+  if (!brew.value?._id || !measurementId) return;
+  if (!window.confirm(t("brews.current.confirm_delete_measurement"))) return;
+
   addingMeasurement.value = true;
   measurementMessage.value = "";
   try {
-    await addBrewMeasurement(brew.value._id, payload || {});
-    measurementModalOpen.value = false;
-    measurementMessage.value = t("brews.current.measurement_added");
+    await deleteBrewMeasurement(brew.value._id, measurementId);
+    measurementMessage.value = t("brews.current.measurement_deleted");
+    await loadBrew();
+  } catch (err) {
+    measurementMessage.value =
+      err?.response?.data?.error || err?.message || t("brews.errors.measurement_failed");
+  } finally {
+    addingMeasurement.value = false;
+  }
+}
+
+async function submitMeasurement(payload) {
+  if (!brew.value?._id) return;
+  const measurementId = editingMeasurement.value?._id;
+  addingMeasurement.value = true;
+  measurementMessage.value = "";
+  try {
+    if (measurementId) {
+      await updateBrewMeasurement(brew.value._id, measurementId, payload || {});
+    } else {
+      await addBrewMeasurement(brew.value._id, payload || {});
+    }
+    closeMeasurementModal();
+    measurementMessage.value = measurementId
+      ? t("brews.current.measurement_updated")
+      : t("brews.current.measurement_added");
     await loadBrew();
   } catch (err) {
     measurementMessage.value =

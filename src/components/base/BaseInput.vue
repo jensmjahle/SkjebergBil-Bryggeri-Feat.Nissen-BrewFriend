@@ -31,12 +31,18 @@ const mergedAttrs = computed(() => {
 
 function onInput(e: Event) {
   const el = e.target as HTMLInputElement;
-  let val: string | number = el.value;
+  const raw = el.value;
   if (props.modelModifiers?.number) {
-    const n = Number(val);
-    val = Number.isNaN(n) ? ("" as any) : n;
+    // An empty field means "no value", not 0 - Number("") would coerce it to 0.
+    if (raw === "") {
+      emit("update:modelValue", null);
+      return;
+    }
+    const n = Number(raw);
+    emit("update:modelValue", Number.isNaN(n) ? "" : n);
+    return;
   }
-  emit("update:modelValue", val);
+  emit("update:modelValue", raw);
 }
 </script>
 

@@ -104,6 +104,21 @@ export async function addBrewMeasurement(brewId, payload) {
   return data;
 }
 
+export async function updateBrewMeasurement(brewId, measurementId, payload) {
+  const { data } = await api.patch(
+    `${BASE}/${encodeURIComponent(brewId)}/measurements/${encodeURIComponent(measurementId)}`,
+    payload,
+    { headers: { "Content-Type": "application/json" } },
+  );
+  return data;
+}
+
+export async function deleteBrewMeasurement(brewId, measurementId) {
+  await api.delete(
+    `${BASE}/${encodeURIComponent(brewId)}/measurements/${encodeURIComponent(measurementId)}`,
+  );
+}
+
 export async function getBrewGraph(brewId, metric = "gravity") {
   const { data } = await api.get(`${BASE}/${encodeURIComponent(brewId)}/graph`, {
     params: { metric },

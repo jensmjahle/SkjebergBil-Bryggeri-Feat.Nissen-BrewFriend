@@ -8,7 +8,8 @@
     "all": "Alle",
     "filter": "Filter",
     "apply": "Bruk",
-    "close": "Lukk"
+    "close": "Lukk",
+    "save": "Lagre"
   },
   "home": {
     "title": "Bryggekompis",
@@ -230,9 +231,9 @@
       "target_ph": "Mål pH",
       "target_co2": "Mål CO2",
       "target_ibu": "Mål IBU",
-      "actual_og": "Faktisk OG",
-      "actual_fg": "Faktisk FG",
-      "actual_abv": "Faktisk ABV"
+      "actual_og": "OG",
+      "actual_fg": "FG",
+      "actual_abv": "ABV"
     },
     "actions": {
       "new_brew": "Start nytt brygg",
@@ -258,8 +259,10 @@
       "complete_step": "Fullfør steg",
       "reset_step": "Nullstill",
       "add_measurement": "Legg til måling",
+      "edit_measurement": "Rediger måling",
+      "save_measurement": "Lagre måling",
+      "delete_measurement": "Slett måling",
       "save_step_note": "Lagre stegnotat",
-      "save_actual_metrics": "Lagre faktisk OG/FG",
       "create_empty_plan": "Opprett tomt planlagt brygg",
       "update_recipe_version": "Oppdater nåværende oppskriftsversjon",
       "create_recipe_version": "Lagre som ny oppskriftsversjon"
@@ -315,12 +318,19 @@
       "step_note_placeholder": "Legg til notater for dette steget...",
       "step_note_saved": "Stegnotat lagret.",
       "measurement_added": "Måling lagt til.",
+      "measurement_updated": "Måling oppdatert.",
+      "measurement_deleted": "Måling slettet.",
+      "confirm_delete_measurement": "Er du sikker på at du vil slette denne målingen?",
+      "measurement_empty": "Ingen verdier registrert.",
       "step_started": "Steg startet.",
       "step_paused": "Steg pauset.",
       "brew_started": "Bryggedagen er startet.",
       "brew_finished": "Brygget er avsluttet.",
       "confirm_delete": "Er du sikker på at du vil slette dette brygget?",
       "actual_saved": "Faktiske OG/FG lagret.",
+      "actual_abv_planned": "{actual} (planlagt {planned})",
+      "og_saved": "OG lagret.",
+      "fg_saved": "FG lagret.",
       "actual_format_error": "Faktisk OG/FG må være i format 1.056"
     },
     "measurements": {
