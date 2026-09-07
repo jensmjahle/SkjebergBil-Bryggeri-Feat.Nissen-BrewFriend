@@ -38,6 +38,26 @@ function toNumberOrUndefined(value: any) {
   return Number.isFinite(n) ? n : undefined;
 }
 
+// Ratings are given in quarter stars, so anything in between is snapped to the
+// nearest quarter and clamped to the 0.25 - 5 range.
+function toRatingOrUndefined(value: any) {
+  const n = toNumberOrUndefined(value);
+  if (n === undefined) return undefined;
+  const snapped = Math.round(n * 4) / 4;
+  if (snapped < 0.25 || snapped > 5) return undefined;
+  return snapped;
+}
+
+function applyEvaluationUpdate(target: AnyObj, incoming: AnyObj) {
+  if (Object.prototype.hasOwnProperty.call(incoming, "rating")) {
+    target.rating = toRatingOrUndefined(incoming.rating);
+  }
+  if (Object.prototype.hasOwnProperty.call(incoming, "note")) {
+    target.note = toStringOrUndefined(incoming.note);
+  }
+  target.evaluatedAt = new Date();
+}
+
 function toGravityOrUndefined(value: any) {
   const text = toStringOrUndefined(value);
   if (!text) return undefined;
@@ -733,6 +753,11 @@ brewsRouter.patch("/:id", async (req: any, res) => {
       applyActualMetricsUpdate(brew.actualMetrics, payload.actualMetrics);
     }
 
+    if (payload.evaluation && typeof payload.evaluation === "object") {
+      if (!brew.evaluation) brew.evaluation = {};
+      applyEvaluationUpdate(brew.evaluation, payload.evaluation);
+    }
+
     if (shouldUpdateSnapshot) {
       const nextSnapshot = normalizeRecipeSnapshot(
         payload.recipeSnapshot || {},
@@ -1144,6 +1169,43 @@ brewsRouter.post("/:id/steps/:stepId/note", async (req: any, res) => {
     return res.json(attachComputedFields(brew));
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Failed to save step note" });
+  }
+});
+
+// Finishing a brew is also when it gets evaluated, so the rating is required
+// here rather than being something you can leave behind.
+brewsRouter.post("/:id/finish", async (req: any, res) => {
+  try {
+    const brewerId = await resolveBrewerId(req);
+    const brew = await Brew.findOne({ _id: req.params.id, brewerId });
+    if (!brew) {
+      return res.status(404).json({ error: "Brew not found" });
+    }
+
+    const rating = toRatingOrUndefined(req.body?.rating);
+    if (rating === undefined) {
+      return res.status(400).json({ error: "A rating between 0.25 and 5 is required" });
+    }
+
+    const completedAt = toDateOrUndefined(req.body?.completedAt) || new Date();
+
+    brew.status = "completed";
+    if (!brew.timeline) brew.timeline = {};
+    brew.timeline.completedAt = completedAt;
+    if (!brew.progress) brew.progress = {};
+    brew.progress.brewCompletedAt = completedAt;
+    brew.evaluation = {
+      rating,
+      note: toStringOrUndefined(req.body?.note),
+      evaluatedAt: new Date(),
+    };
+
+    await brew.save();
+    notifyBrewUpdated(brew);
+
+    return res.json(attachComputedFields(brew));
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || "Failed to finish brew" });
   }
 });
 

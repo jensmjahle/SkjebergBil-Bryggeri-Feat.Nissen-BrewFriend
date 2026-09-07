@@ -1,7 +1,9 @@
 ﻿import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
+import mongoose from "mongoose";
 import { Recipe } from "../mongo/models/Recipe.js";
+import { Brew } from "../mongo/models/Brew.js";
 import { Brewer } from "../mongo/models/Brewer.js";
 
 export const recipesRouter = Router();
@@ -92,6 +94,68 @@ function computeAbvRange(defaults: any = {}) {
     min: Number(Math.max(0, min).toFixed(2)),
     max: Number(Math.max(0, max).toFixed(2)),
   };
+}
+
+// Ratings are stored in quarter stars; anything else is snapped to the nearest.
+function toRatingOrUndefined(value: any) {
+  const n = toNumberOrUndefined(value);
+  if (n === undefined) return undefined;
+  const snapped = Math.round(n * 4) / 4;
+  if (snapped < 0.25 || snapped > 5) return undefined;
+  return snapped;
+}
+
+function emptyRating() {
+  return { average: null as number | null, count: 0 };
+}
+
+// A recipe version is rated by the brews made from it: the average of every
+// evaluation those brews were given.
+async function ratingsForRecipeIds(brewerId: string, recipeIds: any[]) {
+  const ratings = new Map<string, { average: number | null; count: number }>();
+  if (!recipeIds.length) return ratings;
+
+  const rows = await Brew.aggregate([
+    {
+      $match: {
+        brewerId: new mongoose.Types.ObjectId(String(brewerId)),
+        "evaluation.rating": { $gt: 0 },
+        $or: [
+          { recipeId: { $in: recipeIds } },
+          { "recipeSnapshot.recipeId": { $in: recipeIds } },
+        ],
+      },
+    },
+    {
+      $group: {
+        _id: { $ifNull: ["$recipeId", "$recipeSnapshot.recipeId"] },
+        average: { $avg: "$evaluation.rating" },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  for (const row of rows) {
+    if (!row?._id) continue;
+    ratings.set(String(row._id), {
+      average: Math.round(Number(row.average) * 100) / 100,
+      count: Number(row.count) || 0,
+    });
+  }
+
+  return ratings;
+}
+
+async function attachRatings(brewerId: string, recipes: any[]) {
+  const ids = recipes
+    .map((recipe) => recipe?._id)
+    .filter(Boolean)
+    .map((id: any) => new mongoose.Types.ObjectId(String(id)));
+  const ratings = await ratingsForRecipeIds(brewerId, ids);
+  return recipes.map((recipe) => ({
+    ...recipe,
+    rating: ratings.get(String(recipe?._id)) || emptyRating(),
+  }));
 }
 
 function attachComputedFields(recipe: any) {
@@ -442,11 +506,15 @@ recipesRouter.get("/", async (req: any, res) => {
         { $addFields: { stepCount: { $size: { $ifNull: ["$steps", []] } } } },
         { $sort: { stepCount: -1, updatedAt: -1 } },
       ]);
-      return res.json(recipes.map((r: any) => attachComputedFields(r)));
+      return res.json(
+        await attachRatings(brewerId, recipes.map((r: any) => attachComputedFields(r))),
+      );
     }
 
     const recipes = await Recipe.find(mongoFilter).sort(sortMap[sort] || sortMap.newest);
-    return res.json(recipes.map((recipe: any) => attachComputedFields(recipe)));
+    return res.json(
+      await attachRatings(brewerId, recipes.map((recipe: any) => attachComputedFields(recipe))),
+    );
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Failed to list recipes" });
   }
@@ -459,7 +527,8 @@ recipesRouter.get("/:id", async (req: any, res) => {
     if (!recipe) {
       return res.status(404).json({ error: "Recipe not found" });
     }
-    return res.json(attachComputedFields(recipe));
+    const [withRating] = await attachRatings(brewerId, [attachComputedFields(recipe)]);
+    return res.json(withRating);
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Failed to get recipe" });
   }
@@ -474,9 +543,77 @@ recipesRouter.get("/:id/versions", async (req: any, res) => {
     }
 
     const versions = await listVersionsForRecipe(brewerId, recipe);
-    return res.json(versions.map((doc: any) => attachComputedFields(doc)));
+    return res.json(
+      await attachRatings(brewerId, versions.map((doc: any) => attachComputedFields(doc))),
+    );
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Failed to list recipe versions" });
+  }
+});
+
+// Every brew ever made from this recipe, across all of its versions.
+recipesRouter.get("/:id/brews", async (req: any, res) => {
+  try {
+    const brewerId = await resolveBrewerId(req);
+    const recipe = await Recipe.findOne({ _id: req.params.id, brewerId });
+    if (!recipe) {
+      return res.status(404).json({ error: "Recipe not found" });
+    }
+
+    const versions = await listVersionsForRecipe(brewerId, recipe);
+    const versionById = new Map<string, number>();
+    const versionIds = versions.map((doc: any) => {
+      const id = new mongoose.Types.ObjectId(String(doc._id));
+      versionById.set(String(doc._id), toIntegerOrUndefined(doc.version) || 1);
+      return id;
+    });
+
+    const brews = await Brew.find({
+      brewerId,
+      $or: [
+        { recipeId: { $in: versionIds } },
+        { "recipeSnapshot.recipeId": { $in: versionIds } },
+      ],
+    })
+      .select(
+        "name status evaluation timeline progress recipeId recipeSnapshot.recipeId recipeSnapshot.recipeVersion createdAt",
+      )
+      .lean();
+
+    const items = brews
+      .map((brew: any) => {
+        const recipeRef = String(brew.recipeId || brew.recipeSnapshot?.recipeId || "");
+        const brewedAt =
+          brew.timeline?.completedAt ||
+          brew.timeline?.brewDayAt ||
+          brew.progress?.brewCompletedAt ||
+          brew.progress?.brewStartedAt ||
+          brew.createdAt ||
+          null;
+
+        return {
+          _id: String(brew._id),
+          name: brew.name || "",
+          status: brew.status || "planned",
+          recipeId: recipeRef,
+          version:
+            versionById.get(recipeRef) ||
+            toIntegerOrUndefined(brew.recipeSnapshot?.recipeVersion) ||
+            null,
+          brewedAt,
+          rating: toRatingOrUndefined(brew.evaluation?.rating) ?? null,
+          note: brew.evaluation?.note || "",
+        };
+      })
+      .sort((a: any, b: any) => {
+        const left = a.brewedAt ? new Date(a.brewedAt).getTime() : 0;
+        const right = b.brewedAt ? new Date(b.brewedAt).getTime() : 0;
+        return right - left;
+      });
+
+    return res.json(items);
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || "Failed to list recipe brews" });
   }
 });
 

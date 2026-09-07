@@ -192,7 +192,16 @@
       "used_in_steps": "Used in",
       "cost_summary": "Cost Summary",
       "total_ingredients_cost": "Total ingredient cost",
-      "liter_price": "Price per liter"
+      "liter_price": "Price per liter",
+      "brew_history": "Previous brews",
+      "brews_tab": "Brews",
+      "brew_history_hint": "All brews made from this recipe, across every version. The rating shown is for v{version}.",
+      "version_rating": "Rating for this version",
+      "brew_rating": "Brew rating",
+      "rating_from_brews": "Average of {count} brews",
+      "not_rated": "Not rated",
+      "no_brews": "No brews from this recipe yet.",
+      "untitled_brew": "Untitled brew"
     }
   },
   "brews": {
@@ -250,6 +259,7 @@
       "open_live": "Open live view",
       "edit": "Edit",
       "finish": "Finish",
+      "reevaluate": "Re-evaluate",
       "delete": "Delete",
       "show_recipe": "Show recipe",
       "show_progress": "Show progress",
@@ -332,6 +342,16 @@
       "og_saved": "OG saved.",
       "fg_saved": "FG saved.",
       "actual_format_error": "Actual OG/FG must be in format 1.056"
+    },
+    "evaluation": {
+      "title": "Evaluate brew",
+      "intro": "Rate how the brew turned out and leave a closing note before finishing it.",
+      "rating_label": "Rating",
+      "no_rating": "Not rated",
+      "rating_required": "Give the brew a rating before finishing it.",
+      "note_label": "Final note",
+      "note_placeholder": "How did it turn out? Anything to do differently next time?",
+      "submit": "Finish and save"
     },
     "measurements": {
       "gravity": "Gravity",

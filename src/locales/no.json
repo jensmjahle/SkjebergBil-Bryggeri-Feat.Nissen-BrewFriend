@@ -192,7 +192,16 @@
       "total_ingredients_cost": "Total ingredienskostnad",
       "liter_price": "Pris per liter",
       "version": "Oppskriftsversjon",
-      "latest": "Nyeste"
+      "latest": "Nyeste",
+      "brew_history": "Tidligere brygg",
+      "brews_tab": "Brygg",
+      "brew_history_hint": "Alle brygg laget på denne oppskriften, på tvers av versjoner. Vurderingen som vises gjelder v{version}.",
+      "version_rating": "Vurdering for denne versjonen",
+      "brew_rating": "Vurdering av brygget",
+      "rating_from_brews": "Snitt av {count} brygg",
+      "not_rated": "Ikke vurdert",
+      "no_brews": "Ingen brygg på denne oppskriften ennå.",
+      "untitled_brew": "Brygg uten navn"
     }
   },
   "brews": {
@@ -247,6 +256,7 @@
       "open_live": "Gå til bryggvisning",
       "edit": "Rediger",
       "finish": "Avslutt",
+      "reevaluate": "Evaluer på nytt",
       "delete": "Slett",
       "show_recipe": "Vis oppskrift",
       "show_progress": "Vis fremdrift",
@@ -332,6 +342,16 @@
       "og_saved": "OG lagret.",
       "fg_saved": "FG lagret.",
       "actual_format_error": "Faktisk OG/FG må være i format 1.056"
+    },
+    "evaluation": {
+      "title": "Evaluer brygg",
+      "intro": "Gi brygget en vurdering og et sluttnotat før du avslutter det.",
+      "rating_label": "Vurdering",
+      "no_rating": "Ikke vurdert",
+      "rating_required": "Gi brygget en vurdering før du avslutter.",
+      "note_label": "Sluttnotat",
+      "note_placeholder": "Hvordan ble det? Noe du vil gjøre annerledes neste gang?",
+      "submit": "Avslutt og lagre"
     },
     "measurements": {
       "gravity": "Gravity",

@@ -31,6 +31,11 @@ export async function listRecipeVersions(recipeId) {
   return data;
 }
 
+export async function listRecipeBrews(recipeId) {
+  const { data } = await api.get(`${BASE}/${encodeURIComponent(recipeId)}/brews`);
+  return data;
+}
+
 export async function updateRecipe(recipeId, payload) {
   const { data } = await api.patch(
     `${BASE}/${encodeURIComponent(recipeId)}`,
