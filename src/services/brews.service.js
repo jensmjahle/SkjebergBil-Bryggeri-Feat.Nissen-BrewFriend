@@ -104,6 +104,15 @@ export async function addBrewMeasurement(brewId, payload) {
   return data;
 }
 
+export async function finishBrew(brewId, payload) {
+  const { data } = await api.post(
+    `${BASE}/${encodeURIComponent(brewId)}/finish`,
+    payload,
+    { headers: { "Content-Type": "application/json" } },
+  );
+  return data;
+}
+
 export async function updateBrewMeasurement(brewId, measurementId, payload) {
   const { data } = await api.patch(
     `${BASE}/${encodeURIComponent(brewId)}/measurements/${encodeURIComponent(measurementId)}`,

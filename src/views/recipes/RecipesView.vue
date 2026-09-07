@@ -84,6 +84,16 @@
             <div class="min-w-0 flex-1">
               <h3 class="truncate text-xl font-semibold">{{ recipe.name }}</h3>
               <p class="text-sm opacity-80">{{ recipe.beerType || t("recipes.common.unknown_type") }}</p>
+              <BaseStarRating
+                class="mt-1"
+                :model-value="recipeRating(recipe).average"
+                :count="recipeRating(recipe).count"
+                :readonly="true"
+                :size="16"
+                :show-value="true"
+                :empty-text="t('recipes.detail.not_rated')"
+                :aria-label="t('recipes.detail.version_rating')"
+              />
             </div>
             <span class="rounded-full bg-bg4 px-2 py-1 text-xs">v{{ recipe.version || 1 }}</span>
           </div>
@@ -110,6 +120,7 @@ import BaseCard from "@/components/base/BaseCard.vue";
 import BaseInput from "@/components/base/BaseInput.vue";
 import BaseDropdown from "@/components/base/BaseDropdown.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
+import BaseStarRating from "@/components/base/BaseStarRating.vue";
 import RecipeFiltersModal from "@/components/modals/RecipeFiltersModal.vue";
 import { STEP_TYPE_OPTIONS } from "@/components/recipe-steps/index.js";
 import {
@@ -162,6 +173,14 @@ const sortOptions = computed(() => [
   { label: t("recipes.sort.name_desc"), value: "name_desc" },
   { label: t("recipes.sort.steps_desc"), value: "steps_desc" },
 ]);
+
+function recipeRating(recipe) {
+  const rating = recipe?.rating;
+  return {
+    average: Number.isFinite(Number(rating?.average)) ? Number(rating.average) : null,
+    count: Number(rating?.count) || 0,
+  };
+}
 
 function recipeIcon(recipe) {
   return resolveRecipeIconPath(recipe?.iconPath);

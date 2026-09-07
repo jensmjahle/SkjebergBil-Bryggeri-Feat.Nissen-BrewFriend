@@ -12,7 +12,7 @@
       <div class="lg:sticky lg:top-14 lg:z-20 lg:bg-bg1 lg:py-2">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0 flex-1">
-            <h1 class="truncate">{{ brew.name }}</h1>
+            <h1 class="truncate text-xl sm:text-3xl">{{ brew.name }}</h1>
             <div class="mt-1 space-y-1 lg:flex lg:flex-wrap lg:items-center lg:gap-x-2 lg:gap-y-1 lg:space-y-0">
               <p class="text-sm opacity-80">{{ statusLabel(brew.status) }}</p>
               <p v-if="brew.progress?.brewStartedAt" class="text-xs opacity-70">
@@ -61,7 +61,7 @@
                   class="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-bg4"
                   @click="finishBrewAction"
                 >
-                  {{ t("brews.actions.finish") }}
+                  {{ isCompleted ? t("brews.actions.reevaluate") : t("brews.actions.finish") }}
                 </button>
                 <button
                   type="button"
@@ -408,6 +408,14 @@
         @close="closeMeasurementModal"
         @submit="submitMeasurement"
       />
+
+      <BrewEvaluationModal
+        :open="evaluationModalOpen"
+        :loading="finishingBrew"
+        :evaluation="brew?.evaluation"
+        @close="evaluationModalOpen = false"
+        @submit="submitEvaluation"
+      />
     </template>
   </section>
 </template>
@@ -428,9 +436,11 @@ import RecipeCostSummary from "@/components/recipes/RecipeCostSummary.vue";
 import RecipeIngredientItem from "@/components/recipes/RecipeIngredientItem.vue";
 import RecipeStepItem from "@/components/recipes/RecipeStepItem.vue";
 import BrewMeasurementModal from "@/components/modals/BrewMeasurementModal.vue";
+import BrewEvaluationModal from "@/components/modals/BrewEvaluationModal.vue";
 import {
   addBrewMeasurement,
   deleteBrewMeasurement,
+  finishBrew,
   updateBrewMeasurement,
   completeBrewStep,
   deleteBrew,
@@ -466,6 +476,8 @@ const nowTs = ref(Date.now());
 const addingMeasurement = ref(false);
 const measurementModalOpen = ref(false);
 const editingMeasurement = ref(null);
+const evaluationModalOpen = ref(false);
+const finishingBrew = ref(false);
 const measurementMessage = ref("");
 const lastAlarmKey = ref("");
 const actualOgInput = ref("");
@@ -1190,20 +1202,28 @@ async function editBrewAction() {
   await router.push(`/brygg/${brew.value._id}/planlegging`);
 }
 
-async function finishBrewAction() {
+const isCompleted = computed(() => brew.value?.status === "completed");
+
+// Finishing a brew means evaluating it, so the rating modal comes first.
+function finishBrewAction() {
   closeHeaderMenu();
   if (!brew.value?._id) return;
+  evaluationModalOpen.value = true;
+}
 
+async function submitEvaluation(payload) {
+  if (!brew.value?._id) return;
+
+  finishingBrew.value = true;
+  error.value = "";
   try {
-    const now = new Date().toISOString();
-    brew.value = await updateBrew(brew.value._id, {
-      status: "completed",
-      progress: { brewCompletedAt: now },
-      timeline: { completedAt: now },
-    });
+    brew.value = await finishBrew(brew.value._id, payload || {});
+    evaluationModalOpen.value = false;
     measurementMessage.value = t("brews.current.brew_finished");
   } catch (err) {
     error.value = err?.response?.data?.error || err?.message || t("brews.errors.save_failed");
+  } finally {
+    finishingBrew.value = false;
   }
 }
 

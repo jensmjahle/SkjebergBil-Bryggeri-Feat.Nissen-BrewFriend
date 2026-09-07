@@ -156,6 +156,12 @@ const brewSchema = new mongoose.Schema(
       stepProgress: { type: [stepProgressSchema], default: [] },
     },
     measurements: { type: [measurementSchema], default: [] },
+    // Filled in when the brew is finished: how it turned out, in quarter stars.
+    evaluation: {
+      rating: { type: Number, min: 0.25, max: 5 },
+      note: { type: String, trim: true, maxlength: 3000 },
+      evaluatedAt: { type: Date },
+    },
   },
   { timestamps: true },
 );
