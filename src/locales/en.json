@@ -14,7 +14,7 @@
   "home": {
     "title": "Brew Buddy",
     "subtitle": "Keep track of recipes, planned brews and brew days from one place.",
-    "main_action_title": "Main Action",
+    "main_action_title": "Continue brewing",
     "continue_brew_cta": "Continue Brew: {name}",
     "start_brew_cta": "Start New Brew",
     "current_status": "Current status",
@@ -202,6 +202,42 @@
       "not_rated": "Not rated",
       "no_brews": "No brews from this recipe yet.",
       "untitled_brew": "Untitled brew"
+    },
+    "import": {
+      "title": "Import recipe",
+      "download": "Download AI template",
+      "intro": "Download the template, send it to AI with the recipe link, then upload the returned file. Check the preview before saving.",
+      "choose": "Choose recipe file",
+      "file_help": ".md or .json, UTF-8, max. 512 KiB.",
+      "invalid": "This file cannot be imported",
+      "preview": "Preview",
+      "source": "Source recipe",
+      "new_only": "Saved as a new recipe. Existing recipes and brews are unchanged.",
+      "save": "Save new recipe",
+      "saved": "Recipe “{name}” imported.",
+      "errors": {
+        "object": "Must be an object.",
+        "unknown": "Unknown field. See the template for allowed fields.",
+        "required": "Required field is missing or blank.",
+        "text": "Must be a string in double quotes.",
+        "length": "Text must contain {min}–{max} characters.",
+        "number": "Must be a number between {min} and {max}, without quotes.",
+        "choice": "Allowed values: {allowed}.",
+        "gravity": "Use a string with three decimals, for example 1.056.",
+        "format": "format must be guttabrew-recipe.",
+        "version": "Only format version 1 is supported.",
+        "url": "Use a full http:// or https:// URL.",
+        "range": "From cannot be greater than To.",
+        "array": "Must be a list of {min}–{max} items.",
+        "duplicate": "ID is used more than once. Use unique IDs.",
+        "order": "order must be {order}, or omitted.",
+        "reference": "Step reference does not match an existing stepId.",
+        "size": "File must be smaller than 512 KiB.",
+        "json_block": "Markdown file must contain exactly one JSON code block labelled json.",
+        "json": "JSON contains a syntax error. Remove comments and trailing commas.",
+        "encoding": "File could not be read as UTF-8. Save it with UTF-8 encoding.",
+        "duplicate_key": "JSON key {detail} is repeated. Each key must appear only once in the same object."
+      }
     }
   },
   "brews": {
@@ -242,7 +278,10 @@
       "target_ibu": "Target IBU",
       "actual_og": "OG",
       "actual_fg": "FG",
-      "actual_abv": "ABV"
+      "actual_abv": "ABV",
+      "brew_date": "Brew date",
+      "brewers": "Brewers",
+      "brewers_help": "Separate names with commas, for example Tobben, Nissen."
     },
     "actions": {
       "new_brew": "Start new brew",
@@ -281,9 +320,10 @@
       "title": "Brews",
       "subtitle": "View planned, active and completed brews.",
       "current_brew": "Current brew",
-      "search_placeholder": "Search by brew name or notes",
+      "search_placeholder": "Search batch number, brew name or notes",
       "found": "{count} brews found",
-      "empty": "No brews found."
+      "empty": "No brews found.",
+      "brew_day_filter": "Brew day"
     },
     "plan": {
       "title": "Plan Brew",
@@ -371,6 +411,49 @@
       "step_failed": "Could not update step",
       "measurement_failed": "Could not save measurement",
       "deleted": "The brew was deleted."
+    },
+    "phase": {
+      "of": "of",
+      "days": "days",
+      "label": "Phase",
+      "automatic": "Automatic from step type",
+      "active_brews": "Brews in progress",
+      "complete": "complete"
+    },
+    "overview": {
+      "tab": "Overview",
+      "final_abv": "Final ABV",
+      "planned": "Planned",
+      "actual": "Actual",
+      "deviation": "Deviation",
+      "percentage_points": "percentage points",
+      "total_time": "Start to completion",
+      "logged_time": "Recorded step time:",
+      "missing_gravity": "Save actual OG and FG to show final ABV and deviation.",
+      "deviations": "Deviations from plan",
+      "saved_plan": "Compared with saved plan",
+      "mean_temperature": "Measured mean temperature",
+      "timer_adjustment": "Timer adjustment:",
+      "coverage": "Time recorded for {logged} of {total} steps. — means not recorded.",
+      "start_deviation": "Deviation from planned start",
+      "final_notes": "Final notes",
+      "save_notes": "Save final notes",
+      "notes_saved": "Final notes saved.",
+      "ratings": "Ratings",
+      "add_rating": "New rating",
+      "brew_notes": "Brew and step notes",
+      "rating_title": "Rate this brew",
+      "rating_intro": "Rate this tasting. Final notes are kept separately.",
+      "rating_note": "Rating comment",
+      "confirm_delete_rating": "Delete this rating? Final notes and other ratings will be kept.",
+      "days": "days",
+      "hours": "h",
+      "minutes": "min"
+    },
+    "timer": {
+      "seek": "Drag to seek the timer",
+      "saved": "Timer adjusted.",
+      "help": "Drag right to fast-forward, left to add time."
     }
   },
   "navbar": {
@@ -385,7 +468,7 @@
       },
       "items": {
         "new_brew": "New Brew",
-        "previous_brews": "Previous Brews",
+        "previous_brews": "Brews",
         "new_recipe": "New Recipe",
         "recipes": "Recipes",
         "alcohol_calc": "Alcohol Calculator",

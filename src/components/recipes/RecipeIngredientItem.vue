@@ -1,7 +1,7 @@
 <template>
   <div
     class="border-t border-border3 py-2"
-    :class="{ 'cursor-pointer rounded-md px-2 transition-colors hover:bg-bg4': clickable }"
+    :class="{ 'ingredient-item--clickable cursor-pointer rounded-md px-2 transition-colors hover:bg-bg4': clickable }"
     :role="clickable ? 'button' : undefined"
     :tabindex="clickable ? 0 : undefined"
     @click="selectIngredient"
@@ -105,3 +105,7 @@ function formatCurrency(value) {
   }).format(amount);
 }
 </script>
+
+<style scoped>
+.ingredient-item--clickable:hover, .ingredient-item--clickable:hover h4, .ingredient-item--clickable:hover p { color: var(--color-text4); }
+</style>

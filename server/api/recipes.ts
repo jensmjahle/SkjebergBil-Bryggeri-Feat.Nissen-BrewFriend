@@ -1,3 +1,5 @@
+import { PHASES } from "../domain/brewPhase.js";
+import { parseRecipeFile } from "../domain/recipeImport.js";
 ﻿import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
@@ -183,6 +185,7 @@ function normalizeRecipePayload(payload: any = {}) {
           title: String(step?.title || "").trim(),
           description: step?.description ? String(step.description).trim() : undefined,
           durationMinutes: toNumberOrUndefined(step?.durationMinutes),
+          phase: PHASES.includes(step?.phase) ? step.phase : undefined,
           temperatureC: toNumberOrUndefined(step?.temperatureC),
           co2Volumes: toNumberOrUndefined(step?.co2Volumes),
           data:
@@ -232,6 +235,7 @@ function normalizeRecipePayload(payload: any = {}) {
       : undefined,
     color: payload.color ? String(payload.color).trim() : undefined,
     imageUrl: payload.imageUrl ? String(payload.imageUrl).trim() : undefined,
+    sourceUrl: payload.sourceUrl === '' || payload.sourceUrl === null ? '' : typeof payload.sourceUrl === 'string' && /^https?:\/\//i.test(payload.sourceUrl.trim()) ? payload.sourceUrl.trim() : undefined,
     defaults: {
       ogFrom: toGravityOrUndefined(payload?.defaults?.ogFrom),
       ogTo: toGravityOrUndefined(payload?.defaults?.ogTo),
@@ -262,6 +266,7 @@ function mergeRecipeSource(sourceRaw: any, incomingRaw: any) {
     flavorProfile: incoming.flavorProfile ?? source.flavorProfile,
     color: incoming.color ?? source.color,
     imageUrl: incoming.imageUrl ?? source.imageUrl,
+    sourceUrl: incoming.sourceUrl ?? source.sourceUrl,
     defaults: {
       ogFrom: incomingDefaults.ogFrom ?? sourceDefaults.ogFrom,
       ogTo: incomingDefaults.ogTo ?? sourceDefaults.ogTo,
@@ -380,6 +385,16 @@ async function listVersionsForRecipe(brewerId: string, recipe: any) {
   return recipe ? [recipe] : [];
 }
 
+recipesRouter.post("/import", async (req: any, res) => {
+  try {
+    const result=parseRecipeFile(req.body?.content);
+    if(result.errors.length)return res.status(400).json({error:'Invalid recipe file',errors:result.errors});
+    const brewerId=await resolveBrewerId(req);
+    const recipe=await Recipe.create({brewerId,recipeGroupId:randomUUID(),version:1,isLatest:true,...result.recipe});
+    return res.status(201).json(attachComputedFields(recipe));
+  } catch(err:any) {return res.status(500).json({error:err?.message || 'Failed to import recipe'});}
+});
+
 recipesRouter.post("/", async (req: any, res) => {
   try {
     const brewerId = await resolveBrewerId(req);
@@ -406,6 +421,7 @@ recipesRouter.post("/", async (req: any, res) => {
       flavorProfile: payload.flavorProfile,
       color: payload.color,
       imageUrl: payload.imageUrl,
+      sourceUrl: payload.sourceUrl,
       defaults: payload.defaults,
       steps: payload.steps,
       ingredients: payload.ingredients,
@@ -576,13 +592,14 @@ recipesRouter.get("/:id/brews", async (req: any, res) => {
       ],
     })
       .select(
-        "name status evaluation timeline progress recipeId recipeSnapshot.recipeId recipeSnapshot.recipeVersion createdAt",
+        "name batchNumber status evaluation finalNotes timeline progress recipeId recipeSnapshot.recipeId recipeSnapshot.recipeVersion createdAt",
       )
       .lean();
 
     const items = brews
       .map((brew: any) => {
         const recipeRef = String(brew.recipeId || brew.recipeSnapshot?.recipeId || "");
+        const averageRating=toNumberOrUndefined(brew.evaluation?.rating);
         const brewedAt =
           brew.timeline?.completedAt ||
           brew.timeline?.brewDayAt ||
@@ -594,6 +611,7 @@ recipesRouter.get("/:id/brews", async (req: any, res) => {
         return {
           _id: String(brew._id),
           name: brew.name || "",
+          batchNumber: brew.batchNumber,
           status: brew.status || "planned",
           recipeId: recipeRef,
           version:
@@ -601,8 +619,8 @@ recipesRouter.get("/:id/brews", async (req: any, res) => {
             toIntegerOrUndefined(brew.recipeSnapshot?.recipeVersion) ||
             null,
           brewedAt,
-          rating: toRatingOrUndefined(brew.evaluation?.rating) ?? null,
-          note: brew.evaluation?.note || "",
+          rating: averageRating !== undefined && averageRating >= 0.25 && averageRating <= 5 ? averageRating : null,
+          note: brew.finalNotes ?? brew.evaluation?.note ?? "",
         };
       })
       .sort((a: any, b: any) => {
@@ -673,6 +691,7 @@ recipesRouter.post("/:id/versions", async (req: any, res) => {
       flavorProfile: payload.flavorProfile,
       color: payload.color,
       imageUrl: payload.imageUrl,
+      sourceUrl: payload.sourceUrl,
       defaults: payload.defaults,
       steps: payload.steps,
       ingredients: payload.ingredients,
@@ -702,6 +721,7 @@ recipesRouter.patch("/:id", async (req: any, res) => {
         : {}),
       ...(payload.color !== undefined ? { color: payload.color } : {}),
       ...(payload.imageUrl !== undefined ? { imageUrl: payload.imageUrl } : {}),
+      ...(payload.sourceUrl !== undefined ? { sourceUrl: payload.sourceUrl } : {}),
       ...(payload.defaults ? { defaults: payload.defaults } : {}),
       ...(payload.steps ? { steps: payload.steps } : {}),
       ...(payload.ingredients ? { ingredients: payload.ingredients } : {}),

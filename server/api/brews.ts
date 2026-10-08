@@ -6,6 +6,11 @@ import { Recipe } from "../mongo/models/Recipe.js";
 import { Brewer } from "../mongo/models/Brewer.js";
 import { broadcastBrewDeleted, broadcastBrewUpdate } from "../live/brewLive.js";
 
+import { nextBatchNumber } from "../mongo/batchNumbers.js";
+import { brewPriority, PHASES, stepPhase } from "../domain/brewPhase.js";
+import { brewRatings, prepareRatings, syncEvaluation } from "../domain/brewRatings.js";
+import { seekTimer, MAX_TIMER_SECONDS } from "../domain/brewTimer.js";
+
 export const brewsRouter = Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
@@ -19,6 +24,11 @@ const ALLOWED_STATUSES = new Set([
 ]);
 
 type AnyObj = Record<string, any>;
+
+function normalizeBrewers(value: any) {
+  if (!Array.isArray(value) || value.length > 30 || value.some(name=>typeof name !== 'string' || name.trim().length > 120)) return null;
+  return [...new Set(value.map(name=>name.trim()).filter(Boolean))];
+}
 
 function toPlainObject(value: any): AnyObj {
   if (!value) return {};
@@ -156,6 +166,7 @@ function normalizeStep(step: any, index: number) {
     stepId: step?.stepId ? String(step.stepId).trim() : `step-${randomUUID()}`,
     order: Number(step?.order) > 0 ? Number(step.order) : index + 1,
     stepType: step?.stepType ? String(step.stepType).trim() : "custom",
+    phase: PHASES.includes(step?.phase) ? step.phase : undefined,
     title: String(step?.title || "").trim(),
     description: toStringOrUndefined(step?.description),
     durationMinutes: toNumberOrUndefined(step?.durationMinutes),
@@ -315,6 +326,7 @@ function buildStepProgress(steps: any[] = [], existing: any[] = []) {
       activeSinceAt: toDateOrUndefined(previous.activeSinceAt),
       completedAt: previous.completedAt,
       timerDurationSeconds: toNumberOrUndefined(previous.timerDurationSeconds),
+      timerAdjustmentSeconds: toNumberOrUndefined(previous.timerAdjustmentSeconds),
       timerEndsAt: toDateOrUndefined(previous.timerEndsAt),
       pausedRemainingSeconds: toNumberOrUndefined(previous.pausedRemainingSeconds),
       accumulatedActiveSeconds: toNumberOrUndefined(previous.accumulatedActiveSeconds) || 0,
@@ -369,7 +381,9 @@ function attachComputedFields(brew: any) {
   const rawStepProgress = Array.isArray(data?.progress?.stepProgress)
     ? data.progress.stepProgress
     : [];
-  const now = new Date();
+  const now = data.status === 'completed'
+    ? toDateOrUndefined(data.progress?.brewCompletedAt || data.timeline?.completedAt) || new Date()
+    : new Date();
   const stepProgress = rawStepProgress.map((entry: any) => {
     const elapsedSeconds = elapsedSecondsForEntry(entry, now);
     const actualDurationSeconds = toNumberOrUndefined(entry.actualDurationSeconds);
@@ -399,6 +413,8 @@ function attachComputedFields(brew: any) {
 
   return {
     ...data,
+    ratings: brewRatings(data),
+    finalNotes: data.finalNotes ?? data.evaluation?.note ?? "",
     recipeCostSummary,
     actualMetrics: {
       ...(data.actualMetrics || {}),
@@ -504,6 +520,8 @@ function getDefaultTargetMetrics(snapshot: any) {
 
 brewsRouter.post("/from-recipe/:recipeId", async (req: any, res) => {
   try {
+    const brewers = normalizeBrewers(req.body?.brewers ?? []);
+    if (!brewers) return res.status(400).json({ error:'Invalid brewer names' });
     const brewerId = await resolveBrewerId(req);
     const recipe = await Recipe.findOne({ _id: req.params.recipeId, brewerId });
 
@@ -518,6 +536,8 @@ brewsRouter.post("/from-recipe/:recipeId", async (req: any, res) => {
 
     const brew = await Brew.create({
       brewerId,
+      batchNumber: await nextBatchNumber(brewerId),
+      brewers,
       recipeId: recipe._id,
       name: toStringOrUndefined(req.body?.name) || snapshot.name || "Nytt Brygg",
       status: "planned",
@@ -551,6 +571,8 @@ brewsRouter.post("/", async (req: any, res) => {
   try {
     const brewerId = await resolveBrewerId(req);
     const payload = req.body || {};
+    const brewers = normalizeBrewers(payload.brewers ?? []);
+    if (!brewers) return res.status(400).json({ error:'Invalid brewer names' });
 
     let sourceRecipe = null;
     if (payload.recipeId) {
@@ -570,6 +592,8 @@ brewsRouter.post("/", async (req: any, res) => {
 
     const brew = await Brew.create({
       brewerId,
+      batchNumber: await nextBatchNumber(brewerId),
+      brewers,
       recipeId: payload.recipeId || snapshot.recipeId || undefined,
       name: toStringOrUndefined(payload.name) || snapshot.name || "Nytt Brygg",
       status,
@@ -635,15 +659,9 @@ brewsRouter.get("/current", async (req: any, res) => {
       return res.json(null);
     }
 
-    const priority: Record<string, number> = {
-      active: 0,
-      conditioning: 1,
-      planned: 2,
-    };
-
     candidates.sort((a: any, b: any) => {
-      const pa = priority[a.status] ?? 99;
-      const pb = priority[b.status] ?? 99;
+      const pa = brewPriority(a);
+      const pb = brewPriority(b);
       if (pa !== pb) return pa - pb;
       return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
@@ -676,6 +694,8 @@ brewsRouter.get("/", async (req: any, res) => {
     if (q) {
       const rx = new RegExp(escapeRegex(q), "i");
       filter.$or = [{ name: rx }, { "recipeSnapshot.name": rx }, { notes: rx }];
+      const batch = Number(q.replace(/^#/, ""));
+      if (Number.isInteger(batch) && batch > 0) filter.$or.push({ batchNumber: batch });
     }
 
     const brews = await Brew.find(filter).sort({ updatedAt: -1 });
@@ -706,6 +726,11 @@ brewsRouter.patch("/:id", async (req: any, res) => {
 
     if (!brew) {
       return res.status(404).json({ error: "Brew not found" });
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, 'brewers')) {
+      const brewers=normalizeBrewers(payload.brewers);
+      if (!brewers) return res.status(400).json({ error:'Invalid brewer names' });
+      brew.brewers=brewers;
     }
 
     let sourceForSnapshot: any = toPlainObject(brew.recipeSnapshot || {});
@@ -754,8 +779,24 @@ brewsRouter.patch("/:id", async (req: any, res) => {
     }
 
     if (payload.evaluation && typeof payload.evaluation === "object") {
-      if (!brew.evaluation) brew.evaluation = {};
-      applyEvaluationUpdate(brew.evaluation, payload.evaluation);
+      prepareRatings(brew);
+      const legacy = brew.ratings.find((r: any) => r.ratingId === "legacy") || brew.ratings[brew.ratings.length - 1];
+      const evaluation: AnyObj = { rating:legacy?.rating, note:legacy?.note };
+      applyEvaluationUpdate(evaluation, payload.evaluation);
+      if (evaluation.rating !== undefined) {
+        if (legacy) { legacy.rating=evaluation.rating;legacy.note=evaluation.note;legacy.updatedAt=evaluation.evaluatedAt; }
+        else brew.ratings.push({ratingId:randomUUID(),...evaluation});
+      } else if (legacy && Object.prototype.hasOwnProperty.call(payload.evaluation, 'rating')) {
+        brew.ratings=brew.ratings.filter((r: any)=>r.ratingId!==legacy.ratingId);
+      }
+      if (Object.prototype.hasOwnProperty.call(payload.evaluation, 'note')) brew.finalNotes=toStringOrUndefined(payload.evaluation.note) || '';
+      syncEvaluation(brew);
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, "finalNotes")) {
+      if (typeof payload.finalNotes !== "string" || payload.finalNotes.length > 3000) return res.status(400).json({ error: "Final notes must be at most 3000 characters" });
+      prepareRatings(brew);
+      brew.finalNotes = payload.finalNotes.trim();
+      syncEvaluation(brew);
     }
 
     if (shouldUpdateSnapshot) {
@@ -955,8 +996,8 @@ brewsRouter.post("/:id/steps/:stepId/start", async (req: any, res) => {
         : undefined;
 
     if (
-      step.stepType === "primary_fermentation" ||
-      step.stepType === "secondary_fermentation"
+      stepPhase(step) === "primary_fermentation" ||
+      stepPhase(step) === "secondary_fermentation"
     ) {
       if (!brew.timeline.fermentationStartAt) {
         brew.timeline.fermentationStartAt = now;
@@ -964,6 +1005,7 @@ brewsRouter.post("/:id/steps/:stepId/start", async (req: any, res) => {
     }
 
     brew.progress.stepProgress = progressEntries;
+    brew.progress.phaseStepId = step.stepId;
     brew.progress.currentStepIndex = stepIndex;
 
     await brew.save();
@@ -972,6 +1014,26 @@ brewsRouter.post("/:id/steps/:stepId/start", async (req: any, res) => {
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Failed to start step" });
   }
+});
+
+brewsRouter.patch("/:id/steps/:stepId/timer", async (req: any, res) => {
+  try {
+    const brewerId = await resolveBrewerId(req);
+    const brew = await Brew.findOne({ _id:req.params.id, brewerId });
+    if (!brew) return res.status(404).json({ error:'Brew not found' });
+    const value = req.body?.remainingSeconds;
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > MAX_TIMER_SECONDS) return res.status(400).json({ error:'Invalid timer value' });
+    if (['completed','archived'].includes(brew.status)) return res.status(400).json({ error:'Finished brews cannot be retimed' });
+    const step = brew.recipeSnapshot?.steps?.find((s: any)=>s.stepId===req.params.stepId);
+    if (!step) return res.status(404).json({ error:'Step not found' });
+    const entries = buildStepProgress(brew.recipeSnapshot.steps, brew.progress?.stepProgress || []);
+    const entry = entries.find((e: any)=>e.stepId===step.stepId);
+    if (entry.status==='completed') return res.status(400).json({ error:'Completed timers cannot be changed' });
+    seekTimer(entry, step, value);
+    brew.progress.stepProgress = entries;
+    await brew.save();notifyBrewUpdated(brew);
+    return res.json(attachComputedFields(brew));
+  } catch (err: any) { return res.status(500).json({ error:err?.message || 'Failed to adjust timer' }); }
 });
 
 brewsRouter.post("/:id/steps/:stepId/pause", async (req: any, res) => {
@@ -1006,6 +1068,7 @@ brewsRouter.post("/:id/steps/:stepId/pause", async (req: any, res) => {
     const remainingSeconds = secondsRemainingFromEntry(entry, nowMs);
     accumulateElapsedOnEntry(entry, new Date(nowMs));
 
+    brew.progress.phaseStepId = req.params.stepId;
     entry.status = "pending";
     entry.timerEndsAt = undefined;
     entry.pausedRemainingSeconds =
@@ -1055,15 +1118,14 @@ brewsRouter.post("/:id/steps/:stepId/complete", async (req: any, res) => {
     entry.status = "completed";
     entry.completedAt = now;
     entry.activeSinceAt = undefined;
-    entry.timerDurationSeconds = undefined;
     entry.timerEndsAt = undefined;
     entry.pausedRemainingSeconds = undefined;
     entry.actualDurationSeconds = toNumberOrUndefined(entry.accumulatedActiveSeconds) || 0;
 
     const step = steps[stepIndex];
     if (
-      step?.stepType === "primary_fermentation" ||
-      step?.stepType === "secondary_fermentation"
+      stepPhase(step) === "primary_fermentation" ||
+      stepPhase(step) === "secondary_fermentation"
     ) {
       brew.timeline.fermentationEndAt = now;
     }
@@ -1079,6 +1141,7 @@ brewsRouter.post("/:id/steps/:stepId/complete", async (req: any, res) => {
     } else {
       if (brew.status === "planned") brew.status = "active";
       brew.progress.currentStepIndex = clampIndex(stepIndex + 1, steps.length);
+      brew.progress.phaseStepId = steps[brew.progress.currentStepIndex]?.stepId;
     }
 
     brew.progress.stepProgress = progressEntries;
@@ -1121,6 +1184,7 @@ brewsRouter.post("/:id/steps/:stepId/reset", async (req: any, res) => {
     entry.activeSinceAt = undefined;
     entry.completedAt = undefined;
     entry.timerDurationSeconds = undefined;
+    entry.timerAdjustmentSeconds = undefined;
     entry.timerEndsAt = undefined;
     entry.pausedRemainingSeconds = undefined;
     entry.accumulatedActiveSeconds = 0;
@@ -1174,6 +1238,52 @@ brewsRouter.post("/:id/steps/:stepId/note", async (req: any, res) => {
 
 // Finishing a brew is also when it gets evaluated, so the rating is required
 // here rather than being something you can leave behind.
+brewsRouter.post("/:id/ratings", async (req: any, res) => {
+  try {
+    const brewerId = await resolveBrewerId(req);
+    const brew = await Brew.findOne({ _id:req.params.id, brewerId });
+    if (!brew) return res.status(404).json({ error:"Brew not found" });
+    const rating = toRatingOrUndefined(req.body?.rating);
+    if (rating === undefined || String(req.body?.note || '').length > 3000) return res.status(400).json({ error:"Invalid rating or note" });
+    prepareRatings(brew);
+    brew.ratings.push({ ratingId:randomUUID(), rating, note:toStringOrUndefined(req.body?.note), evaluatedAt:new Date() });
+    syncEvaluation(brew);
+    await brew.save(); notifyBrewUpdated(brew);
+    return res.status(201).json(attachComputedFields(brew));
+  } catch (err: any) { return res.status(500).json({ error:err?.message || 'Failed to add rating' }); }
+});
+
+brewsRouter.patch("/:id/ratings/:ratingId", async (req: any, res) => {
+  try {
+    const brewerId = await resolveBrewerId(req);
+    const brew = await Brew.findOne({ _id:req.params.id, brewerId });
+    if (!brew) return res.status(404).json({ error:"Brew not found" });
+    const rating = toRatingOrUndefined(req.body?.rating);
+    if (rating === undefined || String(req.body?.note || '').length > 3000) return res.status(400).json({ error:"Invalid rating or note" });
+    prepareRatings(brew);
+    const entry = brew.ratings.find((r: any) => r.ratingId === req.params.ratingId);
+    if (!entry) return res.status(404).json({ error:"Rating not found" });
+    entry.rating = rating; entry.note = toStringOrUndefined(req.body?.note); entry.updatedAt = new Date();
+    syncEvaluation(brew);
+    await brew.save(); notifyBrewUpdated(brew);
+    return res.json(attachComputedFields(brew));
+  } catch (err: any) { return res.status(500).json({ error:err?.message || 'Failed to edit rating' }); }
+});
+
+brewsRouter.delete("/:id/ratings/:ratingId", async (req: any, res) => {
+  try {
+    const brewerId = await resolveBrewerId(req);
+    const brew = await Brew.findOne({ _id:req.params.id, brewerId });
+    if (!brew) return res.status(404).json({ error:"Brew not found" });
+    prepareRatings(brew);
+    if (!brew.ratings.some((r: any) => r.ratingId === req.params.ratingId)) return res.status(404).json({ error:"Rating not found" });
+    brew.ratings = brew.ratings.filter((r: any) => r.ratingId !== req.params.ratingId);
+    syncEvaluation(brew);
+    await brew.save(); notifyBrewUpdated(brew);
+    return res.json(attachComputedFields(brew));
+  } catch (err: any) { return res.status(500).json({ error:err?.message || 'Failed to delete rating' }); }
+});
+
 brewsRouter.post("/:id/finish", async (req: any, res) => {
   try {
     const brewerId = await resolveBrewerId(req);
@@ -1183,22 +1293,31 @@ brewsRouter.post("/:id/finish", async (req: any, res) => {
     }
 
     const rating = toRatingOrUndefined(req.body?.rating);
-    if (rating === undefined) {
+    if (rating === undefined || String(req.body?.note || '').length > 3000) {
       return res.status(400).json({ error: "A rating between 0.25 and 5 is required" });
     }
 
-    const completedAt = toDateOrUndefined(req.body?.completedAt) || new Date();
+    const wasCompleted = brew.status === "completed";
+    const completedAt = wasCompleted
+      ? brew.progress?.brewCompletedAt || brew.timeline?.completedAt || new Date()
+      : toDateOrUndefined(req.body?.completedAt) || new Date();
 
     brew.status = "completed";
     if (!brew.timeline) brew.timeline = {};
     brew.timeline.completedAt = completedAt;
     if (!brew.progress) brew.progress = {};
     brew.progress.brewCompletedAt = completedAt;
-    brew.evaluation = {
-      rating,
-      note: toStringOrUndefined(req.body?.note),
-      evaluatedAt: new Date(),
-    };
+    for (const entry of wasCompleted ? [] : brew.progress.stepProgress || []) {
+      if (entry.status !== 'active') continue;
+      accumulateElapsedOnEntry(entry, new Date(completedAt));
+      entry.status='completed';entry.completedAt=completedAt;
+      entry.actualDurationSeconds=Number(entry.accumulatedActiveSeconds || 0);
+      entry.timerEndsAt=undefined;entry.pausedRemainingSeconds=undefined;
+    }
+    prepareRatings(brew);
+    brew.ratings.push({ ratingId:randomUUID(), rating, note:toStringOrUndefined(req.body?.note), evaluatedAt:new Date() });
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'note')) brew.finalNotes = String(req.body.note || '').trim();
+    syncEvaluation(brew);
 
     await brew.save();
     notifyBrewUpdated(brew);

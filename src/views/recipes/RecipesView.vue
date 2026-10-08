@@ -5,9 +5,13 @@
           <h1>{{ t("recipes.list.title") }}</h1>
           <p class="mt-2 opacity-80">{{ t("recipes.list.subtitle") }}</p>
         </div>
+        <div class="flex flex-wrap gap-2 items-center">
+        <a href="/templates/guttabrew-oppskrift-mal.md" download="guttabrew-oppskrift-mal.md" class="rounded-lg border border-border3 px-3 py-2 text-sm font-semibold">{{ t('recipes.import.download') }}</a>
+        <BaseButton variant="button3" @click="importOpen=true">{{ t('recipes.import.title') }}</BaseButton>
         <router-link to="/oppskrifter/ny">
           <BaseButton>{{ t("recipes.list.new_recipe") }}</BaseButton>
         </router-link>
+        </div>
       </div>
 
     <BaseCard class="sm:hidden">
@@ -56,6 +60,8 @@
       @reset="resetFilters"
       @apply="applyMobileFilters"
     />
+    <RecipeImportModal :open="importOpen" @close="importOpen=false" @imported="onImported" />
+    <p v-if="importMessage" role="status" class="text-sm">{{ importMessage }}</p>
 
     <div v-if="error" class="rounded-xl border border-danger-border bg-danger p-4 text-text1">{{ error }}</div>
 
@@ -95,7 +101,7 @@
                 :aria-label="t('recipes.detail.version_rating')"
               />
             </div>
-            <span class="rounded-full bg-bg4 px-2 py-1 text-xs">v{{ recipe.version || 1 }}</span>
+            <span class="rounded-full bg-bg4 text-text4 px-2 py-1 text-xs">v{{ recipe.version || 1 }}</span>
           </div>
 
           <div class="grid grid-cols-1 gap-1 text-sm opacity-90">
@@ -122,6 +128,7 @@ import BaseDropdown from "@/components/base/BaseDropdown.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
 import BaseStarRating from "@/components/base/BaseStarRating.vue";
 import RecipeFiltersModal from "@/components/modals/RecipeFiltersModal.vue";
+import RecipeImportModal from "@/components/modals/RecipeImportModal.vue";
 import { STEP_TYPE_OPTIONS } from "@/components/recipe-steps/index.js";
 import {
   ingredientCategoryOptions as buildIngredientCategoryOptions,
@@ -133,6 +140,12 @@ const loading = ref(false);
 const error = ref("");
 const recipes = ref([]);
 const mobileFiltersOpen = ref(false);
+const importOpen=ref(false), importMessage=ref('');
+async function onImported(recipe) {
+  importMessage.value=t('recipes.import.saved',{name:recipe.name});
+  Object.assign(filters,{q:'',beerType:'',stepType:'',ingredientCategory:'',hasDefaults:'',sort:'newest'});
+  await loadRecipes();
+}
 
 const filters = reactive({
   q: "",

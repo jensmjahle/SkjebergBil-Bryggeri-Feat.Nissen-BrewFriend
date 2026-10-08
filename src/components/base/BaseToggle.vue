@@ -15,9 +15,10 @@
         fullWidth ? 'flex-1' : '',
         isActive(option.value)
           ? 'bg-button1 text-button1-meta'
-          : 'text-text4 hover:bg-bg2',
+          : 'text-text4 hover:bg-bg2 hover:text-text2',
       ]"
       :disabled="disabled || option.disabled"
+      :aria-pressed="isActive(option.value)"
       @click="selectValue(option.value)"
     >
       {{ option.label }}

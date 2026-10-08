@@ -15,6 +15,8 @@
           <BaseInput v-model="form.imageUrl" :label="t('recipes.fields.image_url')" :placeholder="t('recipes.create.image_url_placeholder')" />
         </div>
 
+        <BaseInput v-model="form.sourceUrl" type="url" maxlength="2000" :label="t('recipes.import.source')" placeholder="https://" />
+
         <div class="space-y-2 rounded-lg border border-border3 p-4">
           <h3>{{ t("recipes.fields.icon") }}</h3>
           <RecipeIconPicker v-model="form.iconPath" />
@@ -146,7 +148,7 @@
           </BaseButton>
           <BaseButton type="button" variant="button3" :disabled="isSubmitting" @click="resetForm">{{ t("common.reset") }}</BaseButton>
           <p v-if="successMessage" class="text-sm text-green-600">{{ successMessage }}</p>
-          <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
+          <p v-if="errorMessage" class="text-sm text-[var(--color-error-text,var(--color-danger))]">{{ errorMessage }}</p>
         </div>
       </form>
     </BaseCard>
@@ -212,6 +214,7 @@ const initialState = () => ({
   flavorProfile: "",
   color: "",
   imageUrl: "",
+  sourceUrl: "",
   defaults: {
     ogFrom: "",
     ogTo: "",
@@ -433,6 +436,7 @@ function hydrateForm(recipe) {
   form.flavorProfile = recipe?.flavorProfile || "";
   form.color = recipe?.color || "";
   form.imageUrl = recipe?.imageUrl || "";
+  form.sourceUrl = recipe?.sourceUrl || "";
   form.defaults = {
     ogFrom: recipe?.defaults?.ogFrom || "",
     ogTo: recipe?.defaults?.ogTo || "",
@@ -446,6 +450,7 @@ function hydrateForm(recipe) {
     ? recipe.steps.map((s) => ({
         stepId: s.stepId || createDefaultStep(s.stepType || "custom").stepId,
         stepType: s.stepType || "custom",
+        phase: s.phase || undefined,
         title: s.title || "",
         description: s.description || "",
         durationMinutes: s.durationMinutes ?? null,
@@ -487,6 +492,7 @@ async function handleSubmit() {
       flavorProfile: form.flavorProfile?.trim() || undefined,
       color: form.color?.trim() || undefined,
       imageUrl: form.imageUrl?.trim() || undefined,
+      sourceUrl: form.sourceUrl?.trim() || undefined,
       defaults: {
         ogFrom: form.defaults.ogFrom?.trim() || undefined,
         ogTo: form.defaults.ogTo?.trim() || undefined,
@@ -501,6 +507,7 @@ async function handleSubmit() {
           stepId: s.stepId,
           order: index + 1,
           stepType: s.stepType || "custom",
+          phase: s.phase || undefined,
           title: s.title?.trim(),
           description: s.description?.trim() || undefined,
           durationMinutes: sanitizeNumber(s.durationMinutes),

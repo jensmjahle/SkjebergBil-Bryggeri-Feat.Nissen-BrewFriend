@@ -21,60 +21,25 @@
     </BaseCard>
 
     <BaseCard v-else-if="error">
-      <p class="text-red-600">{{ error }}</p>
+      <p class="text-[var(--color-error-text,var(--color-danger))]">{{ error }}</p>
     </BaseCard>
 
     <template v-else>
-      <BaseCard class="space-y-4">
-        <h3>{{ t("home.main_action_title") }}</h3>
-        <router-link v-if="featuredBrew" :to="featuredBrewRoute" class="group block">
-          <div class="rounded-2xl border border-border3 bg-bg4 p-4 transition-all group-hover:-translate-y-0.5 group-hover:border-button1-border">
-            <div class="flex items-center gap-3">
-              <div class="rounded-2xl border border-border3 bg-bg2 p-2 shadow-sm">
-                <img
-                  src="/icons/135-brewery.png"
-                  alt="Bryggeriikon"
-                  class="h-16 w-16 object-contain sm:h-20 sm:w-20"
-                />
-              </div>
-              <div class="min-w-0 flex-1">
-                <p class="text-xs uppercase tracking-wide opacity-70">{{ t("home.current_status") }}</p>
-                <p class="truncate text-lg font-semibold">{{ featuredBrew.name }}</p>
-                <p class="text-sm opacity-80">{{ statusLabel(featuredBrew.status) }}</p>
-              </div>
-            </div>
-            <BaseButton class="mt-4 w-full py-4 text-lg sm:text-xl" variant="button1">
-              {{ t("home.continue_brew_cta", { name: featuredBrew.name }) }}
-            </BaseButton>
-          </div>
-        </router-link>
-        <router-link v-else to="/brygg/nytt" class="group block">
-          <div class="rounded-2xl border border-border3 bg-bg4 p-4 transition-all group-hover:-translate-y-0.5 group-hover:border-button1-border">
-            <div class="flex items-center gap-3">
-              <div class="rounded-2xl border border-border3 bg-bg2 p-2 shadow-sm">
-                <img
-                  src="/icons/135-brewery.png"
-                  alt="Bryggeriikon"
-                  class="h-16 w-16 object-contain sm:h-20 sm:w-20"
-                />
-              </div>
-              <div class="min-w-0 flex-1">
-                <p class="text-xs uppercase tracking-wide opacity-70">{{ t("navbar.user.items.new_brew") }}</p>
-                <p class="text-lg font-semibold">{{ t("home.start_brew_cta") }}</p>
-              </div>
-            </div>
-            <BaseButton class="mt-4 w-full py-4 text-lg sm:text-xl" variant="button1">
-              {{ t("home.start_brew_cta") }}
-            </BaseButton>
-          </div>
-        </router-link>
-      </BaseCard>
+      <div class="space-y-4">
+        <div class="flex items-center justify-between gap-3"><h2>{{ featuredBrew ? t("home.main_action_title") : t("home.start_brew_cta") }}</h2><router-link to="/brygg/nytt"><BaseButton>{{ t("brews.actions.new_brew") }}</BaseButton></router-link></div>
+        <BrewRow v-if="featuredBrew" :brew="featuredBrew" class="featured-brew" />
+        <router-link v-else to="/brygg/nytt"><BaseButton class="w-full py-5">{{ t("home.start_brew_cta") }}</BaseButton></router-link>
+        <template v-if="otherActiveBrews.length">
+          <h3 class="pt-2">{{ t("brews.phase.active_brews") }}</h3>
+          <div class="space-y-3"><BrewRow v-for="brew in otherActiveBrews" :key="brew._id" :brew="brew" /></div>
+        </template>
+      </div>
 
       <BaseCard>
         <h3>{{ t("home.quick_actions") }}</h3>
         <div class="mt-4 grid gap-3 md:grid-cols-2">
           <router-link to="/oppskrifter" class="group block">
-            <div class="rounded-2xl border border-border3 bg-bg4 p-4 transition-all group-hover:-translate-y-0.5 group-hover:border-button2-border">
+            <div class="quick-action rounded-2xl border border-border3 bg-bg4 p-4 transition-all group-hover:-translate-y-0.5 group-hover:border-button2-border">
               <div class="flex items-center gap-3">
                 <img src="/icons/157-book.png" alt="Oppskriftsboka" class="h-12 w-12 shrink-0 object-contain" />
                 <div class="min-w-0">
@@ -87,7 +52,7 @@
           </router-link>
 
           <router-link to="/brygg/tidligere" class="group block">
-            <div class="rounded-2xl border border-border3 bg-bg4 p-4 transition-all group-hover:-translate-y-0.5 group-hover:border-button3-border">
+            <div class="quick-action rounded-2xl border border-border3 bg-bg4 p-4 transition-all group-hover:-translate-y-0.5 group-hover:border-button3-border">
               <div class="flex items-center gap-3">
                 <img src="/icons/115-international-beer-day-1.png" alt="Alle brygg" class="h-12 w-12 shrink-0 object-contain" />
                 <div class="min-w-0">
@@ -135,16 +100,17 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import BrewRow from "@/components/brews/BrewRow.vue";
+import { brewPriority } from "@/utils/brewPhase.js";
 import BaseCard from "@/components/base/BaseCard.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
-import { getCurrentBrew, listBrews } from "@/services/brews.service.js";
+import { listBrews } from "@/services/brews.service.js";
 import { listRecipes } from "@/services/recipes.service.js";
 
 const { t } = useI18n();
 
 const loading = ref(true);
 const error = ref("");
-const currentBrew = ref(null);
 const brews = ref([]);
 const recipeCount = ref(0);
 
@@ -159,22 +125,9 @@ const plannedCount = computed(
   () => brews.value.filter((brew) => brew?.status === "planned").length,
 );
 
-const featuredBrew = computed(() => {
-  if (!currentBrew.value) return null;
-  const status = currentBrew.value.status;
-  if (status === "planned" || status === "active" || status === "conditioning") {
-    return currentBrew.value;
-  }
-  return null;
-});
-
-const featuredBrewRoute = computed(() => {
-  if (!featuredBrew.value?._id) return "/brygg/nytt";
-  if (featuredBrew.value.status === "planned") {
-    return `/brygg/${featuredBrew.value._id}/planlegging`;
-  }
-  return `/brygg/${featuredBrew.value._id}`;
-});
+const processBrews = computed(() => brews.value.filter(b => ["active", "conditioning", "planned"].includes(b.status)).sort((a, b) => brewPriority(a) - brewPriority(b) || new Date(b.updatedAt) - new Date(a.updatedAt)));
+const featuredBrew = computed(() => processBrews.value[0] || null);
+const otherActiveBrews = computed(() => processBrews.value.slice(1).filter(b => b.status !== "planned"));
 
 const quickActions = computed(() => [
   { to: "/brygg/nytt", label: t("navbar.user.items.new_brew"), variant: "button1" },
@@ -184,20 +137,14 @@ const quickActions = computed(() => [
   { to: "/verktoy/saftblanding", label: t("navbar.user.items.cordial_mix"), variant: "button3" },
 ]);
 
-function statusLabel(status) {
-  return t(`brews.status.${status || "planned"}`);
-}
-
 async function loadHomeData() {
   loading.value = true;
   error.value = "";
   try {
-    const [current, allBrews, recipes] = await Promise.all([
-      getCurrentBrew(),
+    const [allBrews, recipes] = await Promise.all([
       listBrews(),
       listRecipes(),
     ]);
-    currentBrew.value = current;
     brews.value = Array.isArray(allBrews) ? allBrews : [];
     recipeCount.value = Array.isArray(recipes) ? recipes.length : 0;
   } catch (err) {
@@ -209,3 +156,9 @@ async function loadHomeData() {
 
 onMounted(loadHomeData);
 </script>
+
+<style scoped>
+.featured-brew { padding-block: 2rem; }
+.featured-brew :deep(h3) { font-size: 1.5rem; }
+.quick-action, .quick-action p { color: var(--color-text4); }
+</style>

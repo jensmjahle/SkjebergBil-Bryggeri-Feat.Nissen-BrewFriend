@@ -27,7 +27,7 @@ yarn install
 ### Run Server
 
 ```bash
-npm dev:server
+npm run dev:server
 # or
 yarn dev:server
 ```
@@ -35,7 +35,7 @@ yarn dev:server
 ### Run Client
 
 ```bash
-npm dev:client
+npm run dev:client
 # or
 yarn dev:client
 ```
@@ -83,3 +83,21 @@ If `MONGODB_URI` is missing, `/api/*` returns `503`.
 - `DELETE /api/brews/:id`
 - `POST /api/brews/:id/measurements`
 - `GET /api/brews/:id/graph?metric=temperatureC`
+
+## Batchnummer og bryggfaser
+
+Ved serveroppstart tildeles eksisterende brygg uten batchnummer et permanent nummer per brygger, i opprettelsesrekkefølge. Migreringen oppdaterer bare `batchNumber`, beholder historiske `updatedAt`-verdier og kan kjøres flere ganger. Nye brygg bruker en atomisk MongoDB-teller; slettede eller avbrutte opprettelser kan gi hull, men nummer gjenbrukes ikke. En unik indeks beskytter nummeret per brygger.
+
+Bryggets lagrede livssyklus beholdes. Den synlige fasen utledes fra aktivt steg og stegtype, med valgfritt `phase`-felt for manuell kobling i oppskrift- og bryggredigering. Sammenhengende steg med samme fase deler tidslinje; pauser og lagrede sluttider brukes også etter gjeninnlasting.
+
+Kontroller: `node --test server/domain/brewPhase.test.js`, `npx tsx --test server/mongo/batchNumbers.test.ts`, `npm run build`, `npm run build:server`. Migreringstestene bruker simulerte databaseoperasjoner og erstatter ikke en integrasjonstest mot MongoDB.
+
+## Oppsummering, vurderinger og import
+
+Fullførte brygg åpner i Oversikt. Faktisk ABV krever registrert OG og FG; manglende tid eller målinger vises som ukjent. Vurderinger lagres som separate oppføringer, med den gamle vurderingen bevart ved første endring. Sluttnotater lagres separat, og endring av vurderinger endrer ikke fullføringsdatoen. Oppskriftsstatistikken bruker fortsatt ett gjennomsnitt per brygg.
+
+Bryggere er deltakernavn og er adskilt fra bryggets eier. Nedtelling kan spoles med dra-bevegelser eller piltaster, og dette lagres uten å skrive om faktisk stegtid. Venstre legger til tid, høyre trekker fra; piltaster har samme retning. Fullførte steg/brygg kan ikke spoles. Home gjenoppretter timerens totale varighet og End setter resttid til null.
+
+Oppskriftsoversikten tilbyr nedlasting av public/templates/guttabrew-oppskrift-mal.md og import av UTF-8 Markdown/JSON. Import krever format guttabrew-recipe, versjon 1; fila valideres både i nettleseren og på serveren før en ny oppskrift opprettes. Filgrense: 512 KiB. Ukjente felter, gjentatte JSON-nøkler, ugyldige datatyper og brutte ingrediens-stegkoblinger avvises.
+
+Kjør npm run test:brews for testene av faser, oppsummering, vurderinger, timerjusteringer, batchmigrering og oppskriftsimport. API-testene bruker ekte HTTP og Mongoose-validering med simulerte databaseoperasjoner; de skriver ikke til en faktisk MongoDB.

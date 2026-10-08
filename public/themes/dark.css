@@ -26,8 +26,8 @@
 
   /* Buttons */
   --color-button1: #65a30d; /* vibrant green */
-  --color-button1-meta: #fdf6e3;
-  --color-button1-meta-hover: #ffffff;
+  --color-button1-meta: #0d0d0d;
+  --color-button1-meta-hover: #fdf6e3;
   --color-button1-hover: #4d7c0f;
   --color-button1-border: #365314;
 
@@ -35,7 +35,8 @@
   --color-button1-gradient2: #65a30d;
 
   --color-button2: #d97706; /* amber/orange */
-  --color-button2-meta: #fdf6e3;
+  --color-button2-meta: #0d0d0d;
+  --color-button2-meta-hover: #fdf6e3;
   --color-button2-hover: #b45309;
   --color-button2-border: #92400e;
 
@@ -56,6 +57,8 @@
   --color-button-transparent-hover: rgba(255, 255, 255, 0.1);
   --color-button-transparent-border: transparent;
   --color-button-transparent-hover-border: #a8a29e;
+
+  --color-error-text: #fca5a5;
 
   /* Utility */
   --color-overlay: rgba(0, 0, 0, 0.7);

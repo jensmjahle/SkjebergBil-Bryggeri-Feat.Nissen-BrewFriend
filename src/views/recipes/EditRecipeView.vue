@@ -9,7 +9,7 @@
       </div>
 
       <div v-if="loading" class="py-4">{{ t("common.loading") }}</div>
-      <p v-else-if="loadError" class="text-sm text-red-600">{{ loadError }}</p>
+      <p v-else-if="loadError" class="text-sm text-[var(--color-error-text,var(--color-danger))]">{{ loadError }}</p>
 
       <form v-else class="space-y-6" @submit.prevent="handleSubmit">
         <div class="grid gap-4 md:grid-cols-2">
@@ -18,6 +18,8 @@
           <BaseInput v-model="form.color" :label="t('recipes.fields.color')" />
           <BaseInput v-model="form.imageUrl" :label="t('recipes.fields.image_url')" />
         </div>
+
+        <BaseInput v-model="form.sourceUrl" type="url" maxlength="2000" :label="t('recipes.import.source')" placeholder="https://" />
 
         <div class="space-y-2 rounded-lg border border-border3 p-4">
           <h3>{{ t("recipes.fields.icon") }}</h3>
@@ -140,7 +142,7 @@
             <BaseButton type="button" variant="button3">{{ t("common.cancel") }}</BaseButton>
           </router-link>
           <p v-if="successMessage" class="text-sm text-green-600">{{ successMessage }}</p>
-          <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
+          <p v-if="errorMessage" class="text-sm text-[var(--color-error-text,var(--color-danger))]">{{ errorMessage }}</p>
         </div>
       </form>
     </BaseCard>
@@ -230,6 +232,7 @@ const form = reactive({
   flavorProfile: "",
   color: "",
   imageUrl: "",
+  sourceUrl: "",
   defaults: { ogFrom: "", ogTo: "", fgFrom: "", fgTo: "", co2Volumes: null, ibu: null, batchSizeLiters: null },
   steps: [],
   ingredients: [],
@@ -370,6 +373,7 @@ function hydrateForm(recipe) {
   form.flavorProfile = recipe?.flavorProfile || "";
   form.color = recipe?.color || "";
   form.imageUrl = recipe?.imageUrl || "";
+  form.sourceUrl = recipe?.sourceUrl || "";
   form.defaults = {
     ogFrom: recipe?.defaults?.ogFrom || "",
     ogTo: recipe?.defaults?.ogTo || "",
@@ -383,6 +387,7 @@ function hydrateForm(recipe) {
     ? recipe.steps.map((s) => ({
         stepId: s.stepId || createDefaultStep(s.stepType || "custom").stepId,
         stepType: s.stepType || "custom",
+        phase: s.phase || undefined,
         title: s.title || "",
         description: s.description || "",
         durationMinutes: s.durationMinutes ?? null,
@@ -448,6 +453,7 @@ async function handleSubmit() {
       flavorProfile: form.flavorProfile?.trim() || undefined,
       color: form.color?.trim() || undefined,
       imageUrl: form.imageUrl?.trim() || undefined,
+      sourceUrl: form.sourceUrl?.trim() || '',
       defaults: {
         ogFrom: form.defaults.ogFrom?.trim() || undefined,
         ogTo: form.defaults.ogTo?.trim() || undefined,
@@ -462,6 +468,7 @@ async function handleSubmit() {
           stepId: s.stepId,
           order: idx + 1,
           stepType: s.stepType || "custom",
+          phase: s.phase || undefined,
           title: s.title?.trim(),
           description: s.description?.trim() || undefined,
           durationMinutes: sanitizeNumber(s.durationMinutes),

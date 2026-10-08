@@ -3,12 +3,12 @@
     v-bind="$attrs"
     @click="$emit('click', $event)"
     :class="[
-      'rounded-lg px-3 py-1.5 border font-medium transition-colors',
+      'rounded-lg px-3 py-1.5 border font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
       'focus:outline-none focus:ring-2 focus:ring-offset-1',
       variant === 'button1'
-        ? 'bg-[var(--color-button1)] hover:bg-[var(--color-button1-hover)] text-button1-meta border-button1-border focus:ring-[var(--color-button1)]'
+        ? 'bg-[var(--color-button1)] hover:bg-[var(--color-button1-hover)] text-button1-meta hover:text-[var(--color-button1-meta-hover,var(--color-button1-meta))] border-button1-border focus:ring-[var(--color-button1)]'
         : variant === 'button2'
-          ? 'bg-[var(--color-button2)] hover:bg-[var(--color-button2-hover)] text-button2-meta border-button2-border focus:ring-[var(--color-button2)]'
+          ? 'bg-[var(--color-button2)] hover:bg-[var(--color-button2-hover)] text-button2-meta hover:text-[var(--color-button2-meta-hover,var(--color-button2-meta))] border-button2-border focus:ring-[var(--color-button2)]'
           : variant === 'button3'
             ? 'bg-[var(--color-button3)] hover:bg-[var(--color-button3-hover)] text-button3-meta border-button3-border focus:ring-[var(--color-button3)]'
             : variant === 'button4'

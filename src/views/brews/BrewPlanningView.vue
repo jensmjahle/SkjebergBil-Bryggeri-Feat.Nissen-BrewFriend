@@ -46,7 +46,7 @@
         </div>
       </div>
 
-      <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
+      <p v-if="errorMessage" class="text-sm text-[var(--color-error-text,var(--color-danger))]">{{ errorMessage }}</p>
     </BaseCard>
 
     <BaseCard v-else class="space-y-6">
@@ -67,6 +67,7 @@
       </div>
 
       <BaseInput v-model="form.notes" :label="t('recipes.fields.notes')" />
+      <BaseInput v-model="form.brewersInput" :label="t('brews.fields.brewers')" :help="t('brews.fields.brewers_help')" maxlength="3600" />
 
       <div class="rounded-lg border border-border3 p-4">
         <p class="text-sm font-medium">{{ t("recipes.detail.version") }}</p>
@@ -257,7 +258,7 @@
           {{ t("brews.actions.start_brew_day") }}
         </BaseButton>
         <p v-if="successMessage" class="text-sm text-green-600">{{ successMessage }}</p>
-        <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
+        <p v-if="errorMessage" class="text-sm text-[var(--color-error-text,var(--color-danger))]">{{ errorMessage }}</p>
       </div>
     </BaseCard>
   </section>
@@ -320,6 +321,7 @@ const openIngredientIds = ref([]);
 const newIngredientIds = ref([]);
 
 const form = reactive({
+  brewersInput: '',
   name: "",
   notes: "",
   plannedStartAt: "",
@@ -566,6 +568,7 @@ function hydrateForm(brewDoc) {
   brew.value = brewDoc;
   form.name = brewDoc?.name || "";
   form.notes = brewDoc?.notes || "";
+  form.brewersInput = (brewDoc?.brewers || []).join(', ');
   form.plannedStartAt = toLocalDateTimeInput(brewDoc?.timeline?.plannedStartAt);
 
   const snapshot = brewDoc?.recipeSnapshot || {};
@@ -591,6 +594,7 @@ function hydrateForm(brewDoc) {
     ? snapshot.steps.map((step) => ({
         stepId: step.stepId || createDefaultStep(step.stepType || "custom").stepId,
         stepType: step.stepType || "custom",
+        phase: step.phase || undefined,
         title: step.title || "",
         description: step.description || "",
         durationMinutes: step.durationMinutes ?? null,
@@ -621,6 +625,7 @@ function snapshotPayload() {
       stepId: step.stepId,
       order: index + 1,
       stepType: step.stepType || "custom",
+      phase: step.phase || undefined,
       title: step.title?.trim(),
       description: step.description?.trim() || undefined,
       durationMinutes: sanitizeNumber(step.durationMinutes),
@@ -847,6 +852,7 @@ async function savePlan() {
     const updated = await updateBrew(brew.value._id, {
       name: form.name?.trim() || undefined,
       notes: form.notes?.trim() || undefined,
+      brewers: form.brewersInput.split(',').map(name=>name.trim()).filter(Boolean),
       timeline: {
         plannedStartAt: toIsoOrUndefined(form.plannedStartAt),
       },

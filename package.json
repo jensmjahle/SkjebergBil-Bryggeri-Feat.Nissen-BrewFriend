@@ -16,7 +16,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "cypress open",
     "test:e2e:run": "cypress run",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test:brews": "node --test server/domain/*.test.js src/utils/brewSummary.test.js && tsx --test server/mongo/batchNumbers.test.ts server/api/brewChanges.test.ts server/api/recipeImport.test.ts"
   },
   "dependencies": {
     "@stomp/stompjs": "^7.0.1",

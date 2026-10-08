@@ -1,6 +1,6 @@
 <template>
   <div class="sm:block" ref="settingsRef">
-    <div v-if="inline" class="rounded-lg border border-border3 bg-bg2 p-3">
+    <div v-if="inline" class="rounded-lg border border-border3 bg-bg2 text-text2 p-3">
       <p class="mb-3 text-sm font-semibold uppercase tracking-wide opacity-70">
         {{ t("settings.title") }}
       </p>
@@ -39,7 +39,7 @@
 
       <button
         id="settings-button"
-        class="relative z-20 rounded-full p-2 transition-transform duration-300"
+        class="relative z-20 rounded-full bg-bg2 p-2 transition-transform duration-300"
         :class="{ 'rotate-180': isOpen }"
         :aria-label="t('settings.open')"
         @click="toggleOpen"
