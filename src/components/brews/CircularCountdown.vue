@@ -1,10 +1,16 @@
 <template>
   <div class="flex flex-col items-center gap-4">
     <div
-      class="relative"
+      class="relative select-none"
+      :class="editable ? 'cursor-ew-resize touch-none' : ''"
       :style="{ width: `${size}px`, height: `${size}px` }"
-      role="timer"
-      :aria-label="label"
+      :role="editable ? 'slider' : 'timer'"
+      :tabindex="editable ? 0 : undefined"
+      :aria-label="editable ? seekLabel : label"
+      :aria-valuenow="editable ? Math.max(0, Math.round(rawRemaining)) : undefined"
+      :aria-valuemin="editable ? 0 : undefined"
+      :aria-valuemax="editable ? Math.max(normalizedTotal, rawRemaining) : undefined"
+      @pointerdown="down" @pointermove="move" @pointerup="up" @pointercancel="cancel" @keydown="key"
     >
       <svg
         class="h-full w-full -rotate-90 transform"
@@ -42,8 +48,11 @@
 
 <script setup>
 import { computed } from "vue";
+import { useTimerScrub } from '@/composables/useTimerScrub.js';
 
 const props = defineProps({
+  editable: { type:Boolean, default:false },
+  seekLabel: { type:String, default:'' },
   remainingSeconds: {
     type: Number,
     default: 0,
@@ -69,13 +78,17 @@ const props = defineProps({
     default: false,
   },
 });
+const emit = defineEmits(['seek']);
+const { remaining:previewRemaining, down, move, up, cancel, key } = useTimerScrub({
+  remaining:()=>props.remainingSeconds, total:()=>props.totalSeconds, editable:()=>props.editable, commit:value=>emit('seek',value),
+});
 
 const normalizedTotal = computed(() =>
   Number.isFinite(props.totalSeconds) && props.totalSeconds > 0 ? props.totalSeconds : 1,
 );
 
 const rawRemaining = computed(() =>
-  Number.isFinite(props.remainingSeconds) ? Number(props.remainingSeconds) : 0,
+  Number.isFinite(previewRemaining.value) ? Number(previewRemaining.value) : 0,
 );
 
 const normalizedRemaining = computed(() => {
@@ -90,7 +103,7 @@ const progressRatio = computed(() => normalizedRemaining.value / normalizedTotal
 const dashOffset = computed(() => circumference * (1 - progressRatio.value));
 
 const strokeColor = computed(() => {
-  if (rawRemaining.value <= 0) return "#dc2626";
+  if (rawRemaining.value <= 0) return "var(--color-error-text, #dc2626)";
   if (progressRatio.value <= props.warningRatio) return "#eab308";
   return "#10b981";
 });

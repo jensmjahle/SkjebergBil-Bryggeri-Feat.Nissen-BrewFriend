@@ -75,7 +75,7 @@ function onInput(e: Event) {
     />
 
     <!-- Error -->
-    <p v-if="error" class="mt-1 text-xs text-danger">
+    <p v-if="error" class="mt-1 text-xs text-[var(--color-error-text,var(--color-danger))]">
       {{ error }}
     </p>
   </div>

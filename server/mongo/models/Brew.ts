@@ -7,6 +7,7 @@ const brewStepSchema = new mongoose.Schema(
     stepId: { type: String, required: true, trim: true, maxlength: 80 },
     order: { type: Number, required: true, min: 1 },
     stepType: { type: String, required: true, default: "custom" },
+    phase: { type: String, enum: ["preparation", "mash", "sparge", "boil", "primary_fermentation", "secondary_fermentation", "cold_crash", "carbonation", "conditioning", "custom"] },
     title: { type: String, required: true, trim: true, maxlength: 120 },
     description: { type: String, trim: true, maxlength: 3000 },
     durationMinutes: { type: Number, min: 0 },
@@ -79,6 +80,7 @@ const stepProgressSchema = new mongoose.Schema(
     activeSinceAt: { type: Date },
     completedAt: { type: Date },
     timerDurationSeconds: { type: Number, min: 0 },
+    timerAdjustmentSeconds: { type: Number },
     timerEndsAt: { type: Date },
     pausedRemainingSeconds: { type: Number, min: 0 },
     accumulatedActiveSeconds: { type: Number, min: 0 },
@@ -118,6 +120,7 @@ const brewSchema = new mongoose.Schema(
       required: false,
       index: true,
     },
+    batchNumber: { type: Number, min: 1, immutable: true },
     name: { type: String, required: true, trim: true, maxlength: 160 },
     status: {
       type: String,
@@ -126,6 +129,18 @@ const brewSchema = new mongoose.Schema(
       index: true,
     },
     notes: { type: String, trim: true, maxlength: 3000 },
+    brewers: { type:[String], default:[], validate:{ validator:(names: string[])=>names.length <= 30 && names.every(name=>name.length > 0 && name.length <= 120), message:'Invalid brewer names' } },
+    finalNotes: { type: String, maxlength: 3000 },
+    ratings: {
+      type: [new mongoose.Schema({
+        ratingId: { type: String, required: true },
+        rating: { type: Number, required: true, min: 0.25, max: 5 },
+        note: { type: String, trim: true, maxlength: 3000 },
+        evaluatedAt: { type: Date, required: true },
+        updatedAt: { type: Date },
+      }, { _id:false })],
+      default: undefined,
+    },
     timeline: {
       plannedStartAt: { type: Date },
       brewDayAt: { type: Date },
@@ -150,6 +165,7 @@ const brewSchema = new mongoose.Schema(
     },
     recipeSnapshot: { type: recipeSnapshotSchema, default: {} },
     progress: {
+      phaseStepId: { type: String, trim: true, maxlength: 80 },
       currentStepIndex: { type: Number, default: 0, min: 0 },
       brewStartedAt: { type: Date },
       brewCompletedAt: { type: Date },
@@ -166,6 +182,7 @@ const brewSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+brewSchema.index({ brewerId: 1, batchNumber: 1 }, { unique: true, partialFilterExpression: { batchNumber: { $type: "number" } } });
 brewSchema.index({ brewerId: 1, createdAt: -1 });
 brewSchema.index({ brewerId: 1, status: 1 });
 

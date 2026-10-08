@@ -7,6 +7,8 @@
       @update:model-value="emit('update:step', $event)"
     />
 
+    <BaseDropdown :model-value="step.phase || 'automatic'" :label="t('brews.phase.label')" :options="phaseOptions" @update:model-value="emit('update:step', { ...step, phase: $event === 'automatic' ? undefined : $event })" />
+
     <div class="flex flex-wrap justify-end gap-2">
       <BaseButton type="button" variant="button3" :icon="ChevronUp" :disabled="index === 0" @click="emit('move', -1)">
         {{ t("recipes.actions.up") }}
@@ -67,6 +69,8 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { Check, ChevronDown, ChevronUp, PencilLine, Trash2 } from "lucide-vue-next";
+import BaseDropdown from "@/components/base/BaseDropdown.vue";
+import { PHASES, phaseLabel } from "@/utils/brewPhase.js";
 import BaseButton from "@/components/base/BaseButton.vue";
 import RecipeStepItem from "@/components/recipes/RecipeStepItem.vue";
 import { STEP_COMPONENTS } from "@/components/recipe-steps/index.js";
@@ -84,6 +88,7 @@ const emit = defineEmits(["update:step", "open", "close", "move", "remove"]);
 
 const { t } = useI18n();
 
+const phaseOptions = computed(() => [{ label: t("brews.phase.automatic"), value: "automatic" }, ...PHASES.map(value => ({ value, label: phaseLabel(value, t) }))]);
 const stepComponent = computed(() => STEP_COMPONENTS[props.step?.stepType] || STEP_COMPONENTS.custom);
 const stepWithOrder = computed(() => ({ ...props.step, order: props.index + 1 }));
 </script>

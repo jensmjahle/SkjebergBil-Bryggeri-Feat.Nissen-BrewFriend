@@ -26,7 +26,9 @@ app.use("/uploads", express.static(uploadsDir));
 
 const mongoConnected = await connectMongo();
 if (mongoConnected) {
-  console.log("[server] MongoDB connected");
+  const { backfillBatchNumbers } = await import("./mongo/batchNumbers.js");
+  await backfillBatchNumbers();
+  console.log("[server] MongoDB connected; batch numbers ready");
 } else {
   console.log("[server] MONGODB_URI not set, Mongo routes disabled");
 }

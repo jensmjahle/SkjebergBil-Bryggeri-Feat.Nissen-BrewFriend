@@ -1,6 +1,9 @@
 ﻿import api from "@/config/axiosConfig.js";
 
 const BASE = "/api/recipes";
+export async function importRecipeFile(content) {
+  return (await api.post(`${BASE}/import`, {content})).data;
+}
 
 export async function createRecipe(payload) {
   const { data } = await api.post(BASE, payload, {

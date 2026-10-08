@@ -2,6 +2,19 @@ import api from "@/config/axiosConfig.js";
 
 const BASE = "/api/brews";
 
+export async function addBrewRating(id, payload) {
+  return (await api.post(`${BASE}/${encodeURIComponent(id)}/ratings`, payload)).data;
+}
+export async function editBrewRating(id, ratingId, payload) {
+  return (await api.patch(`${BASE}/${encodeURIComponent(id)}/ratings/${encodeURIComponent(ratingId)}`, payload)).data;
+}
+export async function deleteBrewRating(id, ratingId) {
+  return (await api.delete(`${BASE}/${encodeURIComponent(id)}/ratings/${encodeURIComponent(ratingId)}`)).data;
+}
+export async function seekBrewTimer(id, stepId, remainingSeconds) {
+  return (await api.patch(`${BASE}/${encodeURIComponent(id)}/steps/${encodeURIComponent(stepId)}/timer`, { remainingSeconds })).data;
+}
+
 export async function listBrews(filters = {}) {
   const { data } = await api.get(BASE, { params: filters });
   return data;

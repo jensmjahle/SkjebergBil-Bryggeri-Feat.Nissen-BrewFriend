@@ -14,7 +14,7 @@
   "home": {
     "title": "Bryggekompis",
     "subtitle": "Hold styr på oppskrifter, planlagte brygg og bryggedag på ett sted.",
-    "main_action_title": "Hovedhandling",
+    "main_action_title": "Fortsett bryggingen",
     "continue_brew_cta": "Fortsett brygg: {name}",
     "start_brew_cta": "Start nytt brygg",
     "current_status": "Nåværende status",
@@ -202,6 +202,42 @@
       "not_rated": "Ikke vurdert",
       "no_brews": "Ingen brygg på denne oppskriften ennå.",
       "untitled_brew": "Brygg uten navn"
+    },
+    "import": {
+      "title": "Importer oppskrift",
+      "download": "Last ned KI-mal",
+      "intro": "Last ned malen, send den til KI sammen med oppskriftslenken, og last opp fila du får tilbake. Kontroller forhåndsvisningen før lagring.",
+      "choose": "Velg oppskriftsfil",
+      "file_help": ".md eller .json, UTF-8, maks. 512 KiB.",
+      "invalid": "Fila kan ikke importeres",
+      "preview": "Forhåndsvisning",
+      "source": "Kildeoppskrift",
+      "new_only": "Lagres som en ny oppskrift. Eksisterende oppskrifter og brygg endres ikke.",
+      "save": "Lagre ny oppskrift",
+      "saved": "Oppskriften «{name}» er importert.",
+      "errors": {
+        "object": "Må være et objekt.",
+        "unknown": "Ukjent felt. Se malen for tillatte felter.",
+        "required": "Obligatorisk felt mangler eller er blankt.",
+        "text": "Må være tekst i doble anførselstegn.",
+        "length": "Teksten må ha {min}–{max} tegn.",
+        "number": "Må være et tall mellom {min} og {max}, uten anførselstegn.",
+        "choice": "Tillatte verdier: {allowed}.",
+        "gravity": "Bruk tekst med tre desimaler, for eksempel 1.056.",
+        "format": "format må være guttabrew-recipe.",
+        "version": "Bare formatversjon 1 støttes.",
+        "url": "Bruk en full http://- eller https://-lenke.",
+        "range": "From kan ikke være større enn To.",
+        "array": "Må være en liste med {min}–{max} elementer.",
+        "duplicate": "ID-en er brukt flere ganger. Bruk unike ID-er.",
+        "order": "order må være {order}, eller utelates.",
+        "reference": "Stegkoblingen peker ikke til en eksisterende stepId.",
+        "size": "Fila må være mindre enn 512 KiB.",
+        "json_block": "Markdown-fila må ha nøyaktig én JSON-kodeblokk merket json.",
+        "json": "JSON-blokken har en syntaksfeil. Fjern kommentarer og etterfølgende komma.",
+        "encoding": "Fila kunne ikke leses som UTF-8. Lagre den med UTF-8-koding.",
+        "duplicate_key": "JSON-feltet {detail} er gjentatt. Hvert felt skal bare forekomme én gang i samme objekt."
+      }
     }
   },
   "brews": {
@@ -242,7 +278,10 @@
       "target_ibu": "Mål IBU",
       "actual_og": "OG",
       "actual_fg": "FG",
-      "actual_abv": "ABV"
+      "actual_abv": "ABV",
+      "brew_date": "Bryggedato",
+      "brewers": "Bryggere",
+      "brewers_help": "Skriv navnene med komma mellom, for eksempel Tobben, Nissen."
     },
     "actions": {
       "new_brew": "Start nytt brygg",
@@ -278,12 +317,13 @@
       "create_recipe_version": "Lagre som ny oppskriftsversjon"
     },
     "list": {
-      "title": "Tidligere Brygg",
+      "title": "Brygg",
       "subtitle": "Se planlagte, aktive og fullførte brygg.",
       "current_brew": "Pågående brygg",
-      "search_placeholder": "Søk på bryggnavn eller notat",
+      "search_placeholder": "Søk på batchnummer eller bryggnavn",
       "found": "{count} brygg funnet",
-      "empty": "Ingen brygg funnet."
+      "empty": "Ingen brygg funnet.",
+      "brew_day_filter": "Bryggdag"
     },
     "plan": {
       "title": "Planlegg Brygg",
@@ -371,6 +411,49 @@
       "step_failed": "Kunne ikke oppdatere steg",
       "measurement_failed": "Kunne ikke lagre måling",
       "deleted": "Brygget ble slettet."
+    },
+    "phase": {
+      "of": "av",
+      "days": "dager",
+      "label": "Fase",
+      "automatic": "Automatisk fra stegtype",
+      "active_brews": "Brygg i prosess",
+      "complete": "fullført"
+    },
+    "overview": {
+      "tab": "Oversikt",
+      "final_abv": "Endelig ABV",
+      "planned": "Planlagt",
+      "actual": "Faktisk",
+      "deviation": "Avvik",
+      "percentage_points": "prosentpoeng",
+      "total_time": "Fra start til fullført",
+      "logged_time": "Registrert stegtid:",
+      "missing_gravity": "Lagre faktisk OG og FG for å vise endelig ABV og avvik.",
+      "deviations": "Avvik fra planen",
+      "saved_plan": "Sammenlignet med lagret plan",
+      "mean_temperature": "Målt snittemperatur",
+      "timer_adjustment": "Timerjustering:",
+      "coverage": "Tid registrert for {logged} av {total} steg. — betyr ikke registrert.",
+      "start_deviation": "Avvik fra planlagt start",
+      "final_notes": "Sluttnotater",
+      "save_notes": "Lagre sluttnotater",
+      "notes_saved": "Sluttnotatene er lagret.",
+      "ratings": "Vurderinger",
+      "add_rating": "Ny vurdering",
+      "brew_notes": "Brygg- og stegnotater",
+      "rating_title": "Vurder brygget",
+      "rating_intro": "Gi en vurdering av denne smaksprøven. Sluttnotatene beholdes separat.",
+      "rating_note": "Kommentar til vurderingen",
+      "confirm_delete_rating": "Slette denne vurderingen? Sluttnotater og andre vurderinger beholdes.",
+      "days": "dager",
+      "hours": "t",
+      "minutes": "min"
+    },
+    "timer": {
+      "seek": "Dra for å spole timeren",
+      "saved": "Timeren er justert.",
+      "help": "Dra mot høyre for å spole frem, mot venstre for å legge til tid."
     }
   },
   "navbar": {
@@ -385,7 +468,7 @@
       },
       "items": {
         "new_brew": "Nytt Brygg",
-        "previous_brews": "Tidligere Brygg",
+        "previous_brews": "Brygg",
         "new_recipe": "Ny Oppskrift",
         "recipes": "Oppskrifter",
         "alcohol_calc": "Alkoholutregning",

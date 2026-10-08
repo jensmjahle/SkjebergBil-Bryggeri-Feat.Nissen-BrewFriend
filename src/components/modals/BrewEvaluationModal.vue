@@ -6,9 +6,10 @@
   >
     <div
       class="flex max-h-[85svh] w-full max-w-lg flex-col rounded-t-xl border border-border3 bg-bg2 shadow-2xl sm:max-h-[90vh] sm:rounded-xl"
+      role="dialog" aria-modal="true" :aria-label="ratingOnly ? t('brews.overview.rating_title') : t('brews.evaluation.title')"
     >
       <div class="flex items-center justify-between gap-2 border-b border-border3 px-4 py-3">
-        <h3 class="min-w-0 truncate">{{ t("brews.evaluation.title") }}</h3>
+        <h3 class="min-w-0 truncate">{{ ratingOnly ? t('brews.overview.rating_title') : t("brews.evaluation.title") }}</h3>
         <button
           type="button"
           class="rounded-md p-1 opacity-70 transition-opacity hover:opacity-100"
@@ -20,7 +21,7 @@
       </div>
 
       <div class="flex-1 space-y-4 overflow-y-auto px-4 py-4">
-        <p class="text-sm opacity-80">{{ t("brews.evaluation.intro") }}</p>
+        <p class="text-sm opacity-80">{{ ratingOnly ? t('brews.overview.rating_intro') : t("brews.evaluation.intro") }}</p>
 
         <div>
           <p class="mb-2 text-sm font-medium">{{ t("brews.evaluation.rating_label") }}</p>
@@ -31,7 +32,7 @@
             :empty-text="t('brews.evaluation.no_rating')"
             :aria-label="t('brews.evaluation.rating_label')"
           />
-          <p v-if="showRatingError" class="mt-2 text-sm text-red-600">
+          <p v-if="showRatingError" class="mt-2 text-sm text-[var(--color-error-text,var(--color-danger))]">
             {{ t("brews.evaluation.rating_required") }}
           </p>
         </div>
@@ -39,9 +40,11 @@
         <BaseTextarea
           v-model="note"
           :rows="5"
-          :label="t('brews.evaluation.note_label')"
+          :label="ratingOnly ? t('brews.overview.rating_note') : t('brews.evaluation.note_label')"
+          maxlength="3000"
           :placeholder="t('brews.evaluation.note_placeholder')"
         />
+        <p v-if="error" class="text-sm text-[var(--color-error-text,var(--color-danger))]" role="alert">{{ error }}</p>
       </div>
 
       <div
@@ -56,7 +59,7 @@
           {{ t("common.cancel") }}
         </BaseButton>
         <BaseButton type="button" :disabled="loading" class="flex-1 sm:flex-none" @click="submit">
-          {{ loading ? t("common.saving") : t("brews.evaluation.submit") }}
+          {{ loading ? t("common.saving") : ratingOnly ? t('common.save') : t("brews.evaluation.submit") }}
         </BaseButton>
       </div>
     </div>
@@ -72,6 +75,8 @@ import BaseTextarea from "@/components/base/BaseTextarea.vue";
 import BaseStarRating from "@/components/base/BaseStarRating.vue";
 
 const props = defineProps({
+  ratingOnly: { type:Boolean, default:false },
+  error: { type:String, default:'' },
   open: {
     type: Boolean,
     default: false,

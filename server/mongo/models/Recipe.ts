@@ -5,6 +5,7 @@ const recipeStepSchema = new mongoose.Schema(
     stepId: { type: String, required: true, trim: true, maxlength: 80 },
     order: { type: Number, required: true, min: 1 },
     stepType: { type: String, required: true, default: "custom" },
+    phase: { type: String, enum: ["preparation", "mash", "sparge", "boil", "primary_fermentation", "secondary_fermentation", "cold_crash", "carbonation", "conditioning", "custom"] },
     title: { type: String, required: true, trim: true, maxlength: 120 },
     description: { type: String, trim: true, maxlength: 3000 },
     durationMinutes: { type: Number, min: 0 },
@@ -53,6 +54,7 @@ const recipeSchema = new mongoose.Schema(
     flavorProfile: { type: String, trim: true, maxlength: 1200 },
     color: { type: String, trim: true, maxlength: 120 },
     imageUrl: { type: String, trim: true, maxlength: 500 },
+    sourceUrl: { type: String, trim: true, maxlength: 2000 },
     defaults: {
       ogFrom: { type: String, trim: true, match: gravityPattern },
       ogTo: { type: String, trim: true, match: gravityPattern },

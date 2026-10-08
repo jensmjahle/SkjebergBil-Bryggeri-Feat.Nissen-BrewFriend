@@ -2,8 +2,8 @@
   <div
     class="border-t border-border3 py-2"
     :class="{
-      'cursor-pointer rounded-md px-2 transition-colors hover:bg-bg4': clickable,
-      'bg-bg4 text-text4': active && !completed,
+      'step-item--clickable cursor-pointer rounded-md px-2 transition-colors hover:bg-bg4': clickable,
+      'step-item--active bg-bg4 text-text4': active && !completed,
       'step-item--completed border-status-completed-border bg-status-completed text-status-completed-text': completed,
     }"
     :role="clickable ? 'button' : undefined"
@@ -17,7 +17,7 @@
         <Check v-if="completed" class="h-4 w-4 shrink-0" aria-hidden="true" />
         <h4>{{ stepLabel }}</h4>
       </div>
-      <span class="rounded-full bg-bg4 text-text4 px-2 py-1 text-xs">{{ stepTypeLabel(step?.stepType) }}</span>
+      <span class="rounded-full bg-bg4 text-text4 px-2 py-1 text-xs">{{ phaseLabel(stepPhase(step), t) }}</span>
     </div>
 
     <p v-if="step?.description" class="mt-2 whitespace-pre-line text-sm opacity-90">{{ step.description }}</p>
@@ -52,6 +52,7 @@
 <script setup>
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { phaseLabel, stepPhase } from "@/utils/brewPhase.js";
 import { Check } from "lucide-vue-next";
 
 const props = defineProps({
@@ -80,7 +81,7 @@ const props = defineProps({
 const emit = defineEmits(["select"]);
 
 const { t } = useI18n();
-const fermentationStepTypes = ["primary_fermentation", "secondary_fermentation", "cold_crash"];
+const fermentationStepTypes = ["primary_fermentation", "secondary_fermentation", "cold_crash", "conditioning"];
 
 const stepLabel = computed(() => {
   const orderPrefix = Number.isFinite(Number(props.step?.order)) ? `${props.step.order}. ` : "";
@@ -98,7 +99,7 @@ function stepTypeLabel(value) {
 function stepDurationLabel(step) {
   const minutes = Number(step?.durationMinutes);
   if (!Number.isFinite(minutes) || minutes <= 0) return "-";
-  const isDayBased = fermentationStepTypes.includes(step?.stepType || "");
+  const isDayBased = fermentationStepTypes.includes(stepPhase(step));
   if (isDayBased) {
     const days = minutes / 1440;
     return Number.isInteger(days) ? `${days} d` : `${days.toFixed(1)} d`;
@@ -112,8 +113,13 @@ function selectStep() {
 </script>
 
 <style scoped>
+.step-item--completed [class*="opacity-"] { opacity: 1; }
 .step-item--completed h4,
 .step-item--completed p {
   color: var(--color-status-completed-text);
 }
+
+.step-item--active h4, .step-item--active p { color: var(--color-text4); }
+.step-item--clickable:hover { color: var(--color-text4); }
+.step-item--clickable:hover h4, .step-item--clickable:hover p { color: var(--color-text4); }
 </style>

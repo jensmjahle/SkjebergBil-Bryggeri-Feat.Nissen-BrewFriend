@@ -5,7 +5,7 @@
     </BaseCard>
 
     <BaseCard v-else-if="error">
-      <p class="text-red-600">{{ error }}</p>
+      <p class="text-[var(--color-error-text,var(--color-danger))]">{{ error }}</p>
     </BaseCard>
 
     <template v-else-if="recipe">
@@ -18,6 +18,7 @@
                 <h1 class="truncate text-xl sm:text-3xl">{{ recipe.name }}</h1>
                 <p class="mt-1 opacity-80">{{ recipe.beerType || t("recipes.common.unknown_type") }}</p>
                 <p class="text-xs opacity-70">v{{ recipe.version || 1 }}</p>
+                <a v-if="recipe.sourceUrl && /^https?:\/\//i.test(recipe.sourceUrl)" :href="recipe.sourceUrl" target="_blank" rel="noopener noreferrer" class="mt-1 inline-block text-sm underline">{{ t('recipes.import.source') }}</a>
               </div>
             </div>
           </div>
@@ -66,28 +67,28 @@
             >
               <router-link
                 :to="`/oppskrifter/${recipe._id}/rediger`"
-                class="block rounded-md px-3 py-2 text-sm hover:bg-bg4"
+                class="block rounded-md px-3 py-2 text-sm hover:bg-bg4 hover:text-text4"
                 @click="actionMenuOpen = false"
               >
                 {{ t("recipes.detail.edit") }}
               </router-link>
               <router-link
                 :to="{ path: '/oppskrifter/ny', query: { copyFrom: recipe._id } }"
-                class="block rounded-md px-3 py-2 text-sm hover:bg-bg4"
+                class="block rounded-md px-3 py-2 text-sm hover:bg-bg4 hover:text-text4"
                 @click="actionMenuOpen = false"
               >
                 {{ t("recipes.detail.copy") }}
               </router-link>
               <router-link
                 :to="{ path: `/oppskrifter/${recipe._id}/rediger`, query: { nyVersjon: '1' } }"
-                class="block rounded-md px-3 py-2 text-sm hover:bg-bg4"
+                class="block rounded-md px-3 py-2 text-sm hover:bg-bg4 hover:text-text4"
                 @click="actionMenuOpen = false"
               >
                 {{ t("recipes.detail.new_version") }}
               </router-link>
               <button
                 type="button"
-                class="w-full rounded-md px-3 py-2 text-left text-sm text-red-600 hover:bg-bg4 disabled:opacity-50"
+                class="w-full rounded-md px-3 py-2 text-left text-sm text-[var(--color-error-text,var(--color-danger))] hover:bg-bg4 hover:text-red-800 disabled:opacity-50"
                 :disabled="deletingVersion || deletingFamily"
                 @click="runMenuAction(deleteCurrentVersion)"
               >
@@ -95,7 +96,7 @@
               </button>
               <button
                 type="button"
-                class="w-full rounded-md px-3 py-2 text-left text-sm text-red-600 hover:bg-bg4 disabled:opacity-50"
+                class="w-full rounded-md px-3 py-2 text-left text-sm text-[var(--color-error-text,var(--color-danger))] hover:bg-bg4 hover:text-red-800 disabled:opacity-50"
                 :disabled="deletingVersion || deletingFamily"
                 @click="runMenuAction(deleteAllVersions)"
               >
@@ -174,7 +175,7 @@
         </div>
 
         <div class="mt-4 space-y-2">
-          <p v-if="brewHistoryError" class="text-sm text-red-600">{{ brewHistoryError }}</p>
+          <p v-if="brewHistoryError" class="text-sm text-[var(--color-error-text,var(--color-danger))]">{{ brewHistoryError }}</p>
           <p v-else-if="loadingBrewHistory" class="text-sm opacity-70">{{ t("common.loading") }}</p>
           <p v-else-if="!brewHistory.length" class="text-sm opacity-70">
             {{ t("recipes.detail.no_brews") }}
@@ -189,7 +190,7 @@
           >
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div class="min-w-0">
-                <p class="truncate font-medium">{{ brew.name || t("recipes.detail.untitled_brew") }}</p>
+                <p class="truncate font-medium">{{ brewTitle(brew) || t("recipes.detail.untitled_brew") }}</p>
                 <p class="text-xs opacity-70">
                   {{ formatDate(brew.brewedAt) }}
                   <span v-if="brew.version"> &middot; v{{ brew.version }}</span>
@@ -239,6 +240,7 @@
 </template>
 
 <script setup>
+import { brewTitle } from "@/utils/brewPhase.js";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";

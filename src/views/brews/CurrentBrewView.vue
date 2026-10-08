@@ -5,21 +5,22 @@
     </BaseCard>
 
     <BaseCard v-else-if="error">
-      <p class="text-red-600">{{ error }}</p>
+      <p class="text-[var(--color-error-text,var(--color-danger))]">{{ error }}</p>
     </BaseCard>
 
     <template v-else-if="brew">
       <div class="lg:sticky lg:top-14 lg:z-20 lg:bg-bg1 lg:py-2">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0 flex-1">
-            <h1 class="truncate text-xl sm:text-3xl">{{ brew.name }}</h1>
+            <h1 class="break-words text-xl sm:text-3xl">{{ brewTitle(brew) }}</h1>
+            <p v-if="brew.brewers?.length" class="mt-1 text-sm opacity-85 break-words">{{ t('brews.fields.brewers') }}: {{ brew.brewers.join(', ') }}</p>
             <div class="mt-1 space-y-1 lg:flex lg:flex-wrap lg:items-center lg:gap-x-2 lg:gap-y-1 lg:space-y-0">
               <p class="text-sm opacity-80">{{ statusLabel(brew.status) }}</p>
               <p v-if="brew.progress?.brewStartedAt" class="text-xs opacity-70">
                 {{ t("brews.fields.brew_started_at") }}: {{ formatDateTime(brew.progress.brewStartedAt) }}
               </p>
               <p v-if="brew.progress?.brewStartedAt" class="text-xs opacity-70">
-                {{ t("brews.fields.brew_day_elapsed") }}: {{ formatStopwatch(brewDayElapsedSeconds) }}
+                {{ t(isCompleted ? "brews.overview.total_time" : "brews.fields.brew_day_elapsed") }}: {{ formatStopwatch(brewDayElapsedSeconds) }}
               </p>
               <p class="text-xs opacity-70">
                 {{ t("brews.fields.total_step_time") }}: {{ formatStopwatch(totalStepElapsedSeconds) }}
@@ -27,7 +28,8 @@
             </div>
           </div>
 
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center justify-end gap-2">
+            <span class="phase-label rounded-lg border border-border3 px-3 py-2" :data-phase="brewPhase(brew)">{{ phaseLabel(brewPhase(brew), t) }}</span>
             <BaseToggle
               class="hidden sm:flex"
               :model-value="activePanel"
@@ -51,21 +53,21 @@
               >
                 <button
                   type="button"
-                  class="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-bg4"
+                  class="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-bg4 hover:text-text4"
                   @click="editBrewAction"
                 >
                   {{ t("brews.actions.edit") }}
                 </button>
                 <button
                   type="button"
-                  class="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-bg4"
+                  class="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-bg4 hover:text-text4"
                   @click="finishBrewAction"
                 >
                   {{ isCompleted ? t("brews.actions.reevaluate") : t("brews.actions.finish") }}
                 </button>
                 <button
                   type="button"
-                  class="w-full rounded-md px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                  class="w-full rounded-md px-3 py-2 text-left text-sm text-[var(--color-error-text,var(--color-danger))] hover:bg-red-50 hover:text-red-800"
                   @click="deleteBrewAction"
                 >
                   {{ t("brews.actions.delete") }}
@@ -92,7 +94,14 @@
         </div>
       </div>
 
-      <template v-if="activePanel === 'progress'">
+      <BrewOverview v-if="activePanel === 'overview' && isCompleted" :brew="brew" @updated="brew = $event" @measurements="setActivePanel('measurements')">
+        <template #graph>
+          <div class="flex flex-wrap gap-2"><BaseButton v-for="series in measurementSeriesToggleOptions" :key="series.key" :variant="seriesVisibility[series.key] ? 'button1' : 'button3'" @click="toggleMeasurementSeries(series.key)">{{ series.label }}</BaseButton></div>
+          <GravityProgressChart :datasets="measurementChartDatasets" :empty-text="t('brews.current.no_measurements')" />
+        </template>
+      </BrewOverview>
+
+      <template v-else-if="activePanel === 'progress'">
         <div class="lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,7fr)] lg:items-start lg:gap-6">
         <BaseCard
           v-if="currentStep"
@@ -106,7 +115,7 @@
                 {{ t("brews.current.step_label", { current: currentStepIndex + 1, total: steps.length }) }}
               </p>
               <h3>{{ currentStep.title }}</h3>
-              <p class="text-sm opacity-80">{{ stepTypeLabel(currentStep.stepType) }}</p>
+              <p class="text-sm opacity-80">{{ phaseLabel(stepPhase(currentStep), t) }}</p>
             </div>
             <span class="rounded-full bg-bg4 text-text4 px-2 py-1 text-xs">
               {{ stepStatusLabel(currentStepProgress?.status || "pending", currentStepProgress) }}
@@ -174,6 +183,7 @@
           </div>
 
           <aside class="mt-5 space-y-3 lg:mt-0">
+            <PhaseTimeline :brew="brew" :selected-step-id="currentStep.stepId" details @updated="brew=$event" />
             <CircularCountdown
               v-if="showRoundTimer"
               class="mx-auto"
@@ -181,7 +191,12 @@
               :total-seconds="timerTotalSeconds"
               :label="t('brews.current.timer_remaining')"
               :show-days="isCurrentStepDayBased"
+              :editable="!isCompleted && currentStepProgress?.status !== 'completed' && !savingTimer"
+              :seek-label="t('brews.timer.seek')"
+              @seek="seekCurrentTimer"
             />
+            <p v-if="showRoundTimer && !isCompleted" class="text-xs opacity-75 text-center">{{ t('brews.timer.help') }}</p>
+            <p v-if="timerMessage" class="text-sm" role="status">{{ timerMessage }}</p>
 
           <div class="space-y-2">
             <div class="grid grid-cols-3 gap-2">
@@ -421,6 +436,10 @@
 </template>
 
 <script setup>
+import PhaseTimeline from "@/components/brews/PhaseTimeline.vue";
+import BrewOverview from "@/components/brews/BrewOverview.vue";
+import { numberOrNull } from '@/utils/brewSummary.js';
+import { brewPhase, phaseLabel, brewTitle, stepPhase } from "@/utils/brewPhase.js";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
@@ -452,6 +471,7 @@ import {
   startBrew,
   startBrewStep,
   updateBrew,
+  seekBrewTimer,
 } from "@/services/brews.service.js";
 import {
   connectBrewLive,
@@ -472,6 +492,7 @@ const loading = ref(true);
 const error = ref("");
 const brew = ref(null);
 const activePanel = ref("progress");
+const savingTimer=ref(false), timerMessage=ref('');
 const nowTs = ref(Date.now());
 const addingMeasurement = ref(false);
 const measurementModalOpen = ref(false);
@@ -501,7 +522,7 @@ let clockInterval = null;
 
 const gravityPattern = /^1\.\d{3}$/;
 const graphStepTypes = ["primary_fermentation", "secondary_fermentation", "cold_crash"];
-const dayStepTypes = [...graphStepTypes];
+const dayStepTypes = [...graphStepTypes, "conditioning"];
 
 const steps = computed(() => brew.value?.recipeSnapshot?.steps || []);
 const ingredients = computed(() => brew.value?.recipeSnapshot?.ingredients || []);
@@ -523,7 +544,7 @@ const currentStepProgress = computed(() =>
   currentStep.value ? stepProgressById.value.get(currentStep.value.stepId) || null : null,
 );
 const isCurrentStepDayBased = computed(() =>
-  dayStepTypes.includes(currentStep.value?.stepType || ""),
+  dayStepTypes.includes(stepPhase(currentStep.value)),
 );
 const currentStepIngredients = computed(() =>
   currentStep.value ? ingredientsForStep(currentStep.value.stepId) : [],
@@ -586,7 +607,7 @@ const timerRemainingSeconds = computed(() => {
 const showRoundTimer = computed(() => Boolean(currentStep.value && timerTotalSeconds.value > 0));
 
 const showFermentationPanel = computed(() =>
-  graphStepTypes.includes(currentStep.value?.stepType || ""),
+  graphStepTypes.includes(stepPhase(currentStep.value)),
 );
 
 const fermentationRemainingSeconds = computed(() => {
@@ -602,6 +623,7 @@ const measurementSeries = computed(() =>
 
 const latestMeasurements = computed(() => [...measurementSeries.value].reverse().slice(0, 8));
 const panelToggleOptions = computed(() => [
+  ...(isCompleted.value ? [{ label:t('brews.overview.tab'), value:'overview' }] : []),
   { label: t("brews.current.progress_tab"), value: "progress" },
   { label: t("brews.current.recipe_tab"), value: "recipe" },
   { label: t("brews.current.measurements_tab"), value: "measurements" },
@@ -620,15 +642,14 @@ const brewDayElapsedSeconds = computed(() => {
     ? new Date(brew.value.progress.brewStartedAt).getTime()
     : null;
   if (!startedAt || Number.isNaN(startedAt)) return 0;
-  return Math.max(0, Math.floor((nowTs.value - startedAt) / 1000));
+  const finished = brew.value?.progress?.brewCompletedAt || brew.value?.timeline?.completedAt;
+  const end = brew.value?.status === 'completed' && finished ? new Date(finished).getTime() : nowTs.value;
+  return Math.max(0, Math.floor((end - startedAt) / 1000));
 });
 const totalStepElapsedSeconds = computed(() =>
   (brew.value?.progress?.stepProgress || []).reduce((sum, entry) => {
-    const current =
-      Number(entry?.loggedDurationSeconds) ||
-      Number(entry?.elapsedSeconds) ||
-      Number(entry?.accumulatedActiveSeconds) ||
-      0;
+    const current = [entry?.actualDurationSeconds, entry?.loggedDurationSeconds, entry?.elapsedSeconds, entry?.accumulatedActiveSeconds]
+      .map(numberOrNull).find(value=>value !== null) ?? 0;
     return sum + (Number.isFinite(current) ? current : 0);
   }, 0),
 );
@@ -735,7 +756,7 @@ const targetFg = computed(() => {
 });
 
 const fermentationSteps = computed(() =>
-  (steps.value || []).filter((step) => graphStepTypes.includes(step?.stepType || "")),
+  (steps.value || []).filter((step) => graphStepTypes.includes(stepPhase(step))),
 );
 
 const fermentationStartMs = computed(() => {
@@ -1000,7 +1021,7 @@ function stepProgress(stepId) {
 }
 
 function isDayBasedStep(step) {
-  return dayStepTypes.includes(step?.stepType || "");
+  return dayStepTypes.includes(stepPhase(step));
 }
 
 function stepDurationLabel(step) {
@@ -1168,6 +1189,7 @@ function toggleMeasurementSeries(seriesKey) {
 }
 
 function setActivePanel(value) {
+  if (value === 'overview' && isCompleted.value) { activePanel.value='overview'; return; }
   if (value === "recipe") {
     activePanel.value = "recipe";
     return;
@@ -1203,11 +1225,16 @@ async function editBrewAction() {
 }
 
 const isCompleted = computed(() => brew.value?.status === "completed");
+watch(isCompleted, (completed, previous)=>{
+  if(completed && !previous) activePanel.value='overview';
+  else if(!completed && activePanel.value==='overview') activePanel.value='progress';
+});
 
 // Finishing a brew means evaluating it, so the rating modal comes first.
 function finishBrewAction() {
   closeHeaderMenu();
   if (!brew.value?._id) return;
+  if (isCompleted.value) { activePanel.value='overview'; return; }
   evaluationModalOpen.value = true;
 }
 
@@ -1218,6 +1245,7 @@ async function submitEvaluation(payload) {
   error.value = "";
   try {
     brew.value = await finishBrew(brew.value._id, payload || {});
+    activePanel.value = 'overview';
     evaluationModalOpen.value = false;
     measurementMessage.value = t("brews.current.brew_finished");
   } catch (err) {
@@ -1302,6 +1330,7 @@ async function loadBrew() {
   error.value = "";
   try {
     brew.value = await getBrew(route.params.brewId);
+    activePanel.value = brew.value?.status === 'completed' ? 'overview' : 'progress';
   } catch (err) {
     error.value = err?.response?.data?.error || err?.message || t("brews.errors.fetch_failed");
   } finally {
@@ -1371,6 +1400,13 @@ async function startCurrentStep() {
     brew.value = await startBrew(brew.value._id);
   }
   brew.value = await startBrewStep(brew.value._id, currentStep.value.stepId);
+}
+async function seekCurrentTimer(remainingSeconds) {
+  if(!brew.value?._id || !currentStep.value?.stepId || savingTimer.value) return;
+  savingTimer.value=true;timerMessage.value='';
+  try { brew.value=await seekBrewTimer(brew.value._id,currentStep.value.stepId,remainingSeconds);timerMessage.value=t('brews.timer.saved'); }
+  catch(err) { timerMessage.value=err?.response?.data?.error || t('brews.errors.step_failed'); }
+  finally { savingTimer.value=false; }
 }
 
 async function pauseCurrentStep() {

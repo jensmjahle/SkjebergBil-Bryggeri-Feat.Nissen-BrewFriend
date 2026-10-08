@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, useAttrs } from "vue";
+defineOptions({ inheritAttrs: false });
 
 const props = defineProps<{
   modelValue: string | null | undefined;
@@ -21,7 +22,7 @@ const computedId = computed(
 
 const attrs = useAttrs();
 const mergedAttrs = computed(() => {
-  const { id: _ignore, ...rest } = (attrs as Record<string, any>) || {};
+  const { id: _ignore, class: _class, ...rest } = (attrs as Record<string, any>) || {};
   return rest;
 });
 
@@ -32,7 +33,7 @@ function onInput(e: Event) {
 </script>
 
 <template>
-  <div class="w-full">
+  <div class="w-full" :class="$attrs.class">
     <label
       v-if="label"
       :for="computedId"
@@ -56,7 +57,7 @@ function onInput(e: Event) {
       :class="error ? 'border-danger-border' : ''"
     />
 
-    <p v-if="error" class="mt-1 text-xs text-danger">
+    <p v-if="error" class="mt-1 text-xs text-[var(--color-error-text,var(--color-danger))]">
       {{ error }}
     </p>
   </div>

@@ -2,6 +2,7 @@ import { createApp } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import "./assets/tailwind.css";
+import "./assets/brew-phases.css";
 import i18n, { updateI18nLocale } from "./locales/i18n";
 import router from "./router";
 import { setTheme } from "./composables/useTheme";
