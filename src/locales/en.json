@@ -241,6 +241,15 @@
     }
   },
   "brews": {
+    "floating_timer": {
+      "open": "Open timer for {step} · {brew}",
+      "help": "{step} · Drag to move, tap to open the step. Use arrow keys to move or Delete to hide.",
+      "paused": "Paused",
+      "remove": "Release to hide",
+      "hidden": "Timer hidden",
+      "undo": "Undo",
+      "close": "Dismiss message"
+    },
     "common": {
       "no_recipe": "No linked recipe"
     },
@@ -354,6 +363,7 @@
       "all_steps": "All steps",
       "fermentation_title": "Fermentation",
       "fermentation_remaining": "Fermentation remaining",
+      "inline_name_required": "Enter a name or title before saving.",
       "step_details": "Step details",
       "no_measurements": "No measurements yet.",
       "latest_measurements": "Latest measurements",

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <section class="mx-auto w-full px-2 pb-8 pt-3 space-y-2 md:space-y-6">
     <BaseCard v-if="loading">
       <p>{{ t("common.loading") }}</p>
@@ -114,7 +114,7 @@
               <p class="text-xs uppercase tracking-wide opacity-70">
                 {{ t("brews.current.step_label", { current: currentStepIndex + 1, total: steps.length }) }}
               </p>
-              <h3>{{ currentStep.title }}</h3>
+              <h3><BrewInlineText :model-value="displayStep.title" :editing="editingCurrentStep" :disabled="savingInline" :label="t('recipes.fields.name')" @update:model-value="inlineDraft.title = $event" /></h3>
               <p class="text-sm opacity-80">{{ phaseLabel(stepPhase(currentStep), t) }}</p>
             </div>
             <span class="rounded-full bg-bg4 text-text4 px-2 py-1 text-xs">
@@ -123,38 +123,42 @@
           </div>
 
           <div class="grid gap-2 text-sm opacity-90 md:grid-cols-3">
-            <p>{{ t("recipes.detail.time") }}: {{ stepDurationLabel(currentStep) }}</p>
-            <p>{{ t("recipes.detail.temp") }}: {{ currentStep.temperatureC ?? "-" }} °C</p>
+            <p>{{ t("recipes.detail.time") }}: <template v-if="editingCurrentStep"><BrewInlineText v-model="inlineDraft.durationMinutes" editing type="number" :disabled="savingInline" :label="t('recipes.detail.time')" /> min</template><template v-else>{{ stepDurationLabel(currentStep) }}</template></p>
+            <p>{{ t("recipes.detail.temp") }}: <BrewInlineText :model-value="displayStep.temperatureC" :editing="editingCurrentStep" type="number" :disabled="savingInline" :label="t('recipes.detail.temp')" @update:model-value="inlineDraft.temperatureC = $event" /> °C</p>
           </div>
 
           <div class="space-y-3 md:rounded-lg md:border border-border3 md:p-4">
-            <p v-if="currentStep.description" class="whitespace-pre-line text-sm opacity-90">{{ currentStep.description }}</p>
-
-            <div v-if="currentStepDataEntries.length" class="space-y-1 text-sm">
+            <div class="flex items-center justify-between gap-2">
               <p class="text-xs font-semibold uppercase tracking-wide opacity-70">{{ t("brews.current.step_details") }}</p>
+              <BrewInlineActions v-if="editingCurrentStep" :saving="savingInline" @save="saveInlineEdit()" @cancel="cancelInlineEdit" />
+              <button v-else type="button" class="inline-flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded text-current opacity-70 hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-30" :aria-label="t('brews.actions.edit') + ': ' + t('brews.current.step_details')" :title="t('brews.actions.edit')" :disabled="!!inlineDraft" @click="beginInlineEdit('steps', currentStep)"><Pencil class="h-4 w-4" aria-hidden="true" /></button>
+            </div>
+            <p v-if="displayStep.description || editingCurrentStep" class="whitespace-pre-line text-sm opacity-90"><BrewInlineText :model-value="displayStep.description" :editing="editingCurrentStep" multiline :disabled="savingInline" :label="t('recipes.fields.notes')" @update:model-value="inlineDraft.description = $event" /></p>
+            <div v-if="currentStepDataEntries.length" class="space-y-1 text-sm">
               <p v-for="entry in currentStepDataEntries" :key="entry.key" class="opacity-85">
-                {{ entry.label }}: {{ entry.value }}
+                {{ entry.label }}: <BrewInlineText :model-value="displayStep.data[entry.key]" :editing="editingCurrentStep" :type="typeof currentStep.data?.[entry.key] === 'number' ? 'number' : 'text'" :disabled="savingInline" :label="entry.label" @update:model-value="inlineDraft.data[entry.key] = $event" />
               </p>
             </div>
-
+            <p v-if="editingCurrentStep && inlineError" role="alert" class="text-sm text-[var(--color-danger)]">{{ inlineError }}</p>
             <div v-if="currentStepIngredients.length" class="space-y-1 text-sm">
               <p class="text-xs font-semibold uppercase tracking-wide opacity-70">{{ t("recipes.detail.ingredients_in_step") }}</p>
               <div class="flex flex-wrap gap-2">
-                <span
-                  v-for="ingredient in currentStepIngredients"
-                  :key="`active-${ingredient.ingredientId}`"
-                  class="inline-flex items-center gap-1 rounded-full border border-border3 px-2 py-1 text-xs"
-                >
+                <span v-for="ingredient in currentStepIngredients" :key="`active-${ingredient.ingredientId}`" class="inline-flex max-w-full flex-wrap items-center gap-1.5 border border-border3 px-2.5 py-1.5 text-xs" :class="editingIngredient(ingredient) ? 'w-full rounded-lg sm:w-auto' : 'rounded-full'">
                   <img :src="ingredientCategoryIcon(ingredient.category)" :alt="ingredientCategoryText(ingredient.category)" class="h-4 w-4 rounded-sm bg-white p-0.5 object-contain" />
-                  {{ ingredient.name }}{{ ingredient.amount ? ` (${ingredient.amount}${ingredient.unit ? ` ${ingredient.unit}` : ""})` : "" }}
+                  <BrewInlineText :model-value="ingredientDraft(ingredient).name" :editing="editingIngredient(ingredient)" :disabled="savingInline" :label="t('recipes.fields.name')" @update:model-value="inlineDraft.name = $event" />
+                  <span v-if="ingredient.amount || editingIngredient(ingredient)" class="inline-flex items-baseline gap-1 text-current opacity-80"><BrewInlineText :model-value="ingredientDraft(ingredient).amount" :editing="editingIngredient(ingredient)" :disabled="savingInline" :label="t('recipes.fields.amount')" @update:model-value="inlineDraft.amount = $event" />
+                  <BrewInlineText :model-value="ingredientDraft(ingredient).unit" :editing="editingIngredient(ingredient)" :disabled="savingInline" :label="t('recipes.fields.unit')" @update:model-value="inlineDraft.unit = $event" /></span>
+                  <BrewInlineActions v-if="editingIngredient(ingredient)" :saving="savingInline" @save="saveInlineEdit()" @cancel="cancelInlineEdit" />
+                  <button v-else type="button" class="inline-flex p-1 opacity-70 hover:opacity-100" :disabled="!!inlineDraft" :aria-label="t('brews.actions.edit') + ': ' + ingredient.name" @click="beginInlineEdit('ingredients', ingredient)"><Pencil class="h-3 w-3" aria-hidden="true" /></button>
                 </span>
               </div>
               <template v-for="ingredient in currentStepIngredients" :key="`active-note-${ingredient.ingredientId}`">
-                <p v-if="ingredient.notes" class="text-xs opacity-75">
-                  {{ ingredient.name }}: {{ ingredient.notes }}
+                <p v-if="ingredient.notes || editingIngredient(ingredient)" class="text-xs opacity-75">
+                  {{ ingredient.name }}: <BrewInlineText :model-value="ingredientDraft(ingredient).notes" :editing="editingIngredient(ingredient)" :disabled="savingInline" multiline :label="t('recipes.fields.notes')" @update:model-value="inlineDraft.notes = $event" />
                 </p>
               </template>
             </div>
+            <p v-if="inlineKind === 'ingredients' && inlineError" role="alert" class="text-sm text-[var(--color-danger)]">{{ inlineError }}</p>
           </div>
 
           <div class="space-y-2 rounded-lg md:border border-border3 md:p-4">
@@ -186,6 +190,7 @@
             <PhaseTimeline :brew="brew" :selected-step-id="currentStep.stepId" details @updated="brew=$event" />
             <CircularCountdown
               v-if="showRoundTimer"
+              data-main-brew-timer
               class="mx-auto"
               :remaining-seconds="timerRemainingSeconds"
               :total-seconds="timerTotalSeconds"
@@ -263,15 +268,18 @@
         </BaseCard>
 
         <BaseCard>
-          <h3>{{ t("recipes.detail.ingredients") }}</h3>
+          <div class="flex items-center justify-between gap-2">
+            <h3>{{ t("recipes.detail.ingredients") }}</h3>
+            <BaseButton variant="button3" :disabled="!!inlineDraft" @click="addInlineIngredient">{{ t('recipes.actions.add_ingredient') }}</BaseButton>
+          </div>
+          <p v-if="inlineKind === 'ingredients' && inlineError" role="alert" class="text-sm text-[var(--color-danger)]">{{ inlineError }}</p>
           <div class="mt-3 space-y-2">
-            <div v-if="!ingredients.length" class="text-sm opacity-70">{{ t("recipes.detail.no_ingredients") }}</div>
-            <RecipeIngredientItem
-              v-for="ingredient in ingredients"
-              :key="ingredient.ingredientId"
-              :ingredient="ingredient"
-              :steps="steps"
-            />
+            <div v-if="!visibleIngredients.length" class="text-sm opacity-70">{{ t("recipes.detail.no_ingredients") }}</div>
+            <div v-for="ingredient in visibleIngredients" :key="ingredient.ingredientId" class="flex items-start gap-2">
+              <RecipeIngredientItem class="min-w-0 flex-1" :ingredient="ingredient" :steps="steps" :draft="editingIngredient(ingredient) ? inlineDraft : null" :saving="savingInline" />
+              <BrewInlineActions v-if="editingIngredient(ingredient)" :saving="savingInline" @save="saveInlineEdit()" @cancel="cancelInlineEdit" />
+              <button v-else type="button" class="inline-flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded text-current opacity-70 hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-30" :disabled="!!inlineDraft" :aria-label="t('brews.actions.edit') + ': ' + ingredient.name" :title="t('brews.actions.edit')" @click="beginInlineEdit('ingredients', ingredient)"><Pencil class="h-4 w-4" aria-hidden="true" /></button>
+            </div>
           </div>
         </BaseCard>
 
@@ -440,7 +448,8 @@ import PhaseTimeline from "@/components/brews/PhaseTimeline.vue";
 import BrewOverview from "@/components/brews/BrewOverview.vue";
 import { numberOrNull } from '@/utils/brewSummary.js';
 import { brewPhase, phaseLabel, brewTitle, stepPhase } from "@/utils/brewPhase.js";
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useFloatingBrewTimersStore } from '@/store/useFloatingBrewTimersStore.js';
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { EllipsisVertical, Pencil, Trash2 } from "lucide-vue-next";
@@ -453,6 +462,9 @@ import GravityProgressChart from "@/components/brews/GravityProgressChart.vue";
 import RecipeDefaultsSummary from "@/components/recipes/RecipeDefaultsSummary.vue";
 import RecipeCostSummary from "@/components/recipes/RecipeCostSummary.vue";
 import RecipeIngredientItem from "@/components/recipes/RecipeIngredientItem.vue";
+import BrewInlineActions from "@/components/brews/BrewInlineActions.vue";
+import BrewInlineText from "@/components/brews/BrewInlineText.vue";
+
 import RecipeStepItem from "@/components/recipes/RecipeStepItem.vue";
 import BrewMeasurementModal from "@/components/modals/BrewMeasurementModal.vue";
 import BrewEvaluationModal from "@/components/modals/BrewEvaluationModal.vue";
@@ -491,6 +503,49 @@ const { t, locale } = useI18n();
 const loading = ref(true);
 const error = ref("");
 const brew = ref(null);
+const floatingTimers = useFloatingBrewTimersStore();
+const inlineDraft = ref(null);
+const inlineKind = ref('');
+const inlineError = ref('');
+const savingInline = ref(false);
+function beginInlineEdit(kind, item) {
+  inlineDraft.value = JSON.parse(JSON.stringify(item));
+  inlineKind.value = kind;
+  inlineError.value = '';
+}
+function cancelInlineEdit() {
+  if (savingInline.value) return;
+  inlineDraft.value = null;
+  inlineKind.value = '';
+  inlineError.value = '';
+}
+function addInlineIngredient() {
+  beginInlineEdit('ingredients', { ingredientId: `ingredient-${crypto.randomUUID()}`, name: '', category: 'other', amount: '', unit: '', notes: '', stepIds: currentStep.value ? [currentStep.value.stepId] : [] });
+}
+async function saveInlineEdit(remove = false) {
+  if (!inlineDraft.value || savingInline.value) return;
+  const kind = inlineKind.value;
+  const draft = inlineDraft.value;
+  const idKey = kind === 'steps' ? 'stepId' : 'ingredientId';
+  if (!remove && !(kind === 'steps' ? draft.title : draft.name)?.trim()) {
+    inlineError.value = t('brews.current.inline_name_required');
+    return;
+  }
+  const items = [...(brew.value.recipeSnapshot[kind] || [])];
+  const index = items.findIndex(item => item[idKey] === draft[idKey]);
+  if (remove) { if (index >= 0) items.splice(index, 1); }
+  else if (index >= 0) items[index] = draft;
+  else items.push(draft);
+  savingInline.value = true;
+  inlineError.value = '';
+  try {
+    brew.value = await updateBrew(brew.value._id, { recipeSnapshot: { [kind]: items } });
+    savingInline.value = false;
+    cancelInlineEdit();
+  } catch (err) {
+    inlineError.value = err?.response?.data?.error || err?.message || t('brews.errors.save_failed');
+  } finally { savingInline.value = false; }
+}
 const activePanel = ref("progress");
 const savingTimer=ref(false), timerMessage=ref('');
 const nowTs = ref(Date.now());
@@ -540,6 +595,14 @@ const stepProgressById = computed(() => {
 });
 
 const currentStep = computed(() => steps.value[currentStepIndex.value] || null);
+const editingCurrentStep = computed(() => inlineKind.value === 'steps' && inlineDraft.value?.stepId === currentStep.value?.stepId);
+const displayStep = computed(() => editingCurrentStep.value ? inlineDraft.value : currentStep.value);
+function editingIngredient(ingredient) { return inlineKind.value === 'ingredients' && inlineDraft.value?.ingredientId === ingredient.ingredientId; }
+function ingredientDraft(ingredient) { return editingIngredient(ingredient) ? inlineDraft.value : ingredient; }
+const visibleIngredients = computed(() => {
+  const items = ingredients.value;
+  return inlineKind.value === 'ingredients' && !items.some(item => item.ingredientId === inlineDraft.value?.ingredientId) ? [...items, inlineDraft.value] : items;
+});
 const currentStepProgress = computed(() =>
   currentStep.value ? stepProgressById.value.get(currentStep.value.stepId) || null : null,
 );
@@ -605,6 +668,46 @@ const timerRemainingSeconds = computed(() => {
 });
 
 const showRoundTimer = computed(() => Boolean(currentStep.value && timerTotalSeconds.value > 0));
+
+watch(brew, value => floatingTimers.updateBrew(value));
+watch(
+  () => [route.params.brewId, brew.value?._id, currentStep.value?.stepId, activePanel.value, showRoundTimer.value, loading.value, error.value],
+  () => {
+    if (loading.value && route.params.brewId) {
+      floatingTimers.mainTimer = { brewId: String(route.params.brewId), stepId: null };
+    } else {
+      floatingTimers.mainTimer = !error.value && activePanel.value === 'progress' && showRoundTimer.value
+        ? { brewId: String(brew.value._id), stepId: currentStep.value.stepId }
+        : null;
+    }
+  },
+  { immediate: true },
+);
+watch(
+  () => [brew.value?._id, loading.value, floatingTimers.focusRequest],
+  async () => {
+    const request = floatingTimers.focusRequest;
+    if (!request || loading.value || String(brew.value?._id) !== request.brewId) return;
+    floatingTimers.focusRequest = null;
+    const index = steps.value.findIndex(step => step.stepId === request.stepId);
+    if (index < 0) return;
+    try {
+      if (index !== currentStepIndex.value) {
+        const updated = await setCurrentBrewStep(request.brewId, index);
+        if (String(route.params.brewId) !== request.brewId) return;
+        brew.value = updated;
+      }
+      if (String(route.params.brewId) !== request.brewId) return;
+      setActivePanel('progress');
+      await nextTick();
+      const clock = document.querySelector('[data-main-brew-timer]');
+      clock?.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+      clock?.querySelector('[tabindex]')?.focus({ preventScroll: true });
+    } catch (err) {
+      measurementMessage.value = err?.response?.data?.error || t('brews.errors.step_failed');
+    }
+  },
+);
 
 const showFermentationPanel = computed(() =>
   graphStepTypes.includes(stepPhase(currentStep.value)),
@@ -1264,6 +1367,7 @@ async function deleteBrewAction() {
 
   try {
     await deleteBrew(brew.value._id);
+    floatingTimers.removeBrew(String(brew.value._id));
     await router.push("/brygg/tidligere");
   } catch (err) {
     error.value = err?.response?.data?.error || err?.message || t("brews.errors.save_failed");
@@ -1357,6 +1461,7 @@ function handleLiveBrewDeleted(payload) {
   const liveBrewId = String(payload?.brewId || "");
   const currentId = String(route.params.brewId || "");
   if (liveBrewId && currentId && liveBrewId !== currentId) return;
+  floatingTimers.removeBrew(currentId);
   error.value = t("brews.errors.deleted");
   brew.value = null;
 }
@@ -1558,6 +1663,7 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  floatingTimers.mainTimer = null;
   document.removeEventListener("click", handleDocumentClick);
   offBrewLive("brewUpdate", handleLiveBrewUpdate);
   offBrewLive("brewDeleted", handleLiveBrewDeleted);

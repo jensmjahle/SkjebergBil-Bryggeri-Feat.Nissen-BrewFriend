@@ -241,6 +241,15 @@
     }
   },
   "brews": {
+    "floating_timer": {
+      "open": "Åpne timer for {step} · {brew}",
+      "help": "{step} · Dra for å flytte, trykk for å åpne steget. Bruk piltaster for å flytte eller Delete for å skjule.",
+      "paused": "Pauset",
+      "remove": "Slipp for å skjule",
+      "hidden": "Timer skjult",
+      "undo": "Angre",
+      "close": "Lukk meldingen"
+    },
     "common": {
       "no_recipe": "Ingen oppskrift koblet"
     },
@@ -354,6 +363,7 @@
       "all_steps": "Alle steg",
       "fermentation_title": "Gjæring",
       "fermentation_remaining": "Tid igjen på gjæring",
+      "inline_name_required": "Fyll inn navn eller tittel før du lagrer.",
       "step_details": "Stegdetaljer",
       "no_measurements": "Ingen målinger registrert enda.",
       "latest_measurements": "Siste målinger",
