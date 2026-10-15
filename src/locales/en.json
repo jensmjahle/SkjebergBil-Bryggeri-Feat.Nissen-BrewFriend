@@ -251,6 +251,9 @@
       "close": "Dismiss message"
     },
     "common": {
+      "linked_recipe": "Linked recipe",
+      "open_recipe": "Open recipe",
+
       "no_recipe": "No linked recipe"
     },
     "status": {
@@ -293,6 +296,7 @@
       "brewers_help": "Separate names with commas, for example Tobben, Nissen."
     },
     "actions": {
+      "delete_plan": "Delete planned brew",
       "new_brew": "Start new brew",
       "continue": "Continue brew",
       "create_plan": "Create planned brew",
@@ -335,6 +339,15 @@
       "brew_day_filter": "Brew day"
     },
     "plan": {
+      "recipe_save_mode": "Save recipe",
+      "update_recipe": "Update recipe",
+      "new_recipe_version": "New version",
+      "new_recipe": "Create recipe",
+      "update_recipe_help": "Saves changes to the linked recipe version.",
+      "new_recipe_version_help": "Creates and links a new version. The previous version is kept.",
+      "new_recipe_help": "Creates a recipe from this brew and links it here.",
+
+      "confirm_delete": "Delete the planned brew “{name}”? The recipe will be kept.",
       "title": "Plan Brew",
       "subtitle": "Adjust the recipe before brew day and save as a planned brew.",
       "create_from_recipe": "Create from recipe",
@@ -414,6 +427,7 @@
       "ibu": "IBU"
     },
     "errors": {
+      "delete_failed": "Could not delete the planned brew.",
       "fetch_failed": "Could not fetch brews",
       "create_failed": "Could not create planned brew",
       "save_failed": "Could not save brew",

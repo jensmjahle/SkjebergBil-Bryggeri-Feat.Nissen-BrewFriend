@@ -27,7 +27,7 @@
     <template v-else>
       <div class="space-y-4">
         <div class="flex items-center justify-between gap-3"><h2>{{ featuredBrew ? t("home.main_action_title") : t("home.start_brew_cta") }}</h2><router-link to="/brygg/nytt"><BaseButton>{{ t("brews.actions.new_brew") }}</BaseButton></router-link></div>
-        <BrewRow v-if="featuredBrew" :brew="featuredBrew" class="featured-brew" />
+        <BrewRow v-if="featuredBrew" :brew="featuredBrew" class="featured-brew" @deleted="brews = brews.filter(item => item._id !== $event)" />
         <router-link v-else to="/brygg/nytt"><BaseButton class="w-full py-5">{{ t("home.start_brew_cta") }}</BaseButton></router-link>
         <template v-if="otherActiveBrews.length">
           <h3 class="pt-2">{{ t("brews.phase.active_brews") }}</h3>

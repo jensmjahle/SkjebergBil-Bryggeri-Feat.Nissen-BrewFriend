@@ -251,6 +251,9 @@
       "close": "Lukk meldingen"
     },
     "common": {
+      "linked_recipe": "Knyttet oppskrift",
+      "open_recipe": "Åpne oppskrift",
+
       "no_recipe": "Ingen oppskrift koblet"
     },
     "status": {
@@ -293,6 +296,7 @@
       "brewers_help": "Skriv navnene med komma mellom, for eksempel Tobben, Nissen."
     },
     "actions": {
+      "delete_plan": "Slett planlagt brygg",
       "new_brew": "Start nytt brygg",
       "continue": "Fortsett brygg",
       "create_plan": "Opprett planlagt brygg",
@@ -335,6 +339,15 @@
       "brew_day_filter": "Bryggdag"
     },
     "plan": {
+      "recipe_save_mode": "Lagre oppskrift",
+      "update_recipe": "Oppdater oppskrift",
+      "new_recipe_version": "Lag ny versjon",
+      "new_recipe": "Lag oppskrift",
+      "update_recipe_help": "Lagrer endringene i den tilknyttede oppskriftsversjonen.",
+      "new_recipe_version_help": "Oppretter og kobler til en ny versjon. Den gamle versjonen beholdes.",
+      "new_recipe_help": "Oppretter en oppskrift fra brygget og kobler den til her.",
+
+      "confirm_delete": "Vil du slette det planlagte brygget «{name}»? Oppskriften beholdes.",
       "title": "Planlegg Brygg",
       "subtitle": "Juster oppskriften før bryggedag og lagre som planlagt brygg.",
       "create_from_recipe": "Opprett fra oppskrift",
@@ -414,6 +427,7 @@
       "ibu": "IBU"
     },
     "errors": {
+      "delete_failed": "Kunne ikke slette det planlagte brygget.",
       "fetch_failed": "Kunne ikke hente brygg",
       "create_failed": "Kunne ikke opprette planlagt brygg",
       "save_failed": "Kunne ikke lagre brygg",

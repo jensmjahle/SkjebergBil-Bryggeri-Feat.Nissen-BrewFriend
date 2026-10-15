@@ -13,6 +13,7 @@
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0 flex-1">
             <h1 class="break-words text-xl sm:text-3xl">{{ brewTitle(brew) }}</h1>
+            <BrewRecipeLink class="mt-2" :brew="brew" />
             <p v-if="brew.brewers?.length" class="mt-1 text-sm opacity-85 break-words">{{ t('brews.fields.brewers') }}: {{ brew.brewers.join(', ') }}</p>
             <div class="mt-1 space-y-1 lg:flex lg:flex-wrap lg:items-center lg:gap-x-2 lg:gap-y-1 lg:space-y-0">
               <p class="text-sm opacity-80">{{ statusLabel(brew.status) }}</p>
@@ -446,6 +447,7 @@
 <script setup>
 import PhaseTimeline from "@/components/brews/PhaseTimeline.vue";
 import BrewOverview from "@/components/brews/BrewOverview.vue";
+import BrewRecipeLink from '@/components/brews/BrewRecipeLink.vue';
 import { numberOrNull } from '@/utils/brewSummary.js';
 import { brewPhase, phaseLabel, brewTitle, stepPhase } from "@/utils/brewPhase.js";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";

@@ -39,8 +39,8 @@
       </svg>
 
       <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <p class="font-mono text-3xl font-bold" :style="{ color: strokeColor }">{{ formattedRemaining }}</p>
-        <p class="text-xs uppercase tracking-wide opacity-70">{{ label }}</p>
+        <p class="font-mono font-bold" :class="compact ? '' : 'text-3xl'" :style="timeStyle">{{ formattedRemaining }}</p>
+        <p v-if="label && !compact" class="text-xs uppercase tracking-wide opacity-70">{{ label }}</p>
       </div>
     </div>
   </div>
@@ -51,6 +51,7 @@ import { computed } from "vue";
 import { useTimerScrub } from '@/composables/useTimerScrub.js';
 
 const props = defineProps({
+  compact: { type: Boolean, default: false },
   editable: { type:Boolean, default:false },
   seekLabel: { type:String, default:'' },
   remainingSeconds: {
@@ -127,4 +128,11 @@ const formattedRemaining = computed(() => {
   }
   return `${sign}${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 });
+
+const timeStyle = computed(() => ({
+  color: strokeColor.value,
+  ...(props.compact ? {
+    fontSize: `${Math.min(props.showDays ? 13 : 16, props.size * .72 / (formattedRemaining.value.length * .62))}px`,
+  } : {}),
+}));
 </script>

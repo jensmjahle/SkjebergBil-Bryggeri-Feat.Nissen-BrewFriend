@@ -20,13 +20,13 @@ export async function listBrews(filters = {}) {
   return data;
 }
 
-export async function getCurrentBrew() {
-  const { data } = await api.get(`${BASE}/current`);
+export async function getCurrentBrew({ silent = false } = {}) {
+  const { data } = await api.get(`${BASE}/current`, { silentErrors: silent });
   return data;
 }
 
-export async function getBrew(brewId) {
-  const { data } = await api.get(`${BASE}/${encodeURIComponent(brewId)}`);
+export async function getBrew(brewId, { silent = false } = {}) {
+  const { data } = await api.get(`${BASE}/${encodeURIComponent(brewId)}`, { silentErrors: silent });
   return data;
 }
 

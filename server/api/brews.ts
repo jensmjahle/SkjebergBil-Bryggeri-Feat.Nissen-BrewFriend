@@ -6,7 +6,7 @@ import { Recipe } from "../mongo/models/Recipe.js";
 import { Brewer } from "../mongo/models/Brewer.js";
 import { broadcastBrewDeleted, broadcastBrewUpdate } from "../live/brewLive.js";
 
-import { nextBatchNumber } from "../mongo/batchNumbers.js";
+import { nextBatchNumber, ensureBatchNumber } from "../mongo/batchNumbers.js";
 import { brewPriority, PHASES, stepPhase } from "../domain/brewPhase.js";
 import { brewRatings, prepareRatings, syncEvaluation } from "../domain/brewRatings.js";
 import { seekTimer, MAX_TIMER_SECONDS } from "../domain/brewTimer.js";
@@ -536,7 +536,6 @@ brewsRouter.post("/from-recipe/:recipeId", async (req: any, res) => {
 
     const brew = await Brew.create({
       brewerId,
-      batchNumber: await nextBatchNumber(brewerId),
       brewers,
       recipeId: recipe._id,
       name: toStringOrUndefined(req.body?.name) || snapshot.name || "Nytt Brygg",
@@ -592,7 +591,7 @@ brewsRouter.post("/", async (req: any, res) => {
 
     const brew = await Brew.create({
       brewerId,
-      batchNumber: await nextBatchNumber(brewerId),
+      batchNumber: status === "planned" ? undefined : await nextBatchNumber(brewerId),
       brewers,
       recipeId: payload.recipeId || snapshot.recipeId || undefined,
       name: toStringOrUndefined(payload.name) || snapshot.name || "Nytt Brygg",
@@ -846,6 +845,7 @@ brewsRouter.patch("/:id", async (req: any, res) => {
       }
     }
 
+    await ensureBatchNumber(brew);
     await brew.save();
     notifyBrewUpdated(brew);
     return res.json(attachComputedFields(brew));
@@ -898,6 +898,7 @@ brewsRouter.post("/:id/start", async (req: any, res) => {
     brew.progress.stepProgress = buildStepProgress(steps, brew.progress.stepProgress || []);
     brew.progress.currentStepIndex = clampIndex(brew.progress.currentStepIndex || 0, steps.length);
 
+    await ensureBatchNumber(brew);
     await brew.save();
     notifyBrewUpdated(brew);
     return res.json(attachComputedFields(brew));
@@ -1008,6 +1009,7 @@ brewsRouter.post("/:id/steps/:stepId/start", async (req: any, res) => {
     brew.progress.phaseStepId = step.stepId;
     brew.progress.currentStepIndex = stepIndex;
 
+    await ensureBatchNumber(brew);
     await brew.save();
     notifyBrewUpdated(brew);
     return res.json(attachComputedFields(brew));
@@ -1146,6 +1148,7 @@ brewsRouter.post("/:id/steps/:stepId/complete", async (req: any, res) => {
 
     brew.progress.stepProgress = progressEntries;
 
+    await ensureBatchNumber(brew);
     await brew.save();
     notifyBrewUpdated(brew);
     return res.json(attachComputedFields(brew));
@@ -1319,6 +1322,7 @@ brewsRouter.post("/:id/finish", async (req: any, res) => {
     if (Object.prototype.hasOwnProperty.call(req.body || {}, 'note')) brew.finalNotes = String(req.body.note || '').trim();
     syncEvaluation(brew);
 
+    await ensureBatchNumber(brew);
     await brew.save();
     notifyBrewUpdated(brew);
 

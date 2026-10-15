@@ -5,9 +5,12 @@
         <h1>{{ t("brews.plan.title") }}</h1>
         <p class="mt-2 opacity-80">{{ t("brews.plan.subtitle") }}</p>
       </div>
-      <router-link to="/brygg/tidligere">
-        <BaseButton variant="button3">{{ t("brews.actions.back_to_list") }}</BaseButton>
-      </router-link>
+      <div class="flex flex-wrap items-center gap-2">
+        <DeletePlannedBrewButton v-if="brew" :brew="brew" show-text :disabled="saving || recipeSyncing" @deleted="router.push('/brygg/tidligere')" />
+        <router-link to="/brygg/tidligere">
+          <BaseButton variant="button3">{{ t("brews.actions.back_to_list") }}</BaseButton>
+        </router-link>
+      </div>
     </div>
 
     <BaseCard v-if="loading">
@@ -70,31 +73,27 @@
       <BaseInput v-model="form.brewersInput" :label="t('brews.fields.brewers')" :help="t('brews.fields.brewers_help')" maxlength="3600" />
 
       <div class="rounded-lg border border-border3 p-4">
-        <p class="text-sm font-medium">{{ t("recipes.detail.version") }}</p>
-        <p class="mt-1 text-sm opacity-80">{{ linkedRecipeVersionText }}</p>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <BaseButton
-            type="button"
-            variant="button3"
-            :disabled="recipeSyncing || !form.name?.trim() || !isGravityValid || !hasLinkedRecipe"
-            @click="updateLinkedRecipeVersion"
-          >
-            {{ recipeSyncing && recipeSyncAction === "update" ? t("common.saving") : t("brews.actions.update_recipe_version") }}
-          </BaseButton>
+        <BrewRecipeLink :brew="{ recipeId: form.snapshot.recipeId, recipeSnapshot: form.snapshot }" />
+        <div class="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+          <div class="min-w-0 space-y-2">
+            <BaseSegmentedToggle v-model="recipeSaveMode" :options="recipeSaveOptions" :label="t('brews.plan.recipe_save_mode')" :disabled="recipeSyncing || saving" />
+            <p class="text-xs leading-relaxed opacity-70">{{ recipeSaveDescription }}</p>
+          </div>
           <BaseButton
             type="button"
             variant="button2"
-            :disabled="recipeSyncing || !form.name?.trim() || !isGravityValid"
-            @click="saveAsNewRecipeVersion"
+            class="min-h-12"
+            :disabled="recipeSyncing || saving || !form.name?.trim() || !isGravityValid || (recipeSaveMode === 'update' && !hasLinkedRecipe)"
+            @click="saveRecipeSelection"
           >
-            {{ recipeSyncing && recipeSyncAction === "new-version" ? t("common.saving") : t("brews.actions.create_recipe_version") }}
+            {{ recipeSyncing ? t('common.saving') : t('common.save') }}
           </BaseButton>
         </div>
         <p v-if="recipeSyncMessage" class="mt-2 text-sm opacity-80">{{ recipeSyncMessage }}</p>
       </div>
 
-      <div class="flex">
-        <BaseToggle v-model="activeTab" :options="planTabOptions" />
+      <div class="w-full">
+        <BaseToggle v-model="activeTab" :options="planTabOptions" full-width />
       </div>
 
       <div v-if="activeTab === 'steps'" class="space-y-3">
@@ -244,7 +243,7 @@
       <div class="flex flex-wrap items-center gap-3">
         <BaseButton
           type="button"
-          :disabled="saving || !form.name?.trim() || !isGravityValid"
+          :disabled="saving || recipeSyncing || !form.name?.trim() || !isGravityValid"
           @click="savePlan"
         >
           {{ saving ? t("common.saving") : t("brews.actions.save_plan") }}
@@ -252,7 +251,7 @@
         <BaseButton
           type="button"
           variant="button2"
-          :disabled="saving || !form.name?.trim() || !isGravityValid"
+          :disabled="saving || recipeSyncing || !form.name?.trim() || !isGravityValid"
           @click="startBrewDay"
         >
           {{ t("brews.actions.start_brew_day") }}
@@ -269,11 +268,14 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import BaseCard from "@/components/base/BaseCard.vue";
+import DeletePlannedBrewButton from '@/components/brews/DeletePlannedBrewButton.vue';
+import BrewRecipeLink from '@/components/brews/BrewRecipeLink.vue';
 import BaseButton from "@/components/base/BaseButton.vue";
 import BaseInput from "@/components/base/BaseInput.vue";
 import BaseDropdown from "@/components/base/BaseDropdown.vue";
 import BaseToggle from "@/components/base/BaseToggle.vue";
-import { Plus } from "lucide-vue-next";
+import BaseSegmentedToggle from '@/components/base/BaseSegmentedToggle.vue';
+import { Plus, CopyPlus, FilePenLine } from "lucide-vue-next";
 import RecipeStepEditorItem from "@/components/recipes/RecipeStepEditorItem.vue";
 import RecipeIngredientEditorItem from "@/components/recipes/RecipeIngredientEditorItem.vue";
 import { STEP_TYPE_OPTIONS, createDefaultStep } from "@/components/recipe-steps/index.js";
@@ -301,7 +303,7 @@ const loading = ref(true);
 const creating = ref(false);
 const saving = ref(false);
 const recipeSyncing = ref(false);
-const recipeSyncAction = ref("");
+const recipeSaveMode = ref('new-version');
 const recipeSyncMessage = ref("");
 const suppressBatchAutoScale = ref(false);
 const scaleBaseline = { liters: null, amounts: new Map() };
@@ -374,11 +376,19 @@ const recipeOptions = computed(() =>
 );
 
 const hasLinkedRecipe = computed(() => Boolean(form.snapshot.recipeId));
-const linkedRecipeVersionText = computed(() => {
-  if (!hasLinkedRecipe.value) return t("brews.plan.no_linked_recipe");
-  const version = form.snapshot.recipeVersion || 1;
-  return t("brews.plan.linked_recipe_version", { version });
-});
+const recipeSaveOptions = computed(() => [
+  { value: 'update', label: t('brews.plan.update_recipe'), icon: FilePenLine, disabled: !hasLinkedRecipe.value },
+  { value: 'new-version', label: t(hasLinkedRecipe.value ? 'brews.plan.new_recipe_version' : 'brews.plan.new_recipe'), icon: CopyPlus },
+]);
+const recipeSaveDescription = computed(() => t(!hasLinkedRecipe.value
+  ? 'brews.plan.new_recipe_help'
+  : recipeSaveMode.value === 'update' ? 'brews.plan.update_recipe_help' : 'brews.plan.new_recipe_version_help'));
+watch(hasLinkedRecipe, linked => { recipeSaveMode.value = linked ? 'update' : 'new-version'; });
+
+function saveRecipeSelection() {
+  if (recipeSyncing.value || saving.value) return;
+  return recipeSaveMode.value === 'update' ? updateLinkedRecipeVersion() : saveAsNewRecipeVersion();
+}
 
 const isGravityValid = computed(() => {
   const fields = [
@@ -754,7 +764,6 @@ async function updateLinkedRecipeVersion() {
   }
 
   recipeSyncing.value = true;
-  recipeSyncAction.value = "update";
   recipeSyncMessage.value = "";
   errorMessage.value = "";
 
@@ -770,7 +779,6 @@ async function updateLinkedRecipeVersion() {
       err?.response?.data?.error || err?.message || t("recipes.errors.update_failed");
   } finally {
     recipeSyncing.value = false;
-    recipeSyncAction.value = "";
   }
 }
 
@@ -782,17 +790,17 @@ async function saveAsNewRecipeVersion() {
   }
 
   recipeSyncing.value = true;
-  recipeSyncAction.value = "new-version";
   recipeSyncMessage.value = "";
   errorMessage.value = "";
 
   try {
     const payload = recipePayloadFromSnapshot();
-    const nextRecipe = hasLinkedRecipe.value
+    const wasLinked = hasLinkedRecipe.value;
+    const nextRecipe = wasLinked
       ? await createRecipeVersion(form.snapshot.recipeId, payload)
       : await createRecipe(payload);
     await syncBrewWithLinkedRecipe(nextRecipe);
-    recipeSyncMessage.value = hasLinkedRecipe.value
+    recipeSyncMessage.value = wasLinked
       ? t("brews.plan.recipe_version_created")
       : t("brews.plan.recipe_created_and_linked");
   } catch (err) {
@@ -800,7 +808,6 @@ async function saveAsNewRecipeVersion() {
       err?.response?.data?.error || err?.message || t("recipes.errors.save_failed");
   } finally {
     recipeSyncing.value = false;
-    recipeSyncAction.value = "";
   }
 }
 
