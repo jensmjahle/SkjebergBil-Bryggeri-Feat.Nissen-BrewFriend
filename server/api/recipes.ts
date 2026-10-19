@@ -1,4 +1,5 @@
 import { PHASES } from "../domain/brewPhase.js";
+import { invalidBoilSchedule } from '../domain/boilSchedule.js';
 import { parseRecipeFile } from "../domain/recipeImport.js";
 ﻿import { Router } from "express";
 import jwt from "jsonwebtoken";
@@ -9,6 +10,10 @@ import { Brew } from "../mongo/models/Brew.js";
 import { Brewer } from "../mongo/models/Brewer.js";
 
 export const recipesRouter = Router();
+recipesRouter.use((req, res, next) => {
+  if (Array.isArray(req.body?.steps) && req.body.steps.some(invalidBoilSchedule)) return res.status(400).json({ error: 'Invalid boil schedule: check addition names, IDs and minutes remaining' });
+  next();
+});
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const GRAVITY_PATTERN = /^1\.\d{3}$/;
@@ -228,13 +233,11 @@ function normalizeRecipePayload(payload: any = {}) {
 
   return {
     name: String(payload.name || "").trim(),
-    beerType: payload.beerType ? String(payload.beerType).trim() : undefined,
+    beerType: payload.beerType == null ? undefined : String(payload.beerType).trim(),
     iconPath: normalizeIconPath(payload.iconPath),
-    flavorProfile: payload.flavorProfile
-      ? String(payload.flavorProfile).trim()
-      : undefined,
-    color: payload.color ? String(payload.color).trim() : undefined,
-    imageUrl: payload.imageUrl ? String(payload.imageUrl).trim() : undefined,
+    flavorProfile: payload.flavorProfile == null ? undefined : String(payload.flavorProfile).trim(),
+    color: payload.color == null ? undefined : String(payload.color).trim(),
+    imageUrl: payload.imageUrl == null ? undefined : String(payload.imageUrl).trim(),
     sourceUrl: payload.sourceUrl === '' || payload.sourceUrl === null ? '' : typeof payload.sourceUrl === 'string' && /^https?:\/\//i.test(payload.sourceUrl.trim()) ? payload.sourceUrl.trim() : undefined,
     defaults: {
       ogFrom: toGravityOrUndefined(payload?.defaults?.ogFrom),
@@ -258,6 +261,9 @@ function mergeRecipeSource(sourceRaw: any, incomingRaw: any) {
     source.defaults && typeof source.defaults === "object" ? source.defaults : {};
   const incomingDefaults =
     incoming.defaults && typeof incoming.defaults === "object" ? incoming.defaults : {};
+  const defaultValue = (key: string) => Object.prototype.hasOwnProperty.call(incomingDefaults, key)
+    ? incomingDefaults[key]
+    : sourceDefaults[key];
 
   return {
     name: incoming.name ?? source.name,
@@ -268,13 +274,13 @@ function mergeRecipeSource(sourceRaw: any, incomingRaw: any) {
     imageUrl: incoming.imageUrl ?? source.imageUrl,
     sourceUrl: incoming.sourceUrl ?? source.sourceUrl,
     defaults: {
-      ogFrom: incomingDefaults.ogFrom ?? sourceDefaults.ogFrom,
-      ogTo: incomingDefaults.ogTo ?? sourceDefaults.ogTo,
-      fgFrom: incomingDefaults.fgFrom ?? sourceDefaults.fgFrom,
-      fgTo: incomingDefaults.fgTo ?? sourceDefaults.fgTo,
-      co2Volumes: incomingDefaults.co2Volumes ?? sourceDefaults.co2Volumes,
-      ibu: incomingDefaults.ibu ?? sourceDefaults.ibu,
-      batchSizeLiters: incomingDefaults.batchSizeLiters ?? sourceDefaults.batchSizeLiters,
+      ogFrom: defaultValue('ogFrom'),
+      ogTo: defaultValue('ogTo'),
+      fgFrom: defaultValue('fgFrom'),
+      fgTo: defaultValue('fgTo'),
+      co2Volumes: defaultValue('co2Volumes'),
+      ibu: defaultValue('ibu'),
+      batchSizeLiters: defaultValue('batchSizeLiters'),
     },
     steps: Object.prototype.hasOwnProperty.call(incoming, "steps")
       ? incoming.steps

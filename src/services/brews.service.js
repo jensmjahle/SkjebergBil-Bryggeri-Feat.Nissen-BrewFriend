@@ -20,13 +20,13 @@ export async function listBrews(filters = {}) {
   return data;
 }
 
-export async function getCurrentBrew() {
-  const { data } = await api.get(`${BASE}/current`);
+export async function getCurrentBrew({ silent = false } = {}) {
+  const { data } = await api.get(`${BASE}/current`, { silentErrors: silent });
   return data;
 }
 
-export async function getBrew(brewId) {
-  const { data } = await api.get(`${BASE}/${encodeURIComponent(brewId)}`);
+export async function getBrew(brewId, { silent = false } = {}) {
+  const { data } = await api.get(`${BASE}/${encodeURIComponent(brewId)}`, { silentErrors: silent });
   return data;
 }
 
@@ -60,6 +60,11 @@ export async function startBrew(brewId) {
   return data;
 }
 
+export async function setBrewIngredientAvailable(brewId, ingredientId, available) {
+  const { data } = await api.patch(`${BASE}/${encodeURIComponent(brewId)}/inventory`, { ingredientId, available }, { silentErrors: true });
+  return data;
+}
+
 export async function setCurrentBrewStep(brewId, index) {
   const { data } = await api.patch(
     `${BASE}/${encodeURIComponent(brewId)}/current-step`,
@@ -82,6 +87,11 @@ export async function pauseBrewStep(brewId, stepId) {
   const { data } = await api.post(
     `${BASE}/${encodeURIComponent(brewId)}/steps/${encodeURIComponent(stepId)}/pause`,
   );
+  return data;
+}
+
+export async function setBrewAdditionCompleted(brewId, stepId, additionId, completed) {
+  const { data } = await api.patch(`${BASE}/${encodeURIComponent(brewId)}/steps/${encodeURIComponent(stepId)}/additions/${encodeURIComponent(additionId)}`, { completed }, { silentErrors: true });
   return data;
 }
 

@@ -20,13 +20,13 @@
       <span class="rounded-full bg-bg4 text-text4 px-2 py-1 text-xs">{{ phaseLabel(stepPhase(step), t) }}</span>
     </div>
 
-    <p v-if="step?.description" class="mt-2 whitespace-pre-line text-sm opacity-90">{{ step.description }}</p>
+    <p v-if="step?.description && !compact" class="mt-2 whitespace-pre-line text-sm opacity-90">{{ step.description }}</p>
 
     <div class="mt-2 flex flex-wrap gap-4 text-xs opacity-80">
       <span v-if="step?.temperatureC !== null && step?.temperatureC !== undefined">
         {{ t("recipes.detail.temp") }}: {{ step.temperatureC }} °C
       </span>
-      <span v-if="step?.durationMinutes !== null && step?.durationMinutes !== undefined">
+      <span v-if="stepHasCountdown(step) && step?.durationMinutes !== null && step?.durationMinutes !== undefined && (!compact || Number(step.durationMinutes) > 0)">
         {{ t("recipes.detail.time") }}: {{ stepDurationLabel(step) }}
       </span>
       <span v-if="step?.co2Volumes !== null && step?.co2Volumes !== undefined">
@@ -34,7 +34,7 @@
       </span>
     </div>
 
-    <div v-if="stepIngredients.length" class="mt-3">
+    <div v-if="stepIngredients.length && !compact" class="mt-3">
       <p class="text-xs font-semibold uppercase opacity-70">{{ t("recipes.detail.ingredients_in_step") }}</p>
       <div class="mt-1 flex flex-wrap gap-2">
         <span
@@ -52,10 +52,11 @@
 <script setup>
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { phaseLabel, stepPhase } from "@/utils/brewPhase.js";
+import { phaseLabel, stepPhase, stepHasCountdown } from "@/utils/brewPhase.js";
 import { Check } from "lucide-vue-next";
 
 const props = defineProps({
+  compact: Boolean,
   step: {
     type: Object,
     required: true,

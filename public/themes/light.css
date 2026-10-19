@@ -1,4 +1,7 @@
 :root {
+  --color-timer-progress: var(--color-success-border);
+  --color-timer-warning: var(--color-button2-border);
+  --color-timer-overdue: var(--color-danger-border);
   /* Text Colors */
   --color-text1: #1a1a1a; /* main text - strong */
   --color-text1-faded: #4a4a4a;

@@ -3,6 +3,11 @@ export const PHASES = ['preparation', 'mash', 'sparge', 'boil', 'primary_ferment
 export function stepPhase(step) {
   return PHASES.includes(step?.phase) ? step.phase : PHASES.includes(step?.stepType) ? step.stepType : 'custom';
 }
+export function stepHasCountdown(step) { return stepPhase(step) !== 'sparge'; }
+export function stepIsPaused(step, entry) {
+  return ['pending', 'paused'].includes(entry?.status) && Boolean(entry.startedAt) &&
+    (!stepHasCountdown(step) || entry.pausedRemainingSeconds != null);
+}
 export function phaseLabel(phase, t) {
   return PHASES.includes(phase) ? t(`recipes.step_types.${phase}`) : t(`brews.status.${phase}`);
 }
@@ -42,7 +47,7 @@ export function phaseProgress(brew, now = Date.now(), selectedStepId) {
   while (last + 1 < steps.length && stepPhase(steps[last + 1]) === groupPhase) last++;
   const segments = steps.slice(first, last + 1).map(step => {
     const e = entries.get(step.stepId) || {};
-    const total = Math.max(0, Number(e.timerDurationSeconds ?? Number(step.durationMinutes || 0) * 60) || 0);
+    const total = stepHasCountdown(step) ? Math.max(0, Number(e.timerDurationSeconds ?? Number(step.durationMinutes || 0) * 60) || 0) : 0;
     let elapsed = Number(e.accumulatedActiveSeconds || 0);
     if (e.status === 'completed') elapsed = total;
     else if (e.pausedRemainingSeconds != null) elapsed = total - Number(e.pausedRemainingSeconds);

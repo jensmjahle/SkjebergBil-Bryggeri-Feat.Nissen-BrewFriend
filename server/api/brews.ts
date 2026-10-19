@@ -6,12 +6,19 @@ import { Recipe } from "../mongo/models/Recipe.js";
 import { Brewer } from "../mongo/models/Brewer.js";
 import { broadcastBrewDeleted, broadcastBrewUpdate } from "../live/brewLive.js";
 
-import { nextBatchNumber } from "../mongo/batchNumbers.js";
-import { brewPriority, PHASES, stepPhase } from "../domain/brewPhase.js";
+import { nextBatchNumber, ensureBatchNumber } from "../mongo/batchNumbers.js";
+import { brewPriority, PHASES, stepPhase, stepHasCountdown } from "../domain/brewPhase.js";
 import { brewRatings, prepareRatings, syncEvaluation } from "../domain/brewRatings.js";
 import { seekTimer, MAX_TIMER_SECONDS } from "../domain/brewTimer.js";
+import { boilAdditions, invalidBoilSchedule } from "../domain/boilSchedule.js";
+import { STEP_MEASUREMENT_FIELDS, stepMeasurementError } from "../domain/stepMeasurements.js";
 
 export const brewsRouter = Router();
+brewsRouter.use((req, res, next) => {
+  const steps = req.body?.recipeSnapshot?.steps;
+  if (Array.isArray(steps) && steps.some(invalidBoilSchedule)) return res.status(400).json({ error: 'Invalid boil schedule: check addition names, IDs and minutes remaining' });
+  next();
+});
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const GRAVITY_PATTERN = /^1\.\d{3}$/;
@@ -332,6 +339,7 @@ function buildStepProgress(steps: any[] = [], existing: any[] = []) {
       accumulatedActiveSeconds: toNumberOrUndefined(previous.accumulatedActiveSeconds) || 0,
       actualDurationSeconds: toNumberOrUndefined(previous.actualDurationSeconds),
       note: toStringOrUndefined(previous.note),
+      completedAdditionIds: [...new Set((previous.completedAdditionIds || []).filter((id: any) => typeof id === 'string' && id.length <= 80))],
     };
   });
 }
@@ -536,7 +544,6 @@ brewsRouter.post("/from-recipe/:recipeId", async (req: any, res) => {
 
     const brew = await Brew.create({
       brewerId,
-      batchNumber: await nextBatchNumber(brewerId),
       brewers,
       recipeId: recipe._id,
       name: toStringOrUndefined(req.body?.name) || snapshot.name || "Nytt Brygg",
@@ -592,7 +599,7 @@ brewsRouter.post("/", async (req: any, res) => {
 
     const brew = await Brew.create({
       brewerId,
-      batchNumber: await nextBatchNumber(brewerId),
+      batchNumber: status === "planned" ? undefined : await nextBatchNumber(brewerId),
       brewers,
       recipeId: payload.recipeId || snapshot.recipeId || undefined,
       name: toStringOrUndefined(payload.name) || snapshot.name || "Nytt Brygg",
@@ -846,11 +853,45 @@ brewsRouter.patch("/:id", async (req: any, res) => {
       }
     }
 
+    if (Object.prototype.hasOwnProperty.call(payload, 'inventory')) {
+      const ids = payload.inventory?.availableIngredientIds;
+      if (!Array.isArray(ids) || ids.some((id: any) => typeof id !== 'string' || id.length > 80)) {
+        return res.status(400).json({ error: 'Invalid ingredient inventory' });
+      }
+      brew.inventory = { availableIngredientIds: [...new Set(ids)] };
+    }
+    if (shouldUpdateSnapshot || Object.prototype.hasOwnProperty.call(payload, 'inventory')) {
+      const allowed = new Set((brew.recipeSnapshot?.ingredients || []).map((ingredient: any) => ingredient.ingredientId));
+      if (brew.inventory) brew.inventory.availableIngredientIds = (brew.inventory.availableIngredientIds || []).filter((id: string) => allowed.has(id));
+    }
+    await ensureBatchNumber(brew);
     await brew.save();
     notifyBrewUpdated(brew);
     return res.json(attachComputedFields(brew));
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Failed to update brew" });
+  }
+});
+
+brewsRouter.patch("/:id/inventory", async (req: any, res) => {
+  try {
+    const brewerId = await resolveBrewerId(req);
+    const { ingredientId, available } = req.body || {};
+    if (typeof ingredientId !== 'string' || !ingredientId.trim() || ingredientId.length > 80 || typeof available !== 'boolean') {
+      return res.status(400).json({ error: 'Invalid ingredient inventory' });
+    }
+    const brew = await Brew.findOneAndUpdate(
+      { _id: req.params.id, brewerId, 'recipeSnapshot.ingredients.ingredientId': ingredientId },
+      available
+        ? { $addToSet: { 'inventory.availableIngredientIds': ingredientId } }
+        : { $pull: { 'inventory.availableIngredientIds': ingredientId } },
+      { new: true, runValidators: true },
+    );
+    if (!brew) return res.status(404).json({ error: 'Brew or ingredient not found' });
+    notifyBrewUpdated(brew);
+    return res.json(attachComputedFields(brew));
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || 'Failed to update ingredient inventory' });
   }
 });
 
@@ -898,6 +939,7 @@ brewsRouter.post("/:id/start", async (req: any, res) => {
     brew.progress.stepProgress = buildStepProgress(steps, brew.progress.stepProgress || []);
     brew.progress.currentStepIndex = clampIndex(brew.progress.currentStepIndex || 0, steps.length);
 
+    await ensureBatchNumber(brew);
     await brew.save();
     notifyBrewUpdated(brew);
     return res.json(attachComputedFields(brew));
@@ -988,10 +1030,10 @@ brewsRouter.post("/:id/steps/:stepId/start", async (req: any, res) => {
       currentEntry.startedAt = currentEntry.startedAt || now;
     }
     currentEntry.activeSinceAt = now;
-    currentEntry.timerDurationSeconds = timerDurationSeconds;
+    currentEntry.timerDurationSeconds = stepHasCountdown(step) ? timerDurationSeconds : undefined;
     currentEntry.pausedRemainingSeconds = undefined;
     currentEntry.timerEndsAt =
-      activeCountdownSeconds !== undefined && activeCountdownSeconds >= 0
+      stepHasCountdown(step) && activeCountdownSeconds !== undefined && activeCountdownSeconds >= 0
         ? new Date(now.getTime() + activeCountdownSeconds * 1000)
         : undefined;
 
@@ -1008,6 +1050,7 @@ brewsRouter.post("/:id/steps/:stepId/start", async (req: any, res) => {
     brew.progress.phaseStepId = step.stepId;
     brew.progress.currentStepIndex = stepIndex;
 
+    await ensureBatchNumber(brew);
     await brew.save();
     notifyBrewUpdated(brew);
     return res.json(attachComputedFields(brew));
@@ -1026,6 +1069,7 @@ brewsRouter.patch("/:id/steps/:stepId/timer", async (req: any, res) => {
     if (['completed','archived'].includes(brew.status)) return res.status(400).json({ error:'Finished brews cannot be retimed' });
     const step = brew.recipeSnapshot?.steps?.find((s: any)=>s.stepId===req.params.stepId);
     if (!step) return res.status(404).json({ error:'Step not found' });
+    if (!stepHasCountdown(step)) return res.status(400).json({ error:'This step has no countdown' });
     const entries = buildStepProgress(brew.recipeSnapshot.steps, brew.progress?.stepProgress || []);
     const entry = entries.find((e: any)=>e.stepId===step.stepId);
     if (entry.status==='completed') return res.status(400).json({ error:'Completed timers cannot be changed' });
@@ -1034,6 +1078,27 @@ brewsRouter.patch("/:id/steps/:stepId/timer", async (req: any, res) => {
     await brew.save();notifyBrewUpdated(brew);
     return res.json(attachComputedFields(brew));
   } catch (err: any) { return res.status(500).json({ error:err?.message || 'Failed to adjust timer' }); }
+});
+
+brewsRouter.patch("/:id/steps/:stepId/additions/:additionId", async (req: any, res) => {
+  try {
+    const brewerId = await resolveBrewerId(req);
+    if (typeof req.body?.completed !== 'boolean') return res.status(400).json({ error: 'completed must be a boolean' });
+    const brew = await Brew.findOne({ _id: req.params.id, brewerId });
+    if (!brew) return res.status(404).json({ error: 'Brew not found' });
+    if (['completed', 'archived', 'planned'].includes(brew.status)) return res.status(400).json({ error: 'Only ongoing brews can record additions' });
+    const step = brew.recipeSnapshot?.steps?.find((item: any) => item.stepId === req.params.stepId);
+    if (!step || stepPhase(step) !== 'boil' || !boilAdditions(step, brew.recipeSnapshot.ingredients).some((item: any) => item.additionId === req.params.additionId)) return res.status(404).json({ error: 'Addition not found' });
+    const path = 'progress.stepProgress.$.completedAdditionIds';
+    const updated = await Brew.findOneAndUpdate(
+      { _id: brew._id, brewerId, 'progress.stepProgress': { $elemMatch: { stepId: req.params.stepId, status: { $ne: 'completed' } } } },
+      { [req.body.completed ? '$addToSet' : '$pull']: { [path]: req.params.additionId } },
+      { new: true, runValidators: true },
+    );
+    if (!updated) return res.status(400).json({ error: 'Step is already completed or unavailable' });
+    notifyBrewUpdated(updated);
+    return res.json(attachComputedFields(updated));
+  } catch (err: any) { return res.status(500).json({ error: err?.message || 'Failed to record addition' }); }
 });
 
 brewsRouter.post("/:id/steps/:stepId/pause", async (req: any, res) => {
@@ -1146,6 +1211,7 @@ brewsRouter.post("/:id/steps/:stepId/complete", async (req: any, res) => {
 
     brew.progress.stepProgress = progressEntries;
 
+    await ensureBatchNumber(brew);
     await brew.save();
     notifyBrewUpdated(brew);
     return res.json(attachComputedFields(brew));
@@ -1189,6 +1255,7 @@ brewsRouter.post("/:id/steps/:stepId/reset", async (req: any, res) => {
     entry.pausedRemainingSeconds = undefined;
     entry.accumulatedActiveSeconds = 0;
     entry.actualDurationSeconds = undefined;
+    entry.completedAdditionIds = [];
 
     brew.progress.stepProgress = progressEntries;
 
@@ -1319,6 +1386,7 @@ brewsRouter.post("/:id/finish", async (req: any, res) => {
     if (Object.prototype.hasOwnProperty.call(req.body || {}, 'note')) brew.finalNotes = String(req.body.note || '').trim();
     syncEvaluation(brew);
 
+    await ensureBatchNumber(brew);
     await brew.save();
     notifyBrewUpdated(brew);
 
@@ -1350,7 +1418,11 @@ brewsRouter.post("/:id/measurements", async (req: any, res) => {
       return res.status(404).json({ error: "Brew not found" });
     }
 
+    const validationError = stepMeasurementError(req.body || {}, brew.recipeSnapshot?.steps || []);
+    if (validationError) return res.status(400).json({ error: validationError });
     const measurement = {
+      stepId: req.body?.stepId,
+      ...Object.fromEntries(STEP_MEASUREMENT_FIELDS.map(key => [key, toNumberOrUndefined(req.body?.[key])])),
       takenAt: toDateOrUndefined(req.body?.takenAt) || new Date(),
       gravity: toNumberOrUndefined(req.body?.gravity),
       temperatureC: toNumberOrUndefined(req.body?.temperatureC),
@@ -1374,6 +1446,7 @@ brewsRouter.post("/:id/measurements", async (req: any, res) => {
 });
 
 const MEASUREMENT_NUMERIC_FIELDS = [
+  ...STEP_MEASUREMENT_FIELDS,
   "gravity",
   "temperatureC",
   "og",
@@ -1397,6 +1470,9 @@ brewsRouter.patch("/:id/measurements/:measurementId", async (req: any, res) => {
       return res.status(404).json({ error: "Measurement not found" });
     }
 
+    const validationError = stepMeasurementError(req.body || {}, brew.recipeSnapshot?.steps || [], measurement.stepId);
+    if (validationError) return res.status(400).json({ error: validationError });
+    if (req.body?.stepId) measurement.stepId = req.body.stepId;
     // Only fields present in the body are touched, and a field sent as null or
     // an empty string clears the value instead of storing a 0.
     for (const field of MEASUREMENT_NUMERIC_FIELDS) {

@@ -48,7 +48,7 @@
     </div>
 
     <div v-else class="space-y-3">
-      <BrewRow v-for="brew in visibleBrews" :key="brew._id" :brew="brew" />
+      <BrewRow v-for="brew in visibleBrews" :key="brew._id" :brew="brew" @deleted="brews = brews.filter(item => item._id !== $event)" />
     </div>
   </section>
 </template>

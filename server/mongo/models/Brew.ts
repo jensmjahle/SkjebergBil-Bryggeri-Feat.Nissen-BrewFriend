@@ -86,12 +86,19 @@ const stepProgressSchema = new mongoose.Schema(
     accumulatedActiveSeconds: { type: Number, min: 0 },
     actualDurationSeconds: { type: Number, min: 0 },
     note: { type: String, trim: true, maxlength: 2000 },
+    completedAdditionIds: { type: [String], default: [] },
   },
   { _id: false },
 );
 
 const measurementSchema = new mongoose.Schema(
   {
+      stepId: { type: String, trim: true },
+      preBoilVolumeLiters: { type: Number, min: 0 },
+      postBoilVolumeLiters: { type: Number, min: 0 },
+      waterVolumeLiters: { type: Number, min: 0 },
+      volumeLiters: { type: Number, min: 0 },
+      preBoilGravity: { type: Number, min: 0.9, max: 2 },
     takenAt: { type: Date, default: Date.now, index: true },
     gravity: { type: Number },
     temperatureC: { type: Number },
@@ -164,6 +171,9 @@ const brewSchema = new mongoose.Schema(
       fg: { type: Number },
     },
     recipeSnapshot: { type: recipeSnapshotSchema, default: {} },
+    inventory: {
+      availableIngredientIds: { type: [String], default: [] },
+    },
     progress: {
       phaseStepId: { type: String, trim: true, maxlength: 80 },
       currentStepIndex: { type: Number, default: 0, min: 0 },

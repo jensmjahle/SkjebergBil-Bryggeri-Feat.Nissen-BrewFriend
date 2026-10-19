@@ -3,11 +3,14 @@
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h1>{{ t("brews.plan.title") }}</h1>
-        <p class="mt-2 opacity-80">{{ t("brews.plan.subtitle") }}</p>
+        <p class="mt-2 text-text2-faded">{{ brew ? form.name : t("brews.plan.subtitle") }}</p>
       </div>
-      <router-link to="/brygg/tidligere">
-        <BaseButton variant="button3">{{ t("brews.actions.back_to_list") }}</BaseButton>
-      </router-link>
+      <div class="flex flex-wrap items-center gap-2">
+        <DeletePlannedBrewButton v-if="brew" :brew="brew" :disabled="saving || recipeSyncing || starting || inventorySavingIds.length > 0" @deleted="router.push('/brygg/tidligere')" />
+        <router-link to="/brygg/tidligere">
+          <BaseButton variant="button3">{{ t("brews.actions.back_to_list") }}</BaseButton>
+        </router-link>
+      </div>
     </div>
 
     <BaseCard v-if="loading">
@@ -49,54 +52,35 @@
       <p v-if="errorMessage" class="text-sm text-[var(--color-error-text,var(--color-danger))]">{{ errorMessage }}</p>
     </BaseCard>
 
-    <BaseCard v-else class="space-y-6">
-      <div class="grid gap-4 md:grid-cols-3">
-        <BaseInput v-model="form.name" :label="t('recipes.fields.name')" required />
-        <BaseInput
-          v-model="form.plannedStartAt"
-          :label="t('brews.fields.planned_start')"
-          type="datetime-local"
-        />
-        <BaseInput
-          v-model.number="form.snapshot.defaults.batchSizeLiters"
-          :model-modifiers="{ number: true }"
-          type="number"
-          step="0.1"
-          :label="t('recipes.fields.batch_size_liters')"
-        />
-      </div>
-
-      <BaseInput v-model="form.notes" :label="t('recipes.fields.notes')" />
-      <BaseInput v-model="form.brewersInput" :label="t('brews.fields.brewers')" :help="t('brews.fields.brewers_help')" maxlength="3600" />
-
-      <div class="rounded-lg border border-border3 p-4">
-        <p class="text-sm font-medium">{{ t("recipes.detail.version") }}</p>
-        <p class="mt-1 text-sm opacity-80">{{ linkedRecipeVersionText }}</p>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <BaseButton
-            type="button"
-            variant="button3"
-            :disabled="recipeSyncing || !form.name?.trim() || !isGravityValid || !hasLinkedRecipe"
-            @click="updateLinkedRecipeVersion"
-          >
-            {{ recipeSyncing && recipeSyncAction === "update" ? t("common.saving") : t("brews.actions.update_recipe_version") }}
-          </BaseButton>
-          <BaseButton
-            type="button"
-            variant="button2"
-            :disabled="recipeSyncing || !form.name?.trim() || !isGravityValid"
-            @click="saveAsNewRecipeVersion"
-          >
-            {{ recipeSyncing && recipeSyncAction === "new-version" ? t("common.saving") : t("brews.actions.create_recipe_version") }}
-          </BaseButton>
+    <template v-else>
+      <div class="plan-stats" :aria-label="t('brews.plan.key_info')">
+        <div v-for="stat in planStats" :key="stat.label" class="plan-stat">
+          <component :is="stat.icon" class="h-5 w-5 shrink-0 opacity-60" aria-hidden="true" />
+          <div class="min-w-0 flex-1">
+            <template v-if="stat.editableVolume">
+              <label for="plan-brew-volume" class="text-xs text-text2-faded">{{ stat.label }}</label>
+              <BaseInput id="plan-brew-volume" v-model.number="form.snapshot.defaults.batchSizeLiters" :model-modifiers="{ number: true }" type="number" min="0.1" step="0.1" :disabled="saving || recipeSyncing || starting" :aria-describedby="'plan-volume-help'" :aria-invalid="isBatchSizeValid ? undefined : true" class="mt-1" />
+            </template>
+            <template v-else><p class="text-xs text-text2-faded">{{ stat.label }}</p><p class="mt-1 text-lg font-semibold tabular-nums">{{ stat.value }}</p></template>
+          </div>
         </div>
-        <p v-if="recipeSyncMessage" class="mt-2 text-sm opacity-80">{{ recipeSyncMessage }}</p>
       </div>
+      <p id="plan-volume-help" class="text-sm text-text2-faded">{{ t('brews.plan.volume_scaling_help') }}</p>
+      <p v-if="!isBatchSizeValid" role="alert" class="text-sm text-[var(--color-error-text,var(--color-danger))]">{{ t('brews.plan.volume_invalid') }}</p>
 
-      <div class="flex">
-        <BaseToggle v-model="activeTab" :options="planTabOptions" />
-      </div>
+      <fieldset class="plan-layout min-w-0" :disabled="saving || recipeSyncing || starting" :aria-busy="saving || recipeSyncing || starting">
+        <div class="min-w-0 space-y-4">
+          <BrewInventoryChecklist :ingredients="form.snapshot.ingredients" :available-ids="inventoryAvailableIds" :saving-ids="inventorySavingIds" :disabled="saving || recipeSyncing || starting" :error="inventoryError" :pending="inventoryPending" @toggle="toggleIngredientStock" @edit="openRecipeEditor('ingredients')" />
 
+          <details ref="recipeDetails" class="plan-panel plan-disclosure" :open="recipeExpanded" @toggle="recipeExpanded = $event.currentTarget.open">
+            <summary class="plan-disclosure__summary">
+              <ListChecks class="h-5 w-5 shrink-0 opacity-70" aria-hidden="true" />
+              <span class="min-w-0 flex-1"><span class="plan-section-title block">{{ t('brews.plan.recipe_details') }}</span><span class="mt-1 block break-words text-sm text-text2-faded">{{ hasLinkedRecipe ? `${form.snapshot.name || t('brews.common.open_recipe')} · v${form.snapshot.recipeVersion}` : t('brews.common.no_recipe') }}</span><span class="mt-0.5 block text-xs text-text2-faded">{{ t('brews.plan.summary', { steps: form.snapshot.steps.length, ingredients: form.snapshot.ingredients.length }) }}</span></span>
+              <ChevronDown class="plan-chevron h-5 w-5 shrink-0" aria-hidden="true" />
+            </summary>
+            <div class="mt-5 space-y-4">
+              <BrewRecipeLink :brew="{ recipeId: form.snapshot.recipeId, recipeSnapshot: form.snapshot }" />
+              <BaseToggle v-model="activeTab" :options="planTabOptions" full-width />
       <div v-if="activeTab === 'steps'" class="space-y-3">
         <div class="flex flex-wrap items-end gap-3">
           <div class="w-full sm:max-w-xs">
@@ -195,85 +179,94 @@
         </div>
       </div>
 
-      <div v-else class="space-y-4">
-        <BaseCard>
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <BaseInput v-model="form.snapshot.defaults.ogFrom" :label="t('recipes.fields.og_from')" placeholder="1.056" />
-            <BaseInput v-model="form.snapshot.defaults.ogTo" :label="t('recipes.fields.og_to')" placeholder="1.062" />
-            <BaseInput v-model="form.snapshot.defaults.fgFrom" :label="t('recipes.fields.fg_from')" placeholder="1.010" />
-            <BaseInput v-model="form.snapshot.defaults.fgTo" :label="t('recipes.fields.fg_to')" placeholder="1.014" />
-            <BaseInput
-              v-model.number="form.snapshot.defaults.co2Volumes"
-              :model-modifiers="{ number: true }"
-              type="number"
-              step="0.1"
-              :label="t('recipes.metrics.co2')"
-            />
-            <BaseInput
-              v-model.number="form.snapshot.defaults.ibu"
-              :model-modifiers="{ number: true }"
-              type="number"
-              step="1"
-              :label="t('recipes.metrics.ibu')"
-            />
-            <BaseInput
-              v-model.number="form.snapshot.defaults.batchSizeLiters"
-              :model-modifiers="{ number: true }"
-              type="number"
-              step="0.1"
-              :label="t('recipes.fields.batch_size_liters')"
-            />
-          </div>
-        </BaseCard>
 
-        <BaseCard>
-          <p class="text-sm opacity-80">
-            {{ t("brews.plan.summary", { steps: form.snapshot.steps.length, ingredients: form.snapshot.ingredients.length }) }}
-          </p>
-          <p class="mt-2 text-sm opacity-90">
-            {{ t("recipes.detail.total_ingredients_cost") }}:
-            <strong>{{ formatCurrency(ingredientTotalCost) }}</strong>
-          </p>
-          <p class="mt-1 text-sm opacity-90">
-            {{ t("recipes.detail.liter_price") }}:
-            <strong>{{ ingredientLiterPrice !== null ? formatCurrency(ingredientLiterPrice) : "-" }}</strong>
-          </p>
-        </BaseCard>
-      </div>
+              <div v-else class="space-y-4">
+                <dl class="grid grid-cols-2 gap-x-5 gap-y-4 rounded-lg bg-bg4 p-4 text-text4">
+                  <div><dt class="text-xs opacity-65">{{ t('brews.plan.og_range') }}</dt><dd class="mt-1 font-semibold">{{ gravityRange(form.snapshot.defaults.ogFrom, form.snapshot.defaults.ogTo) }}</dd></div>
+                  <div><dt class="text-xs opacity-65">{{ t('brews.plan.fg_range') }}</dt><dd class="mt-1 font-semibold">{{ gravityRange(form.snapshot.defaults.fgFrom, form.snapshot.defaults.fgTo) }}</dd></div>
+                  <div><dt class="text-xs opacity-65">{{ t('brews.plan.total_mash') }}</dt><dd class="mt-1 font-semibold">{{ durationText(planningSummary.mashMinutes) }}</dd></div>
+                  <div><dt class="text-xs opacity-65">{{ t('brews.plan.total_boil') }}</dt><dd class="mt-1 font-semibold">{{ durationText(planningSummary.boilMinutes) }}</dd></div>
+                </dl>
+                <div class="flex flex-wrap justify-between gap-3 text-sm"><span>{{ t('recipes.detail.total_ingredients_cost') }}: <strong>{{ formatCurrency(ingredientTotalCost) }}</strong></span><span>{{ t('recipes.detail.liter_price') }}: <strong>{{ ingredientLiterPrice !== null ? formatCurrency(ingredientLiterPrice) : '—' }}</strong></span></div>
+              </div>
+            </div>
+          </details>
 
-      <div class="flex flex-wrap items-center gap-3">
-        <BaseButton
-          type="button"
-          :disabled="saving || !form.name?.trim() || !isGravityValid"
-          @click="savePlan"
-        >
-          {{ saving ? t("common.saving") : t("brews.actions.save_plan") }}
-        </BaseButton>
-        <BaseButton
-          type="button"
-          variant="button2"
-          :disabled="saving || !form.name?.trim() || !isGravityValid"
-          @click="startBrewDay"
-        >
-          {{ t("brews.actions.start_brew_day") }}
-        </BaseButton>
-        <p v-if="successMessage" class="text-sm text-green-600">{{ successMessage }}</p>
-        <p v-if="errorMessage" class="text-sm text-[var(--color-error-text,var(--color-danger))]">{{ errorMessage }}</p>
+          <details class="plan-panel plan-disclosure">
+            <summary class="plan-disclosure__summary">
+              <FilePenLine class="h-5 w-5 shrink-0 opacity-70" aria-hidden="true" />
+              <span class="min-w-0 flex-1"><span class="plan-section-title block">{{ t('brews.plan.save_to_recipe') }}</span><span class="mt-1 block text-xs text-text2-faded">{{ t(hasLinkedRecipe ? 'brews.plan.recipe_save_optional' : 'brews.common.no_recipe') }}</span></span>
+              <ChevronDown class="plan-chevron h-5 w-5 shrink-0" aria-hidden="true" />
+            </summary>
+            <div class="mt-5 space-y-4">
+              <BrewRecipeLink :brew="{ recipeId: form.snapshot.recipeId, recipeSnapshot: form.snapshot }" />
+              <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                <div class="min-w-0 space-y-2"><BaseSegmentedToggle v-model="recipeSaveMode" :options="recipeSaveOptions" :label="t('brews.plan.recipe_save_mode')" :disabled="recipeSyncing || saving || inventorySavingIds.length > 0 || starting" /><p class="text-xs leading-relaxed text-text2-faded">{{ recipeSaveDescription }}</p></div>
+                <BaseButton type="button" variant="button2" class="min-h-12" :disabled="recipeSyncing || saving || starting || inventorySavingIds.length > 0 || !form.name?.trim() || !isGravityValid || (recipeSaveMode === 'update' && !hasLinkedRecipe)" @click="saveRecipeSelection">{{ recipeSyncing ? t('common.saving') : t('common.save') }}</BaseButton>
+              </div>
+              <p v-if="recipeSyncMessage" role="status" class="text-sm text-text2-faded">{{ recipeSyncMessage }}</p>
+            </div>
+          </details>
+        </div>
+
+        <aside class="min-w-0 space-y-4">
+          <section class="plan-panel" :aria-label="t('brews.plan.plan_info')">
+            <h2 class="plan-section-title flex items-center gap-2.5"><ClipboardList class="h-5 w-5 opacity-70" aria-hidden="true" />{{ t('brews.plan.plan_info') }}</h2>
+            <div class="mt-5 space-y-3">
+              <div class="plan-form-row"><label for="plan-brew-name">{{ t('recipes.fields.name') }}</label><BaseInput id="plan-brew-name" v-model="form.name" required /></div>
+              <div class="plan-form-row"><label for="plan-brew-date">{{ t('brews.fields.planned_start') }}</label><BaseInput id="plan-brew-date" v-model="form.plannedStartAt" type="datetime-local" /></div>
+              <div class="plan-form-row"><label for="plan-brew-brewers">{{ t('brews.fields.brewers') }}</label><BaseInput id="plan-brew-brewers" v-model="form.brewersInput" maxlength="3600" :placeholder="t('brews.plan.brewers_placeholder')" /></div>
+              <details class="plan-notes border-t border-border3 pt-3">
+                <summary class="flex cursor-pointer items-center gap-2 text-sm"><StickyNote class="h-4 w-4 opacity-60" aria-hidden="true" />{{ t('recipes.fields.notes') }}<ChevronDown class="plan-chevron ml-auto h-4 w-4 opacity-60" aria-hidden="true" /></summary>
+                <textarea v-model="form.notes" :aria-label="t('recipes.fields.notes')" rows="3" maxlength="3000" class="mt-3 w-full rounded-lg border border-border4 bg-bg4 px-3 py-2 text-sm text-text4 focus:outline-none focus:ring-2 focus:ring-button1-border" />
+              </details>
+            </div>
+          </section>
+          <section class="plan-panel" :aria-label="t('brews.plan.recipe_targets')">
+            <h2 class="plan-section-title flex items-center gap-2.5"><Target class="h-5 w-5 opacity-70" aria-hidden="true" />{{ t('brews.plan.recipe_targets') }}</h2>
+            <div class="mt-5 space-y-4">
+              <BaseRangeInput v-model:from="form.snapshot.defaults.ogFrom" v-model:to="form.snapshot.defaults.ogTo" :error="ogError ? t(`brews.plan.gravity_${ogError}`) : ''" :label="t('brews.plan.og_range')" :from-label="t('brews.plan.range_from')" :to-label="t('brews.plan.range_to')" from-placeholder="1.048" to-placeholder="1.052" />
+              <BaseRangeInput v-model:from="form.snapshot.defaults.fgFrom" v-model:to="form.snapshot.defaults.fgTo" :error="fgError ? t(`brews.plan.gravity_${fgError}`) : ''" :label="t('brews.plan.fg_range')" :from-label="t('brews.plan.range_from')" :to-label="t('brews.plan.range_to')" from-placeholder="1.010" to-placeholder="1.014" />
+              <div class="grid grid-cols-2 gap-3 border-t border-border3 pt-4">
+                <BaseInput v-model.number="form.snapshot.defaults.ibu" :model-modifiers="{ number: true }" type="number" min="0" step="1" :label="t('recipes.metrics.ibu')" />
+                <BaseInput v-model.number="form.snapshot.defaults.co2Volumes" :model-modifiers="{ number: true }" type="number" min="0" step="0.1" :label="t('recipes.metrics.co2')" />
+              </div>
+            </div>
+          </section>
+        </aside>
+      </fieldset>
+
+      <div class="plan-action-bar">
+        <div class="min-w-0 flex-1"><span class="text-sm font-medium">{{ t('brews.plan.ready_title') }}</span><p class="mt-0.5 text-xs text-text2-faded">{{ t(planningSummary.inventoryComplete ? 'brews.plan.ready_inventory' : 'brews.plan.review_inventory') }}</p></div>
+        <div class="flex shrink-0 gap-2">
+          <BaseButton type="button" variant="button3" :icon="Save" :disabled="saving || recipeSyncing || starting || inventorySavingIds.length > 0 || !form.name?.trim() || !isGravityValid || !isBatchSizeValid" @click="savePlan">{{ saving ? t('common.saving') : t('brews.actions.save_plan') }}</BaseButton>
+          <BaseButton type="button" variant="button2" :icon="Play" :disabled="saving || recipeSyncing || starting || inventorySavingIds.length > 0 || !form.name?.trim() || !isGravityValid || !isBatchSizeValid" @click="startBrewDay">{{ starting ? t('common.loading') : t('brews.actions.start_brew_day') }}</BaseButton>
+        </div>
+        <p v-if="successMessage" role="status" class="w-full text-sm text-text2-faded">{{ successMessage }}</p>
+        <p v-if="errorMessage" role="alert" class="w-full text-sm text-[var(--color-error-text,var(--color-danger))]">{{ errorMessage }}</p>
       </div>
-    </BaseCard>
+    </template>
   </section>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { scaleIngredientAmountText, scaleBoilScheduleText } from "@/utils/batchScaling.js";
+import { detachBoilIngredient } from "@/utils/recipeIngredientLinks.js";
+import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import BaseCard from "@/components/base/BaseCard.vue";
+import DeletePlannedBrewButton from '@/components/brews/DeletePlannedBrewButton.vue';
+import BrewRecipeLink from '@/components/brews/BrewRecipeLink.vue';
 import BaseButton from "@/components/base/BaseButton.vue";
 import BaseInput from "@/components/base/BaseInput.vue";
 import BaseDropdown from "@/components/base/BaseDropdown.vue";
 import BaseToggle from "@/components/base/BaseToggle.vue";
-import { Plus } from "lucide-vue-next";
+import BaseRangeInput from "@/components/base/BaseRangeInput.vue";
+import BrewInventoryChecklist from "@/components/brews/BrewInventoryChecklist.vue";
+import { gravityRangeError, brewPlanningSummary } from "@/utils/brewPlanningSummary.js";
+import BaseSegmentedToggle from '@/components/base/BaseSegmentedToggle.vue';
+import { Plus, CopyPlus, FilePenLine, Beaker, Timer, Flame, Coins, ListChecks, ChevronDown, ClipboardList, StickyNote, Target, Save, Play } from "lucide-vue-next";
 import RecipeStepEditorItem from "@/components/recipes/RecipeStepEditorItem.vue";
 import RecipeIngredientEditorItem from "@/components/recipes/RecipeIngredientEditorItem.vue";
 import { STEP_TYPE_OPTIONS, createDefaultStep } from "@/components/recipe-steps/index.js";
@@ -288,6 +281,7 @@ import {
   createPlannedBrewFromRecipe,
   getBrew,
   startBrew,
+  setBrewIngredientAvailable,
   updateBrew,
 } from "@/services/brews.service.js";
 import { ingredientCategoryOptions as buildIngredientCategoryOptions } from "@/utils/recipeAssets.js";
@@ -295,16 +289,22 @@ import { ingredientCategoryOptions as buildIngredientCategoryOptions } from "@/u
 const route = useRoute();
 const router = useRouter();
 const { t, locale } = useI18n();
-const gravityPattern = /^1\.\d{3}$/;
+
 
 const loading = ref(true);
 const creating = ref(false);
 const saving = ref(false);
+const starting = ref(false);
+const recipeExpanded = ref(false);
+const recipeDetails = ref(null);
+const inventoryAvailableIds = ref([]);
+const inventorySavingIds = ref([]);
+const inventoryError = ref('');
 const recipeSyncing = ref(false);
-const recipeSyncAction = ref("");
+const recipeSaveMode = ref('new-version');
 const recipeSyncMessage = ref("");
 const suppressBatchAutoScale = ref(false);
-const scaleBaseline = { liters: null, amounts: new Map() };
+const scaleBaseline = { liters: null, amounts: new Map(), additions: new Map(), hopSchedules: new Map() };
 let applyingBatchScale = false;
 const successMessage = ref("");
 const errorMessage = ref("");
@@ -374,23 +374,27 @@ const recipeOptions = computed(() =>
 );
 
 const hasLinkedRecipe = computed(() => Boolean(form.snapshot.recipeId));
-const linkedRecipeVersionText = computed(() => {
-  if (!hasLinkedRecipe.value) return t("brews.plan.no_linked_recipe");
-  const version = form.snapshot.recipeVersion || 1;
-  return t("brews.plan.linked_recipe_version", { version });
-});
+const recipeSaveOptions = computed(() => [
+  { value: 'update', label: t('brews.plan.update_recipe'), icon: FilePenLine, disabled: !hasLinkedRecipe.value },
+  { value: 'new-version', label: t(hasLinkedRecipe.value ? 'brews.plan.new_recipe_version' : 'brews.plan.new_recipe'), icon: CopyPlus },
+]);
+const recipeSaveDescription = computed(() => t(!hasLinkedRecipe.value
+  ? 'brews.plan.new_recipe_help'
+  : recipeSaveMode.value === 'update' ? 'brews.plan.update_recipe_help' : 'brews.plan.new_recipe_version_help'));
+watch(hasLinkedRecipe, linked => { recipeSaveMode.value = linked ? 'update' : 'new-version'; });
 
-const isGravityValid = computed(() => {
-  const fields = [
-    form.snapshot.defaults.ogFrom,
-    form.snapshot.defaults.ogTo,
-    form.snapshot.defaults.fgFrom,
-    form.snapshot.defaults.fgTo,
-  ];
-  const allEmpty = fields.every((v) => !v);
-  if (allEmpty) return true;
-  return fields.every((v) => gravityPattern.test(v || ""));
+function saveRecipeSelection() {
+  if (recipeSyncing.value || saving.value || starting.value || inventorySavingIds.value.length) return;
+  return recipeSaveMode.value === 'update' ? updateLinkedRecipeVersion() : saveAsNewRecipeVersion();
+}
+
+const ogError = computed(() => gravityRangeError(form.snapshot.defaults.ogFrom, form.snapshot.defaults.ogTo));
+const fgError = computed(() => gravityRangeError(form.snapshot.defaults.fgFrom, form.snapshot.defaults.fgTo));
+const gravityErrorMessage = computed(() => {
+  const error = ogError.value || fgError.value;
+  return error ? t(`brews.plan.gravity_${error}`) : '';
 });
+const isGravityValid = computed(() => !ogError.value && !fgError.value);
 
 const ingredientTotalCost = computed(() =>
   form.snapshot.ingredients.reduce((sum, ingredient) => {
@@ -399,6 +403,46 @@ const ingredientTotalCost = computed(() =>
     return sum + price;
   }, 0),
 );
+
+const planningSummary = computed(() => brewPlanningSummary(form.snapshot, inventoryAvailableIds.value));
+const isBatchSizeValid = computed(() => toPositiveNumber(form.snapshot.defaults.batchSizeLiters) !== null);
+const planStats = computed(() => [
+  { editableVolume: true, icon: Beaker, label: t('recipes.fields.batch_size_liters'), value: form.snapshot.defaults.batchSizeLiters > 0 ? `${form.snapshot.defaults.batchSizeLiters} L` : '—' },
+  { icon: Timer, label: t('brews.plan.total_mash'), value: durationText(planningSummary.value.mashMinutes) },
+  { icon: Flame, label: t('brews.plan.total_boil'), value: durationText(planningSummary.value.boilMinutes) },
+  { icon: Coins, label: t('brews.plan.cost_short'), value: formatCurrency(ingredientTotalCost.value) },
+]);
+const inventoryPending = computed(() => inventoryAvailableIds.value.some(id =>
+  form.snapshot.ingredients.some(ingredient => ingredient.ingredientId === id)
+  && !brew.value?.recipeSnapshot?.ingredients?.some(ingredient => ingredient.ingredientId === id),
+));
+function durationText(minutes) { return `${new Intl.NumberFormat(locale.value, { maximumFractionDigits: 1 }).format(minutes)} ${t('recipes.detail.minutes')}`; }
+function gravityRange(from, to) { return from || to ? `${from || '—'} – ${to || '—'}` : '—'; }
+async function openRecipeEditor(tab) {
+  activeTab.value = tab;
+  recipeExpanded.value = true;
+  await nextTick();
+  recipeDetails.value?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+}
+async function toggleIngredientStock(id, available) {
+  if (saving.value || recipeSyncing.value || starting.value || inventorySavingIds.value.includes(id)) return;
+  const previous = inventoryAvailableIds.value.includes(id);
+  const setChecked = value => { inventoryAvailableIds.value = value ? [...new Set([...inventoryAvailableIds.value, id])] : inventoryAvailableIds.value.filter(value => value !== id); };
+  setChecked(available);
+  inventoryError.value = '';
+  if (!brew.value?.recipeSnapshot?.ingredients?.some(ingredient => ingredient.ingredientId === id)) return;
+  inventorySavingIds.value = [...inventorySavingIds.value, id];
+  try {
+    await setBrewIngredientAvailable(brew.value._id, id, available);
+    // Do not hydrate the form here: a stock checkbox must never overwrite unsaved edits.
+    const savedIds = new Set(brew.value.inventory?.availableIngredientIds || []);
+    if (available) savedIds.add(id); else savedIds.delete(id);
+    brew.value = { ...brew.value, inventory: { availableIngredientIds: [...savedIds] } };
+  } catch (err) {
+    setChecked(previous);
+    inventoryError.value = err?.response?.data?.error || err?.message || t('brews.plan.inventory_save_failed');
+  } finally { inventorySavingIds.value = inventorySavingIds.value.filter(value => value !== id); }
+}
 
 const ingredientLiterPrice = computed(() => {
   const liters = Number(form.snapshot.defaults.batchSizeLiters);
@@ -448,28 +492,12 @@ function captureScaleBaseline() {
   scaleBaseline.amounts = new Map(
     form.snapshot.ingredients.map((ingredient) => [ingredient.ingredientId, ingredient.amount]),
   );
+  scaleBaseline.hopSchedules = new Map(form.snapshot.steps.map(step => [step.stepId, step.data?.hopSchedule]));
+  scaleBaseline.additions = new Map(form.snapshot.steps.flatMap(step =>
+    (step.data?.additions || []).map(item => [JSON.stringify([step.stepId, item.additionId]), item.amount]),
+  ));
 }
 
-function scaleIngredientAmountText(amountValue, ratio) {
-  if (amountValue === null || amountValue === undefined) return amountValue;
-  const rawText = String(amountValue).trim();
-  if (!rawText) return amountValue;
-
-  const normalized = rawText.replace(",", ".");
-  if (!/^-?\d+(\.\d+)?$/.test(normalized)) return amountValue;
-
-  const amount = Number(normalized);
-  if (!Number.isFinite(amount)) return amountValue;
-
-  const scaled = amount * ratio;
-  const rounded = Math.round(scaled * 1000) / 1000;
-  let text = Number.isInteger(rounded)
-    ? String(rounded)
-    : rounded.toFixed(3).replace(/\.?0+$/, "");
-
-  if (rawText.includes(",")) text = text.replace(".", ",");
-  return text;
-}
 
 function isStepOpen(stepId) {
   return openStepIds.value.includes(stepId);
@@ -555,6 +583,7 @@ function addIngredient() {
 
 function removeIngredient(index) {
   const removed = form.snapshot.ingredients[index];
+  detachBoilIngredient(form.snapshot.steps, removed);
   form.snapshot.ingredients.splice(index, 1);
   if (removed?.ingredientId) closeIngredient(removed.ingredientId);
 }
@@ -571,6 +600,8 @@ function hydrateForm(brewDoc) {
   form.brewersInput = (brewDoc?.brewers || []).join(', ');
   form.plannedStartAt = toLocalDateTimeInput(brewDoc?.timeline?.plannedStartAt);
 
+  inventoryError.value = '';
+  inventoryAvailableIds.value = [...(brewDoc?.inventory?.availableIngredientIds || [])];
   const snapshot = brewDoc?.recipeSnapshot || {};
   form.snapshot.recipeId = snapshot.recipeId || brewDoc?.recipeId || "";
   form.snapshot.recipeGroupId = snapshot.recipeGroupId || "";
@@ -655,16 +686,16 @@ function snapshotPayload() {
     recipeGroupId: form.snapshot.recipeGroupId || undefined,
     recipeVersion: Number(form.snapshot.recipeVersion || 1) || 1,
     name: form.snapshot.name?.trim() || form.name?.trim() || undefined,
-    beerType: form.snapshot.beerType?.trim() || undefined,
+    beerType: form.snapshot.beerType?.trim() || "",
     iconPath: form.snapshot.iconPath?.trim() || undefined,
-    flavorProfile: form.snapshot.flavorProfile?.trim() || undefined,
-    color: form.snapshot.color?.trim() || undefined,
-    imageUrl: form.snapshot.imageUrl?.trim() || undefined,
+    flavorProfile: form.snapshot.flavorProfile?.trim() || "",
+    color: form.snapshot.color?.trim() || "",
+    imageUrl: form.snapshot.imageUrl?.trim() || "",
     defaults: {
-      ogFrom: form.snapshot.defaults.ogFrom?.trim() || undefined,
-      ogTo: form.snapshot.defaults.ogTo?.trim() || undefined,
-      fgFrom: form.snapshot.defaults.fgFrom?.trim() || undefined,
-      fgTo: form.snapshot.defaults.fgTo?.trim() || undefined,
+      ogFrom: form.snapshot.defaults.ogFrom?.trim() || "",
+      ogTo: form.snapshot.defaults.ogTo?.trim() || "",
+      fgFrom: form.snapshot.defaults.fgFrom?.trim() || "",
+      fgTo: form.snapshot.defaults.fgTo?.trim() || "",
       co2Volumes: sanitizeNumber(form.snapshot.defaults.co2Volumes),
       ibu: sanitizeNumber(form.snapshot.defaults.ibu),
       batchSizeLiters: sanitizeNumber(form.snapshot.defaults.batchSizeLiters),
@@ -726,11 +757,11 @@ function applyLinkedRecipe(recipeDoc) {
   form.snapshot.recipeGroupId = recipeDoc?.recipeGroupId || "";
   form.snapshot.recipeVersion = Number(recipeDoc?.version || 1) || 1;
   form.snapshot.name = recipeDoc?.name || form.snapshot.name || form.name;
-  form.snapshot.beerType = recipeDoc?.beerType || form.snapshot.beerType;
+  form.snapshot.beerType = recipeDoc?.beerType ?? form.snapshot.beerType;
   form.snapshot.iconPath = recipeDoc?.iconPath || form.snapshot.iconPath;
-  form.snapshot.flavorProfile = recipeDoc?.flavorProfile || form.snapshot.flavorProfile;
-  form.snapshot.color = recipeDoc?.color || form.snapshot.color;
-  form.snapshot.imageUrl = recipeDoc?.imageUrl || form.snapshot.imageUrl;
+  form.snapshot.flavorProfile = recipeDoc?.flavorProfile ?? form.snapshot.flavorProfile;
+  form.snapshot.color = recipeDoc?.color ?? form.snapshot.color;
+  form.snapshot.imageUrl = recipeDoc?.imageUrl ?? form.snapshot.imageUrl;
 }
 
 async function syncBrewWithLinkedRecipe(recipeDoc) {
@@ -739,6 +770,7 @@ async function syncBrewWithLinkedRecipe(recipeDoc) {
   const updatedBrew = await updateBrew(brew.value._id, {
     recipeId: form.snapshot.recipeId || undefined,
     recipeSnapshot: snapshotPayload(),
+    inventory: { availableIngredientIds: inventoryAvailableIds.value },
     progress: {
       currentStepIndex: brew.value?.progress?.currentStepIndex || 0,
     },
@@ -749,12 +781,11 @@ async function syncBrewWithLinkedRecipe(recipeDoc) {
 async function updateLinkedRecipeVersion() {
   if (!hasLinkedRecipe.value || !form.snapshot.recipeId) return;
   if (!isGravityValid.value) {
-    errorMessage.value = t("recipes.errors.gravity_format");
+    errorMessage.value = gravityErrorMessage.value;
     return;
   }
 
   recipeSyncing.value = true;
-  recipeSyncAction.value = "update";
   recipeSyncMessage.value = "";
   errorMessage.value = "";
 
@@ -770,29 +801,28 @@ async function updateLinkedRecipeVersion() {
       err?.response?.data?.error || err?.message || t("recipes.errors.update_failed");
   } finally {
     recipeSyncing.value = false;
-    recipeSyncAction.value = "";
   }
 }
 
 async function saveAsNewRecipeVersion() {
   if (!form.name?.trim()) return;
   if (!isGravityValid.value) {
-    errorMessage.value = t("recipes.errors.gravity_format");
+    errorMessage.value = gravityErrorMessage.value;
     return;
   }
 
   recipeSyncing.value = true;
-  recipeSyncAction.value = "new-version";
   recipeSyncMessage.value = "";
   errorMessage.value = "";
 
   try {
     const payload = recipePayloadFromSnapshot();
-    const nextRecipe = hasLinkedRecipe.value
+    const wasLinked = hasLinkedRecipe.value;
+    const nextRecipe = wasLinked
       ? await createRecipeVersion(form.snapshot.recipeId, payload)
       : await createRecipe(payload);
     await syncBrewWithLinkedRecipe(nextRecipe);
-    recipeSyncMessage.value = hasLinkedRecipe.value
+    recipeSyncMessage.value = wasLinked
       ? t("brews.plan.recipe_version_created")
       : t("brews.plan.recipe_created_and_linked");
   } catch (err) {
@@ -800,7 +830,6 @@ async function saveAsNewRecipeVersion() {
       err?.response?.data?.error || err?.message || t("recipes.errors.save_failed");
   } finally {
     recipeSyncing.value = false;
-    recipeSyncAction.value = "";
   }
 }
 
@@ -837,12 +866,16 @@ async function createEmptyPlan() {
 }
 
 async function savePlan() {
-  if (!brew.value?._id) return;
+  if (!brew.value?._id || saving.value || recipeSyncing.value || inventorySavingIds.value.length) return;
   if (!isGravityValid.value) {
-    errorMessage.value = t("recipes.errors.gravity_format");
+    errorMessage.value = gravityErrorMessage.value;
     return;
   }
 
+  if (!isBatchSizeValid.value) {
+    errorMessage.value = t('brews.plan.volume_invalid');
+    return;
+  }
   saving.value = true;
   successMessage.value = "";
   errorMessage.value = "";
@@ -851,12 +884,13 @@ async function savePlan() {
   try {
     const updated = await updateBrew(brew.value._id, {
       name: form.name?.trim() || undefined,
-      notes: form.notes?.trim() || undefined,
+      notes: form.notes?.trim() || "",
       brewers: form.brewersInput.split(',').map(name=>name.trim()).filter(Boolean),
       timeline: {
-        plannedStartAt: toIsoOrUndefined(form.plannedStartAt),
+        plannedStartAt: toIsoOrUndefined(form.plannedStartAt) || null,
       },
       recipeSnapshot: snapshotPayload(),
+      inventory: { availableIngredientIds: inventoryAvailableIds.value },
       progress: {
         currentStepIndex: brew.value?.progress?.currentStepIndex || 0,
       },
@@ -873,17 +907,16 @@ async function savePlan() {
 }
 
 async function startBrewDay() {
-  if (!brew.value?._id) return;
-  await savePlan();
-  if (errorMessage.value) return;
-
+  if (!brew.value?._id || starting.value || saving.value || recipeSyncing.value || inventorySavingIds.value.length) return;
+  starting.value = true;
   try {
+    await savePlan();
+    if (errorMessage.value) return;
     const started = await startBrew(brew.value._id);
     await router.push(`/brygg/${started._id}`);
   } catch (err) {
-    errorMessage.value =
-      err?.response?.data?.error || err?.message || t("brews.errors.start_failed");
-  }
+    errorMessage.value = err?.response?.data?.error || err?.message || t('brews.errors.start_failed');
+  } finally { starting.value = false; }
 }
 
 async function bootstrap() {
@@ -928,6 +961,14 @@ watch(
         ratio,
       );
     });
+    form.snapshot.steps.forEach(step => {
+      const legacyText = scaleBaseline.hopSchedules.get(step.stepId);
+      if (typeof legacyText === "string" && step.data) step.data.hopSchedule = scaleBoilScheduleText(legacyText, ratio);
+      (step.data?.additions || []).forEach(item => {
+      const key = JSON.stringify([step.stepId, item.additionId]);
+      if (scaleBaseline.additions.has(key)) item.amount = scaleIngredientAmountText(scaleBaseline.additions.get(key), ratio);
+      });
+    });
     applyingBatchScale = false;
   },
   { flush: "sync" },
@@ -937,7 +978,7 @@ watch(
   () =>
     form.snapshot.ingredients
       .map((ingredient) => `${ingredient.ingredientId}:${ingredient.amount ?? ""}`)
-      .join("|"),
+      .join("|") + JSON.stringify(form.snapshot.steps.map(step => [step.stepId, step.data?.additions, step.data?.hopSchedule])),
   () => {
     if (applyingBatchScale || suppressBatchAutoScale.value) return;
     captureScaleBaseline();
@@ -947,3 +988,25 @@ watch(
 
 onMounted(bootstrap);
 </script>
+
+<style>
+.plan-panel { min-width: 0; padding: 20px; border: 1px solid var(--color-border3); border-radius: 12px; background: var(--color-bg2); color: var(--color-text2); }
+.plan-section-title { font-size: 16px; line-height: 1.4; font-weight: 700; color: inherit; }
+</style>
+<style scoped>
+.plan-stats { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); border: 1px solid var(--color-border3); border-radius: 12px; padding: 20px 0; background: var(--color-bg2); }
+.plan-stat { display: flex; align-items: center; gap: 12px; padding: 0 24px; }
+.plan-stat + .plan-stat { border-left: 1px solid var(--color-border3); }
+.plan-layout { padding: 0; margin: 0; border: 0; display: grid; grid-template-columns: minmax(0,1.85fr) minmax(300px,1fr); gap: 20px; align-items: start; }
+.plan-disclosure__summary { display: flex; align-items: center; gap: 12px; cursor: pointer; list-style: none; }
+.plan-disclosure__summary::-webkit-details-marker { display: none; }
+.plan-disclosure__summary:focus-visible { outline: 2px solid var(--color-button1-border); outline-offset: 6px; border-radius: 3px; }
+.plan-chevron { transition: transform .15s; }
+.plan-disclosure[open] > summary .plan-chevron, .plan-notes[open] > summary .plan-chevron { transform: rotate(180deg); }
+.plan-form-row { display: grid; grid-template-columns: 90px minmax(0,1fr); gap: 10px; align-items: center; font-size: 13px; }
+.plan-action-bar { position: sticky; bottom: 12px; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px 20px; border: 1px solid var(--color-border3); border-radius: 12px; background: var(--color-bg1); box-shadow: 0 4px 24px color-mix(in srgb, var(--color-text1) 8%, transparent); }
+@media(max-width: 900px) { .plan-layout { grid-template-columns: minmax(0,1fr); } .plan-layout aside { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; } .plan-layout aside > * { margin-top: 0; } }
+@media(max-width: 640px) { .plan-stats { grid-template-columns: repeat(2,minmax(0,1fr)); padding: 0; } .plan-stat { padding: 16px; } .plan-stat:nth-child(3) { border-left: 0; } .plan-stat:nth-child(n+3) { border-top: 1px solid var(--color-border3); } .plan-layout aside { display: block; } .plan-layout aside > * + * { margin-top: 16px; } .plan-action-bar { position: static; padding: 12px; } .plan-action-bar > .flex { width: 100%; flex-wrap: wrap; } .plan-action-bar > .flex > * { flex: 1; } }
+@media(max-width: 380px) { .plan-form-row { grid-template-columns: minmax(0,1fr); gap: 4px; } }
+@media(prefers-reduced-motion: reduce) { .plan-chevron { transition: none; } }
+</style>

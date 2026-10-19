@@ -3,13 +3,27 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseRecipeFile, validateRecipeDocument, MAX_RECIPE_FILE_BYTES } from './recipeImport.js';
 const template=readFileSync(new URL('../../public/templates/guttabrew-oppskrift-mal.md',import.meta.url),'utf8');
-const example=JSON.parse(template.match(/```json\n([\s\S]*?)\n```/)[1]);
+const example=JSON.parse(template.match(/```json\r?\n([\s\S]*?)\r?\n```/)[1]);
 test('the actual downloadable Markdown template imports without dropping links or units',()=>{
   const result=parseRecipeFile(template);assert.deepEqual(result.errors,[]);assert.equal(result.recipe.steps.length,6);assert.equal(result.recipe.steps[4].durationMinutes,20160);assert.deepEqual(result.recipe.ingredients[3].stepIds,['gjaering']);assert.equal(result.recipe.sourceUrl,'https://example.com/oppskrift');
 });
 test('UTF-8 BOM, Windows line endings and pure JSON use the same format',()=>{
-  assert.equal(parseRecipeFile('\uFEFF'+template.replace(/\n/g,'\r\n')).errors.length,0);
+  assert.equal(parseRecipeFile('\uFEFF'+template.replace(/\r?\n/g,'\r\n')).errors.length,0);
   assert.equal(parseRecipeFile(JSON.stringify(example)).recipe.name,example.recipe.name);
+});
+
+test('structured boil schedules import linked ingredients and other additions without losing times',()=>{
+  const doc=structuredClone(example);
+  const boil=doc.recipe.steps.find(step=>step.stepType==='boil');
+  boil.data={additions:[{additionId:'hop',ingredientId:'bitterhumle',remainingMinutes:60},{additionId:'fining',name:'Whirlfloc',remainingMinutes:10,amount:'1',unit:'tablet'}]};
+  const result=validateRecipeDocument(doc);
+  assert.deepEqual(result.errors,[]);
+  assert.equal(result.recipe.steps.find(step=>step.stepType==='boil').data.additions[1].name,'Whirlfloc');
+  boil.data.additions[0].remainingMinutes=80;
+  assert.ok(validateRecipeDocument(doc).errors.some(error=>error.code==='boil_schedule'));
+  boil.data.additions[0].remainingMinutes=60;
+  boil.data.additions[0].ingredientId='missing';
+  assert.ok(validateRecipeDocument(doc).errors.some(error=>error.code==='reference'));
 });
 test('missing mandatory fields, unknown fields and unsupported versions fail clearly',()=>{
   const doc=structuredClone(example);delete doc.recipe.name;doc.version=2;doc.recipe.steps[0].durationDays=2;

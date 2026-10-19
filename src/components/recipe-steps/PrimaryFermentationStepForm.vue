@@ -12,7 +12,7 @@
       placeholder="f.eks. 1.012"
       @update:model-value="setDataField('targetGravity', $event)"
     />
-    <BaseTextarea :model-value="modelValue.description" rows="4" label="Notater" @update:model-value="setField('description', $event)" />
+    <BaseTextarea :model-value="modelValue.description" :rows="4" label="Notater" @update:model-value="setField('description', $event)" />
   </BaseCard>
 </template>
 

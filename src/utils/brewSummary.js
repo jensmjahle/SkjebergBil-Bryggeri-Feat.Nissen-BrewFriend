@@ -1,3 +1,4 @@
+import { stepHasCountdown } from './brewPhase.js';
 export function numberOrNull(value) {
   if (value === null || value === undefined || value === '') return null;
   const n = Number(value);
@@ -32,14 +33,15 @@ export function completedSummary(brew) {
     }
     if (actual === 0 && !entry.startedAt) actual = null;
     const minutes = numberOrNull(step.durationMinutes);
-    const planned = minutes === null ? null : minutes*60;
+    const planned = !stepHasCountdown(step) || minutes === null ? null : minutes*60;
     const readings = measurements.filter(m => {
+      if (m.stepId) return m.stepId === step.stepId && numberOrNull(m.temperatureC) !== null;
       const at = timestamp(m.takenAt), start = timestamp(entry.startedAt), end = timestamp(entry.completedAt) ?? (entry.status === 'active' ? completedAt : null);
       return at !== null && start !== null && end !== null && at >= start && at <= end && numberOrNull(m.temperatureC) !== null;
     });
     const temperature = readings.length ? readings.reduce((sum,m) => sum+Number(m.temperatureC),0)/readings.length : null;
     return { stepId:step.stepId, title:step.title, planned, actual, delta:actual !== null && planned !== null ? actual-planned : null,
-      note:entry.note || '', temperature, plannedTemperature:numberOrNull(step.temperatureC), timerAdjustmentSeconds:numberOrNull(entry.timerAdjustmentSeconds) };
+      note:entry.note || '', temperature, plannedTemperature:numberOrNull(step.temperatureC), timerAdjustmentSeconds:stepHasCountdown(step) ? numberOrNull(entry.timerAdjustmentSeconds) : null };
   });
   const metrics = [
     { key:'og', planned:plannedOg, actual:actualOg, precision:3 },

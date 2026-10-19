@@ -6,7 +6,7 @@
       <BaseInput :model-value="modelValue.temperatureC" :model-modifiers="{ number: true }" type="number" step="0.1" label="Temperatur °C" @update:model-value="setField('temperatureC', $event)" />
       <BaseInput :model-value="modelValue.durationMinutes" :model-modifiers="{ number: true }" type="number" step="1" label="Varighet (min)" @update:model-value="setField('durationMinutes', $event)" />
     </div>
-    <BaseTextarea :model-value="modelValue.description" rows="4" label="Notater" @update:model-value="setField('description', $event)" />
+    <BaseTextarea :model-value="modelValue.description" :rows="4" label="Notater" @update:model-value="setField('description', $event)" />
   </BaseCard>
 </template>
 

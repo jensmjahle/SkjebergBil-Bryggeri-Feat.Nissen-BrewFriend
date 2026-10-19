@@ -39,8 +39,8 @@
       </svg>
 
       <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <p class="font-mono text-3xl font-bold" :style="{ color: strokeColor }">{{ formattedRemaining }}</p>
-        <p class="text-xs uppercase tracking-wide opacity-70">{{ label }}</p>
+        <p class="font-mono font-bold" :class="compact ? '' : 'text-3xl'" :style="timeStyle">{{ formattedRemaining }}</p>
+        <p v-if="label && !compact" class="text-xs uppercase tracking-wide opacity-70">{{ label }}</p>
       </div>
     </div>
   </div>
@@ -51,6 +51,7 @@ import { computed } from "vue";
 import { useTimerScrub } from '@/composables/useTimerScrub.js';
 
 const props = defineProps({
+  compact: { type: Boolean, default: false },
   editable: { type:Boolean, default:false },
   seekLabel: { type:String, default:'' },
   remainingSeconds: {
@@ -103,9 +104,9 @@ const progressRatio = computed(() => normalizedRemaining.value / normalizedTotal
 const dashOffset = computed(() => circumference * (1 - progressRatio.value));
 
 const strokeColor = computed(() => {
-  if (rawRemaining.value <= 0) return "var(--color-error-text, #dc2626)";
-  if (progressRatio.value <= props.warningRatio) return "#eab308";
-  return "#10b981";
+  if (rawRemaining.value <= 0) return "var(--color-timer-overdue, var(--color-danger-border))";
+  if (progressRatio.value <= props.warningRatio) return "var(--color-timer-warning, var(--color-button2-border))";
+  return "var(--color-timer-progress, var(--color-success-border))";
 });
 
 const formattedRemaining = computed(() => {
@@ -127,4 +128,11 @@ const formattedRemaining = computed(() => {
   }
   return `${sign}${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 });
+
+const timeStyle = computed(() => ({
+  color: strokeColor.value,
+  fontSize: `${props.compact
+    ? Math.min(props.showDays ? 13 : 16, props.size * .72 / (formattedRemaining.value.length * .62))
+    : Math.min(30, props.size * .62 / (formattedRemaining.value.length * .62))}px`,
+}));
 </script>

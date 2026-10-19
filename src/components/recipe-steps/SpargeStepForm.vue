@@ -15,14 +15,6 @@
         label="Temperatur °C"
         @update:model-value="setField('temperatureC', $event)"
       />
-      <BaseInput
-        :model-value="modelValue.durationMinutes"
-        :model-modifiers="{ number: true }"
-        type="number"
-        step="1"
-        label="Varighet (min)"
-        @update:model-value="setField('durationMinutes', $event)"
-      />
     </div>
     <BaseInput
       :model-value="modelValue.data?.waterAmountL"
@@ -35,7 +27,7 @@
     />
     <BaseTextarea
       :model-value="modelValue.description"
-      rows="4"
+      :rows="4"
       label="Notater"
       @update:model-value="setField('description', $event)"
     />

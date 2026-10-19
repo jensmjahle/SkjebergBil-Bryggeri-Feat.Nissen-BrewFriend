@@ -2,11 +2,13 @@
 import Footer from "./components/Footer.vue";
 import ConfirmDialog from "@/components/base/ConfirmDialog.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog.js";
+import FloatingBrewTimers from "@/components/brews/FloatingBrewTimers.vue";
 
 const { isVisible, options, confirm, cancel } = useConfirmDialog();
 </script>
 
 <template>
+  <FloatingBrewTimers />
   <ConfirmDialog
     v-if="isVisible"
     :title="options.title"

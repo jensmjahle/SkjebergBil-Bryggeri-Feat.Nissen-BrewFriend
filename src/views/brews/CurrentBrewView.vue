@@ -1,5 +1,5 @@
-﻿<template>
-  <section class="mx-auto w-full px-2 pb-8 pt-3 space-y-2 md:space-y-6">
+<template>
+  <section class="brew-page mx-auto w-full px-2 pb-8 pt-3 space-y-2 md:space-y-5">
     <BaseCard v-if="loading">
       <p>{{ t("common.loading") }}</p>
     </BaseCard>
@@ -9,23 +9,11 @@
     </BaseCard>
 
     <template v-else-if="brew">
-      <div class="lg:sticky lg:top-14 lg:z-20 lg:bg-bg1 lg:py-2">
+      <div class="brew-sticky-header">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0 flex-1">
             <h1 class="break-words text-xl sm:text-3xl">{{ brewTitle(brew) }}</h1>
-            <p v-if="brew.brewers?.length" class="mt-1 text-sm opacity-85 break-words">{{ t('brews.fields.brewers') }}: {{ brew.brewers.join(', ') }}</p>
-            <div class="mt-1 space-y-1 lg:flex lg:flex-wrap lg:items-center lg:gap-x-2 lg:gap-y-1 lg:space-y-0">
-              <p class="text-sm opacity-80">{{ statusLabel(brew.status) }}</p>
-              <p v-if="brew.progress?.brewStartedAt" class="text-xs opacity-70">
-                {{ t("brews.fields.brew_started_at") }}: {{ formatDateTime(brew.progress.brewStartedAt) }}
-              </p>
-              <p v-if="brew.progress?.brewStartedAt" class="text-xs opacity-70">
-                {{ t(isCompleted ? "brews.overview.total_time" : "brews.fields.brew_day_elapsed") }}: {{ formatStopwatch(brewDayElapsedSeconds) }}
-              </p>
-              <p class="text-xs opacity-70">
-                {{ t("brews.fields.total_step_time") }}: {{ formatStopwatch(totalStepElapsedSeconds) }}
-              </p>
-            </div>
+
           </div>
 
           <div class="flex flex-wrap items-center justify-end gap-2">
@@ -76,9 +64,6 @@
             </div>
           </div>
         </div>
-      </div>
-
-      <div class="space-y-3">
         <BaseToggle
           class="sm:hidden"
           :model-value="activePanel"
@@ -86,6 +71,27 @@
           :full-width="true"
           @update:model-value="setActivePanel"
         />
+      </div>
+
+      <div class="brew-context">
+            <BrewRecipeLink class="mt-2" :brew="brew" />
+            <p v-if="brew.brewers?.length" class="mt-1 text-sm opacity-85 break-words">{{ t('brews.fields.brewers') }}: {{ brew.brewers.join(', ') }}</p>
+            <div class="mt-1 space-y-1 lg:flex lg:flex-wrap lg:items-center lg:gap-x-2 lg:gap-y-1 lg:space-y-0">
+              <p class="text-sm opacity-80">{{ statusLabel(brew.status) }}</p>
+              <p v-if="brew.progress?.brewStartedAt" class="text-xs opacity-70">
+                {{ t("brews.fields.brew_started_at") }}: {{ formatDateTime(brew.progress.brewStartedAt) }}
+              </p>
+              <p v-if="brew.progress?.brewStartedAt" class="text-xs opacity-70">
+                {{ t(isCompleted ? "brews.overview.total_time" : "brews.fields.brew_day_elapsed") }}: {{ formatStopwatch(brewDayElapsedSeconds) }}
+              </p>
+              <p class="text-xs opacity-70">
+                {{ t("brews.fields.total_step_time") }}: {{ formatStopwatch(totalStepElapsedSeconds) }}
+              </p>
+            </div>
+      </div>
+
+      <div class="space-y-3">
+
 
         <div v-if="brew.status === 'planned'" class="flex">
           <BaseButton variant="button2" @click="startBrewDayAction">
@@ -102,103 +108,51 @@
       </BrewOverview>
 
       <template v-else-if="activePanel === 'progress'">
-        <div class="lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,7fr)] lg:items-start lg:gap-6">
+        <div class="brew-workspace">
         <BaseCard
           v-if="currentStep"
-          class="space-y-5 lg:sticky lg:top-36 lg:col-start-2 lg:row-start-1 lg:max-h-[calc(100vh-10rem)] lg:min-w-0 lg:overflow-y-auto"
+          class="step-workspace space-y-5"
         >
-          <div class="lg:grid lg:grid-cols-[minmax(0,1fr)_16.25rem] lg:gap-5">
-          <div class="space-y-5">
+          <div class="active-step-layout" :class="{ 'active-step-layout--boil': isBoilStep }">
+          <div class="step-content space-y-5">
           <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p class="text-xs uppercase tracking-wide opacity-70">
                 {{ t("brews.current.step_label", { current: currentStepIndex + 1, total: steps.length }) }}
               </p>
-              <h3>{{ currentStep.title }}</h3>
-              <p class="text-sm opacity-80">{{ phaseLabel(stepPhase(currentStep), t) }}</p>
+              <h3 class="step-heading"><component :is="stepIcon" class="h-7 w-7 shrink-0 text-button2-border" aria-hidden="true" /><BrewInlineText :model-value="displayStep.title" :editing="editingCurrentStep" :disabled="savingInline" :label="t('recipes.fields.name')" @update:model-value="inlineDraft.title = $event" /></h3>
+              <p v-if="displayStep.title?.toLocaleLowerCase() !== phaseLabel(stepPhase(currentStep), t).toLocaleLowerCase()" class="text-sm opacity-80">{{ phaseLabel(stepPhase(currentStep), t) }}</p>
+          <div class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-text2-faded">
+            <p v-if="stepHasCountdown(currentStep) && (!isBoilStep || editingCurrentStep)">{{ t("recipes.detail.time") }}: <template v-if="editingCurrentStep"><BrewInlineText v-model="inlineDraft.durationMinutes" editing type="number" :disabled="savingInline" :label="t('recipes.detail.time')" /> min</template><template v-else>{{ stepDurationLabel(currentStep) }}</template></p>
+            <p>{{ t("recipes.detail.temp") }}: <BrewInlineText :model-value="displayStep.temperatureC" :editing="editingCurrentStep" type="number" :disabled="savingInline" :label="t('recipes.detail.temp')" @update:model-value="inlineDraft.temperatureC = $event" /> °C</p>
+          </div>
             </div>
             <span class="rounded-full bg-bg4 text-text4 px-2 py-1 text-xs">
               {{ stepStatusLabel(currentStepProgress?.status || "pending", currentStepProgress) }}
             </span>
           </div>
 
-          <div class="grid gap-2 text-sm opacity-90 md:grid-cols-3">
-            <p>{{ t("recipes.detail.time") }}: {{ stepDurationLabel(currentStep) }}</p>
-            <p>{{ t("recipes.detail.temp") }}: {{ currentStep.temperatureC ?? "-" }} °C</p>
-          </div>
 
-          <div class="space-y-3 md:rounded-lg md:border border-border3 md:p-4">
-            <p v-if="currentStep.description" class="whitespace-pre-line text-sm opacity-90">{{ currentStep.description }}</p>
 
-            <div v-if="currentStepDataEntries.length" class="space-y-1 text-sm">
-              <p class="text-xs font-semibold uppercase tracking-wide opacity-70">{{ t("brews.current.step_details") }}</p>
-              <p v-for="entry in currentStepDataEntries" :key="entry.key" class="opacity-85">
-                {{ entry.label }}: {{ entry.value }}
-              </p>
-            </div>
-
-            <div v-if="currentStepIngredients.length" class="space-y-1 text-sm">
-              <p class="text-xs font-semibold uppercase tracking-wide opacity-70">{{ t("recipes.detail.ingredients_in_step") }}</p>
-              <div class="flex flex-wrap gap-2">
-                <span
-                  v-for="ingredient in currentStepIngredients"
-                  :key="`active-${ingredient.ingredientId}`"
-                  class="inline-flex items-center gap-1 rounded-full border border-border3 px-2 py-1 text-xs"
-                >
-                  <img :src="ingredientCategoryIcon(ingredient.category)" :alt="ingredientCategoryText(ingredient.category)" class="h-4 w-4 rounded-sm bg-white p-0.5 object-contain" />
-                  {{ ingredient.name }}{{ ingredient.amount ? ` (${ingredient.amount}${ingredient.unit ? ` ${ingredient.unit}` : ""})` : "" }}
-                </span>
+          <div class="step-timer-bar" :class="{ 'step-timer-bar--untimed': !stepHasCountdown(currentStep) }">
+            <div v-if="stepHasCountdown(currentStep)" class="step-timer-progress">
+              <PhaseTimeline :brew="brew" :selected-step-id="currentStep.stepId" @updated="brew=$event" />
+              <div v-if="isBoilStep" class="boil-totals">
+                <p>{{ t('brews.boil.total') }} <strong>{{ timerTotalSeconds / 60 }} min</strong></p>
+                <p>{{ t('brews.boil.remaining') }} <strong>{{ formatBoilClock(timerRemainingSeconds) }}</strong></p>
               </div>
-              <template v-for="ingredient in currentStepIngredients" :key="`active-note-${ingredient.ingredientId}`">
-                <p v-if="ingredient.notes" class="text-xs opacity-75">
-                  {{ ingredient.name }}: {{ ingredient.notes }}
-                </p>
-              </template>
+              <div v-if="isBoilStep && showRoundTimer" class="next-addition" :class="boilState.due ? 'bg-status-pending text-status-pending-text' : ''" role="status">
+                <p class="text-xs opacity-70">{{ t(boilState.next ? 'brews.boil.next_addition' : 'brews.boil.flameout') }}</p>
+                <p class="mt-1 break-words text-sm font-semibold">{{ boilState.nextGroup.map(item => [item.name, item.amount, item.unit].filter(Boolean).join(' ')).join(' · ') || t('brews.boil.boil_finished') }}</p>
+                <p v-if="boilState.due" class="mt-1 text-xs">{{ t('brews.boil.add_now') }}</p>
+              </div>
             </div>
-          </div>
+            <div v-if="showRoundTimer" class="step-timer-clock">
+              <CircularCountdown data-main-brew-timer :size="128" :remaining-seconds="roundTimerRemaining" :total-seconds="roundTimerTotal" :label="isBoilStep ? t(boilState.next ? 'brews.boil.until_addition' : 'brews.boil.until_finish') : t('brews.current.timer_remaining')" :show-days="isCurrentStepDayBased" :editable="!isCompleted && currentStepProgress?.status !== 'completed' && !savingTimer" :seek-label="t('brews.timer.seek')" @seek="seekRoundTimer" />
 
-          <div class="space-y-2 rounded-lg md:border border-border3 md:p-4">
-            <label class="block text-sm font-medium">
-              {{ t("brews.current.step_note_label") }}
-            </label>
-            <textarea
-              v-model="stepNoteInput"
-              class="w-full rounded-lg border border-border4 bg-bg4 text-text4 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-button1"
-              rows="3"
-              :placeholder="t('brews.current.step_note_placeholder')"
-            />
-            <div class="flex flex-wrap items-center gap-2">
-              <BaseButton
-                type="button"
-                variant="button3"
-                :disabled="savingStepNote"
-                @click="saveCurrentStepNote"
-              >
-                {{ savingStepNote ? t("common.saving") : t("brews.actions.save_step_note") }}
-              </BaseButton>
-              <p v-if="stepNoteMessage" class="text-sm opacity-80">{{ stepNoteMessage }}</p>
+              <p v-if="timerMessage" class="text-sm" role="status">{{ timerMessage }}</p>
             </div>
-          </div>
-
-          </div>
-
-          <aside class="mt-5 space-y-3 lg:mt-0">
-            <PhaseTimeline :brew="brew" :selected-step-id="currentStep.stepId" details @updated="brew=$event" />
-            <CircularCountdown
-              v-if="showRoundTimer"
-              class="mx-auto"
-              :remaining-seconds="timerRemainingSeconds"
-              :total-seconds="timerTotalSeconds"
-              :label="t('brews.current.timer_remaining')"
-              :show-days="isCurrentStepDayBased"
-              :editable="!isCompleted && currentStepProgress?.status !== 'completed' && !savingTimer"
-              :seek-label="t('brews.timer.seek')"
-              @seek="seekCurrentTimer"
-            />
-            <p v-if="showRoundTimer && !isCompleted" class="text-xs opacity-75 text-center">{{ t('brews.timer.help') }}</p>
-            <p v-if="timerMessage" class="text-sm" role="status">{{ timerMessage }}</p>
-
-          <div class="space-y-2">
+            <div class="step-timer-actions">          <div class="space-y-2">
             <div class="grid grid-cols-3 gap-2">
               <BaseButton type="button" variant="button3" :disabled="currentStepIndex <= 0" @click="previousStep">
                 {{ t("brews.actions.previous_step") }}
@@ -224,16 +178,85 @@
               </BaseButton>
             </div>
           </div>
-          </aside>
+</div>
+          </div>
+          <details v-if="showRoundTimer && !isCompleted" class="timer-help text-xs text-text2-faded"><summary class="cursor-pointer">{{ t('brews.timer.seek') }}</summary><p class="mt-2">{{ t(isBoilStep ? 'brews.boil.timer_help' : 'brews.timer.help') }}</p></details>
+          <BrewStepReadings :key="`${brew._id}-${currentStep.stepId}`" :brew="brew" :step="currentStep" :readonly="isCompleted || brew.status === 'archived'" @saved="mergeStepMeasurement" />
+
+          <BoilTimeline v-if="isBoilStep" :step="currentStep" :ingredients="ingredients" :progress="currentStepProgress" :remaining-seconds="timerRemainingSeconds" :saving-ids="savingAdditionIds" :disabled="!!inlineDraft || currentStepProgress?.status === 'completed'" :readonly="isCompleted" :error="additionError" @edit="beginInlineEdit('steps', currentStep)" @toggle="recordBoilAddition" />
+
+          <details class="step-details space-y-3" :open="editingCurrentStep || stepInstructionsOpen" @toggle="stepInstructionsOpen = $event.currentTarget.open">
+            <summary class="flex cursor-pointer items-center justify-between gap-2"><ChevronDown class="h-4 w-4 shrink-0" aria-hidden="true" />
+              <p class="flex-1 text-sm font-semibold">{{ t("brews.readings.instructions") }}</p>
+              <BrewInlineActions v-if="editingCurrentStep" :saving="savingInline" @click.stop.prevent @save="saveInlineEdit()" @cancel="cancelInlineEdit" />
+              <button v-else type="button" class="inline-flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded text-current opacity-70 hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-30" :aria-label="t('brews.actions.edit') + ': ' + t('brews.current.step_details')" :title="t('brews.actions.edit')" :disabled="!!inlineDraft" @click.stop="beginInlineEdit('steps', currentStep)"><Pencil class="h-4 w-4" aria-hidden="true" /></button>
+            </summary>
+            <p v-if="displayStep.description || editingCurrentStep" class="whitespace-pre-line text-sm opacity-90"><BrewInlineText :model-value="displayStep.description" :editing="editingCurrentStep" multiline :disabled="savingInline" :label="t('recipes.fields.notes')" @update:model-value="inlineDraft.description = $event" /></p>
+            <BoilScheduleEditor v-if="isBoilStep && editingCurrentStep" v-model="inlineDraft.data.additions" :ingredients="ingredients" :duration-minutes="Number(inlineDraft.durationMinutes)" :legacy-text="inlineDraft.data.hopSchedule" :disabled="savingInline" />
+            <div v-if="currentStepDataEntries.length" class="space-y-1 text-sm">
+              <p v-for="entry in currentStepDataEntries" :key="entry.key" class="opacity-85">
+                {{ entry.label }}: <BrewInlineText :model-value="displayStep.data[entry.key]" :editing="editingCurrentStep" :type="typeof currentStep.data?.[entry.key] === 'number' ? 'number' : 'text'" :disabled="savingInline" :label="entry.label" @update:model-value="inlineDraft.data[entry.key] = $event" />
+              </p>
+            </div>
+            <p v-if="editingCurrentStep && inlineError" role="alert" class="text-sm text-[var(--color-danger)]">{{ inlineError }}</p>
+            <div v-if="currentStepIngredients.length" class="space-y-1 text-sm">
+              <p class="text-xs font-semibold uppercase tracking-wide opacity-70">{{ t("recipes.detail.ingredients_in_step") }}</p>
+              <div class="flex flex-wrap gap-2">
+                <span v-for="ingredient in currentStepIngredients" :key="`active-${ingredient.ingredientId}`" class="inline-flex max-w-full flex-wrap items-center gap-1.5 border border-border3 px-2.5 py-1.5 text-xs" :class="editingIngredient(ingredient) ? 'w-full rounded-lg sm:w-auto' : 'rounded-full'">
+                  <img :src="ingredientCategoryIcon(ingredient.category)" :alt="ingredientCategoryText(ingredient.category)" class="h-4 w-4 rounded-sm bg-white p-0.5 object-contain" />
+                  <BrewInlineText :model-value="ingredientDraft(ingredient).name" :editing="editingIngredient(ingredient)" :disabled="savingInline" :label="t('recipes.fields.name')" @update:model-value="inlineDraft.name = $event" />
+                  <span v-if="ingredient.amount || editingIngredient(ingredient)" class="inline-flex items-baseline gap-1 text-current opacity-80"><BrewInlineText :model-value="ingredientDraft(ingredient).amount" :editing="editingIngredient(ingredient)" :disabled="savingInline" :label="t('recipes.fields.amount')" @update:model-value="inlineDraft.amount = $event" />
+                  <BrewInlineText :model-value="ingredientDraft(ingredient).unit" :editing="editingIngredient(ingredient)" :disabled="savingInline" :label="t('recipes.fields.unit')" @update:model-value="inlineDraft.unit = $event" /></span>
+                  <BrewInlineActions v-if="editingIngredient(ingredient)" :saving="savingInline" @save="saveInlineEdit()" @cancel="cancelInlineEdit" />
+                  <button v-else type="button" class="inline-flex p-1 opacity-70 hover:opacity-100" :disabled="!!inlineDraft" :aria-label="t('brews.actions.edit') + ': ' + ingredient.name" @click="beginInlineEdit('ingredients', ingredient)"><Pencil class="h-3 w-3" aria-hidden="true" /></button>
+                </span>
+              </div>
+              <template v-for="ingredient in currentStepIngredients" :key="`active-note-${ingredient.ingredientId}`">
+                <p v-if="ingredient.notes || editingIngredient(ingredient)" class="text-xs opacity-75">
+                  {{ ingredient.name }}: <BrewInlineText :model-value="ingredientDraft(ingredient).notes" :editing="editingIngredient(ingredient)" :disabled="savingInline" multiline :label="t('recipes.fields.notes')" @update:model-value="inlineDraft.notes = $event" />
+                </p>
+              </template>
+            </div>
+            <p v-if="inlineKind === 'ingredients' && inlineError" role="alert" class="text-sm text-[var(--color-danger)]">{{ inlineError }}</p>
+          </details>
+
+
+
+          <details class="step-notes space-y-3">
+            <summary class="cursor-pointer text-sm font-semibold">{{ t("brews.readings.notes") }}</summary>
+            <label class="sr-only" for="active-step-note">{{ t("brews.current.step_note_label") }}</label>
+            <textarea
+              id="active-step-note"
+              v-model="stepNoteInput"
+              class="w-full rounded-lg border border-border4 bg-bg4 text-text4 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-button1"
+              rows="3"
+              :placeholder="t('brews.current.step_note_placeholder')"
+            />
+            <div class="flex flex-wrap items-center gap-2">
+              <BaseButton
+                type="button"
+                variant="button3"
+                :disabled="savingStepNote"
+                @click="saveCurrentStepNote"
+              >
+                {{ savingStepNote ? t("common.saving") : t("brews.actions.save_step_note") }}
+              </BaseButton>
+              <p v-if="stepNoteMessage" class="text-sm opacity-80">{{ stepNoteMessage }}</p>
+            </div>
+          </details>
+
+          </div>
+
           </div>
         </BaseCard>
 
-        <BaseCard v-if="steps.length" class="space-y-3 lg:col-start-1 lg:row-start-1 lg:min-w-0">
+        <BaseCard v-if="steps.length" class="brew-step-rail space-y-3">
           <h3>{{ t("brews.current.all_steps") }}</h3>
           <div class="space-y-2">
             <RecipeStepItem
               v-for="(step, index) in steps"
               :key="step.stepId || index"
+              compact
               :step="step"
               :ingredients="ingredients"
               :clickable="true"
@@ -263,15 +286,18 @@
         </BaseCard>
 
         <BaseCard>
-          <h3>{{ t("recipes.detail.ingredients") }}</h3>
+          <div class="flex items-center justify-between gap-2">
+            <h3>{{ t("recipes.detail.ingredients") }}</h3>
+            <BaseButton variant="button3" :disabled="!!inlineDraft" @click="addInlineIngredient">{{ t('recipes.actions.add_ingredient') }}</BaseButton>
+          </div>
+          <p v-if="inlineKind === 'ingredients' && inlineError" role="alert" class="text-sm text-[var(--color-danger)]">{{ inlineError }}</p>
           <div class="mt-3 space-y-2">
-            <div v-if="!ingredients.length" class="text-sm opacity-70">{{ t("recipes.detail.no_ingredients") }}</div>
-            <RecipeIngredientItem
-              v-for="ingredient in ingredients"
-              :key="ingredient.ingredientId"
-              :ingredient="ingredient"
-              :steps="steps"
-            />
+            <div v-if="!visibleIngredients.length" class="text-sm opacity-70">{{ t("recipes.detail.no_ingredients") }}</div>
+            <div v-for="ingredient in visibleIngredients" :key="ingredient.ingredientId" class="flex items-start gap-2">
+              <RecipeIngredientItem class="min-w-0 flex-1" :ingredient="ingredient" :steps="steps" :draft="editingIngredient(ingredient) ? inlineDraft : null" :saving="savingInline" />
+              <BrewInlineActions v-if="editingIngredient(ingredient)" :saving="savingInline" @save="saveInlineEdit()" @cancel="cancelInlineEdit" />
+              <button v-else type="button" class="inline-flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded text-current opacity-70 hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-30" :disabled="!!inlineDraft" :aria-label="t('brews.actions.edit') + ': ' + ingredient.name" :title="t('brews.actions.edit')" @click="beginInlineEdit('ingredients', ingredient)"><Pencil class="h-4 w-4" aria-hidden="true" /></button>
+            </div>
           </div>
         </BaseCard>
 
@@ -436,23 +462,32 @@
 </template>
 
 <script setup>
+import BrewStepReadings from "@/components/brews/BrewStepReadings.vue";
 import PhaseTimeline from "@/components/brews/PhaseTimeline.vue";
 import BrewOverview from "@/components/brews/BrewOverview.vue";
+import BrewRecipeLink from '@/components/brews/BrewRecipeLink.vue';
 import { numberOrNull } from '@/utils/brewSummary.js';
-import { brewPhase, phaseLabel, brewTitle, stepPhase } from "@/utils/brewPhase.js";
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { brewPhase, phaseLabel, brewTitle, stepPhase, stepHasCountdown, stepIsPaused } from "@/utils/brewPhase.js";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useFloatingBrewTimersStore } from '@/store/useFloatingBrewTimersStore.js';
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { EllipsisVertical, Pencil, Trash2 } from "lucide-vue-next";
+import { EllipsisVertical, Pencil, Trash2, ChevronDown, Flame, Droplets, Wheat, Thermometer, Beer, Snowflake } from "lucide-vue-next";
 import BaseCard from "@/components/base/BaseCard.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
 import BaseInput from "@/components/base/BaseInput.vue";
 import BaseToggle from "@/components/base/BaseToggle.vue";
 import CircularCountdown from "@/components/brews/CircularCountdown.vue";
+import BoilTimeline from '@/components/brews/BoilTimeline.vue';
+import BoilScheduleEditor from '@/components/recipe-steps/BoilScheduleEditor.vue';
+import { boilScheduleState, formatBoilClock, invalidBoilSchedule } from '@/utils/boilSchedule.js';
 import GravityProgressChart from "@/components/brews/GravityProgressChart.vue";
 import RecipeDefaultsSummary from "@/components/recipes/RecipeDefaultsSummary.vue";
 import RecipeCostSummary from "@/components/recipes/RecipeCostSummary.vue";
 import RecipeIngredientItem from "@/components/recipes/RecipeIngredientItem.vue";
+import BrewInlineActions from "@/components/brews/BrewInlineActions.vue";
+import BrewInlineText from "@/components/brews/BrewInlineText.vue";
+
 import RecipeStepItem from "@/components/recipes/RecipeStepItem.vue";
 import BrewMeasurementModal from "@/components/modals/BrewMeasurementModal.vue";
 import BrewEvaluationModal from "@/components/modals/BrewEvaluationModal.vue";
@@ -472,6 +507,7 @@ import {
   startBrewStep,
   updateBrew,
   seekBrewTimer,
+  setBrewAdditionCompleted,
 } from "@/services/brews.service.js";
 import {
   connectBrewLive,
@@ -491,6 +527,54 @@ const { t, locale } = useI18n();
 const loading = ref(true);
 const error = ref("");
 const brew = ref(null);
+const floatingTimers = useFloatingBrewTimersStore();
+const inlineDraft = ref(null);
+const inlineKind = ref('');
+const inlineError = ref('');
+const savingInline = ref(false);
+function beginInlineEdit(kind, item) {
+  inlineDraft.value = JSON.parse(JSON.stringify(item));
+  if (kind === 'steps') inlineDraft.value.data ||= {};
+  inlineKind.value = kind;
+  inlineError.value = '';
+}
+function cancelInlineEdit() {
+  if (savingInline.value) return;
+  inlineDraft.value = null;
+  inlineKind.value = '';
+  inlineError.value = '';
+}
+function addInlineIngredient() {
+  beginInlineEdit('ingredients', { ingredientId: `ingredient-${crypto.randomUUID()}`, name: '', category: 'other', amount: '', unit: '', notes: '', stepIds: currentStep.value ? [currentStep.value.stepId] : [] });
+}
+async function saveInlineEdit(remove = false) {
+  if (!inlineDraft.value || savingInline.value) return;
+  const kind = inlineKind.value;
+  const draft = inlineDraft.value;
+  if (!remove && kind === 'steps' && invalidBoilSchedule(draft)) {
+    inlineError.value = t('brews.boil.invalid_addition');
+    return;
+  }
+  const idKey = kind === 'steps' ? 'stepId' : 'ingredientId';
+  if (!remove && !(kind === 'steps' ? draft.title : draft.name)?.trim()) {
+    inlineError.value = t('brews.current.inline_name_required');
+    return;
+  }
+  const items = [...(brew.value.recipeSnapshot[kind] || [])];
+  const index = items.findIndex(item => item[idKey] === draft[idKey]);
+  if (remove) { if (index >= 0) items.splice(index, 1); }
+  else if (index >= 0) items[index] = draft;
+  else items.push(draft);
+  savingInline.value = true;
+  inlineError.value = '';
+  try {
+    brew.value = await updateBrew(brew.value._id, { recipeSnapshot: { [kind]: items } });
+    savingInline.value = false;
+    cancelInlineEdit();
+  } catch (err) {
+    inlineError.value = err?.response?.data?.error || err?.message || t('brews.errors.save_failed');
+  } finally { savingInline.value = false; }
+}
 const activePanel = ref("progress");
 const savingTimer=ref(false), timerMessage=ref('');
 const nowTs = ref(Date.now());
@@ -525,6 +609,15 @@ const graphStepTypes = ["primary_fermentation", "secondary_fermentation", "cold_
 const dayStepTypes = [...graphStepTypes, "conditioning"];
 
 const steps = computed(() => brew.value?.recipeSnapshot?.steps || []);
+const stepIcon = computed(() => ({ boil: Flame, sparge: Droplets, mash: Wheat, primary_fermentation: Beer, secondary_fermentation: Beer, cold_crash: Snowflake })[stepPhase(currentStep.value)] || Thermometer);
+function mergeStepMeasurement(saved) {
+  if (!saved?._id || !brew.value) return;
+  const readings = [...(brew.value.measurements || [])];
+  const index = readings.findIndex(m => m._id === saved._id);
+  if (index < 0) readings.push(saved); else readings[index] = saved;
+  brew.value.measurements = readings;
+  hydrateActualMetricsInputs();
+}
 const ingredients = computed(() => brew.value?.recipeSnapshot?.ingredients || []);
 
 const currentStepIndex = computed(() => {
@@ -540,6 +633,16 @@ const stepProgressById = computed(() => {
 });
 
 const currentStep = computed(() => steps.value[currentStepIndex.value] || null);
+const stepInstructionsOpen = ref(false);
+watch(() => currentStep.value?.stepId, () => { stepInstructionsOpen.value = false; });
+const editingCurrentStep = computed(() => inlineKind.value === 'steps' && inlineDraft.value?.stepId === currentStep.value?.stepId);
+const displayStep = computed(() => editingCurrentStep.value ? inlineDraft.value : currentStep.value);
+function editingIngredient(ingredient) { return inlineKind.value === 'ingredients' && inlineDraft.value?.ingredientId === ingredient.ingredientId; }
+function ingredientDraft(ingredient) { return editingIngredient(ingredient) ? inlineDraft.value : ingredient; }
+const visibleIngredients = computed(() => {
+  const items = ingredients.value;
+  return inlineKind.value === 'ingredients' && !items.some(item => item.ingredientId === inlineDraft.value?.ingredientId) ? [...items, inlineDraft.value] : items;
+});
 const currentStepProgress = computed(() =>
   currentStep.value ? stepProgressById.value.get(currentStep.value.stepId) || null : null,
 );
@@ -553,10 +656,10 @@ const currentStepDataEntries = computed(() => {
   const data = currentStep.value?.data;
   if (!data || typeof data !== "object") return [];
   return Object.entries(data)
-    .filter(([, value]) => value !== undefined && value !== null && value !== "")
+    .filter(([key, value]) => !['additions', 'hopSchedule'].includes(key) && value !== undefined && value !== null && value !== "" && typeof value !== 'object')
     .map(([key, value]) => ({
       key,
-      label: prettifyDataKey(key),
+      label: ({waterAmountL: t('recipes.presentation.water_amount'), waterToGrainRatio: t('recipes.presentation.water_ratio'), targetGravity: t('recipes.presentation.target_gravity'), checklist: t('recipes.presentation.checklist'), method: t('recipes.presentation.method')})[key] || prettifyDataKey(key),
       value: String(value),
     }));
 });
@@ -567,14 +670,14 @@ const isCurrentStepActive = computed(
 
 const currentStepActionLabel = computed(() => {
   if (isCurrentStepActive.value) return t("brews.actions.pause_step");
-  const pausedRemaining = Number(currentStepProgress.value?.pausedRemainingSeconds);
-  if (Number.isFinite(pausedRemaining) && pausedRemaining > 0) {
+  if (stepIsPaused(currentStep.value, currentStepProgress.value)) {
     return t("brews.actions.resume_step");
   }
   return t("brews.actions.start_step");
 });
 
 const timerTotalSeconds = computed(() => {
+  if (!stepHasCountdown(currentStep.value)) return 0;
   if (Number.isFinite(Number(currentStepProgress.value?.timerDurationSeconds))) {
     return Number(currentStepProgress.value.timerDurationSeconds);
   }
@@ -605,6 +708,76 @@ const timerRemainingSeconds = computed(() => {
 });
 
 const showRoundTimer = computed(() => Boolean(currentStep.value && timerTotalSeconds.value > 0));
+const isBoilStep = computed(() => stepPhase(currentStep.value) === 'boil');
+const boilState = computed(() => boilScheduleState(currentStep.value, currentStepProgress.value, timerRemainingSeconds.value, ingredients.value));
+const roundTimerRemaining = computed(() => isBoilStep.value ? boilState.value.remaining : timerRemainingSeconds.value);
+const roundTimerTotal = computed(() => isBoilStep.value ? boilState.value.total : timerTotalSeconds.value);
+const savingAdditionIds = ref([]);
+const additionError = ref('');
+function seekRoundTimer(value) { return seekCurrentTimer(value + (isBoilStep.value ? boilState.value.target : 0)); }
+async function recordBoilAddition(id, completed) {
+  if (savingAdditionIds.value.includes(id) || !currentStep.value || isCompleted.value) return;
+  const stepId = currentStep.value.stepId;
+  const entry = brew.value.progress.stepProgress.find(item => item.stepId === stepId);
+  const previous = entry?.completedAdditionIds?.includes(id) || false;
+  const setChecked = checked => {
+    const currentEntry = brew.value?.progress?.stepProgress?.find(item => item.stepId === stepId);
+    if (!currentEntry) return;
+    const ids = new Set(currentEntry.completedAdditionIds || []);
+    if (checked) ids.add(id); else ids.delete(id);
+    currentEntry.completedAdditionIds = [...ids];
+  };
+  setChecked(completed);
+  savingAdditionIds.value = [...savingAdditionIds.value, id];
+  additionError.value = '';
+  try {
+    const updated = await setBrewAdditionCompleted(brew.value._id, stepId, id, completed);
+    // Only merge this acknowledgement: concurrent responses must not drop other checks.
+    setChecked(completed);
+    floatingTimers.updateBrew({ ...brew.value, updatedAt: updated.updatedAt });
+  } catch (err) { setChecked(previous); additionError.value = err?.response?.data?.error || t('brews.boil.save_failed'); }
+  finally { savingAdditionIds.value = savingAdditionIds.value.filter(value => value !== id); }
+}
+
+watch(brew, value => floatingTimers.updateBrew(value));
+watch(
+  () => [route.params.brewId, brew.value?._id, currentStep.value?.stepId, activePanel.value, showRoundTimer.value, loading.value, error.value],
+  () => {
+    if (loading.value && route.params.brewId) {
+      floatingTimers.mainTimer = { brewId: String(route.params.brewId), stepId: null };
+    } else {
+      floatingTimers.mainTimer = !error.value && activePanel.value === 'progress' && showRoundTimer.value
+        ? { brewId: String(brew.value._id), stepId: currentStep.value.stepId }
+        : null;
+    }
+  },
+  { immediate: true },
+);
+watch(
+  () => [brew.value?._id, loading.value, floatingTimers.focusRequest],
+  async () => {
+    const request = floatingTimers.focusRequest;
+    if (!request || loading.value || String(brew.value?._id) !== request.brewId) return;
+    floatingTimers.focusRequest = null;
+    const index = steps.value.findIndex(step => step.stepId === request.stepId);
+    if (index < 0) return;
+    try {
+      if (index !== currentStepIndex.value) {
+        const updated = await setCurrentBrewStep(request.brewId, index);
+        if (String(route.params.brewId) !== request.brewId) return;
+        brew.value = updated;
+      }
+      if (String(route.params.brewId) !== request.brewId) return;
+      setActivePanel('progress');
+      await nextTick();
+      const clock = document.querySelector('[data-main-brew-timer]');
+      clock?.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+      clock?.querySelector('[tabindex]')?.focus({ preventScroll: true });
+    } catch (err) {
+      measurementMessage.value = err?.response?.data?.error || t('brews.errors.step_failed');
+    }
+  },
+);
 
 const showFermentationPanel = computed(() =>
   graphStepTypes.includes(stepPhase(currentStep.value)),
@@ -997,8 +1170,7 @@ function statusLabel(status) {
 }
 
 function stepStatusLabel(status, entry = null) {
-  const pausedRemaining = Number(entry?.pausedRemainingSeconds);
-  if (status === "pending" && Number.isFinite(pausedRemaining) && pausedRemaining > 0) {
+  if (stepIsPaused(currentStep.value, entry)) {
     return t("brews.step_status.paused");
   }
   return t(`brews.step_status.${status || "pending"}`);
@@ -1091,6 +1263,11 @@ function isPositiveReading(value) {
 }
 
 const measurementFields = [
+  { key: "preBoilVolumeLiters", labelKey: "brews.readings.pre_boil_volume", suffix: " L" },
+  { key: "postBoilVolumeLiters", labelKey: "brews.readings.post_boil_volume", suffix: " L" },
+  { key: "waterVolumeLiters", labelKey: "brews.readings.water_used", suffix: " L" },
+  { key: "volumeLiters", labelKey: "brews.readings.wort_collected", suffix: " L" },
+  { key: "preBoilGravity", labelKey: "brews.readings.pre_boil_gravity", positiveOnly: true },
   { key: "gravity", labelKey: "brews.measurements.gravity", positiveOnly: true },
   { key: "temperatureC", labelKey: "brews.measurements.temperature", suffix: " °C" },
   { key: "ph", labelKey: "brews.measurements.ph", positiveOnly: true },
@@ -1172,8 +1349,9 @@ function formatStopwatch(seconds) {
 }
 
 function hydrateActualMetricsInputs() {
-  actualOgInput.value = formatGravityValue(brew.value?.actualMetrics?.og);
-  actualFgInput.value = formatGravityValue(brew.value?.actualMetrics?.fg);
+  const latest = key => [...(brew.value?.measurements || [])].reverse().find(m => m[key] != null)?.[key];
+  actualOgInput.value = formatGravityValue(brew.value?.actualMetrics?.og ?? latest('og'));
+  actualFgInput.value = formatGravityValue(brew.value?.actualMetrics?.fg ?? latest('fg'));
 }
 
 function hydrateCurrentStepNote() {
@@ -1264,6 +1442,7 @@ async function deleteBrewAction() {
 
   try {
     await deleteBrew(brew.value._id);
+    floatingTimers.removeBrew(String(brew.value._id));
     await router.push("/brygg/tidligere");
   } catch (err) {
     error.value = err?.response?.data?.error || err?.message || t("brews.errors.save_failed");
@@ -1357,6 +1536,7 @@ function handleLiveBrewDeleted(payload) {
   const liveBrewId = String(payload?.brewId || "");
   const currentId = String(route.params.brewId || "");
   if (liveBrewId && currentId && liveBrewId !== currentId) return;
+  floatingTimers.removeBrew(currentId);
   error.value = t("brews.errors.deleted");
   brew.value = null;
 }
@@ -1507,6 +1687,15 @@ async function submitMeasurement(payload) {
 }
 
 watch(
+  () => [isBoilStep.value, boilState.value.due, boilState.value.next?.additionId, isCurrentStepActive.value],
+  ([isBoil, due, id]) => {
+    if (!isBoil || !due || !isCurrentStepActive.value) return;
+    const key = `${brew.value?._id}:${currentStep.value.stepId}:${currentStepProgress.value?.startedAt}:${id}`;
+    if (lastAlarmKey.value !== key) { lastAlarmKey.value = key; playAlarmTune(); }
+  },
+);
+
+watch(
   () => [timerRemainingSeconds.value, isCurrentStepActive.value, currentStep.value?.stepId],
   ([remaining, isActive, stepId], oldTuple) => {
     const prevRemaining = Array.isArray(oldTuple) ? oldTuple[0] : undefined;
@@ -1535,6 +1724,7 @@ watch(
   () => currentStep.value?.stepId,
   () => {
     hydrateCurrentStepNote();
+    additionError.value = '';
     stepNoteMessage.value = "";
   },
 );
@@ -1558,6 +1748,7 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  floatingTimers.mainTimer = null;
   document.removeEventListener("click", handleDocumentClick);
   offBrewLive("brewUpdate", handleLiveBrewUpdate);
   offBrewLive("brewDeleted", handleLiveBrewDeleted);
@@ -1565,3 +1756,40 @@ onBeforeUnmount(() => {
   if (clockInterval) clearInterval(clockInterval);
 });
 </script>
+<style scoped>
+.brew-page { max-width: 1600px; }
+.brew-sticky-header { position: sticky; top: 57px; z-index: 20; padding: 12px 0; background: var(--color-bg1); border-bottom: 1px solid var(--color-border3); }
+.brew-context { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; padding: 0 4px 8px; color: var(--color-text2-faded); }
+.brew-context > div:last-child { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.brew-context > div:first-child :deep(span.block) { display: inline; margin-right: 6px; }
+.brew-workspace { display: grid; grid-template-columns: minmax(210px, 250px) minmax(0,1fr); align-items: start; gap: 20px; }
+.step-workspace { grid-column: 2; grid-row: 1; min-width: 0; box-shadow: none; border-color: var(--color-border3); background: var(--color-bg1); }
+.brew-step-rail { grid-column: 1; grid-row: 1; position: sticky; top: 136px; min-width: 0; box-shadow: none; border-color: var(--color-border3); background: var(--color-bg1); }
+.step-heading { display: flex; align-items: center; gap: 12px; font-size: 26px; }
+.step-timer-bar { display: grid; grid-template-columns: minmax(0,1fr) 148px minmax(210px,240px); align-items: center; gap: 20px; padding-bottom: 8px; }
+.step-timer-progress { min-width: 0; }
+.step-timer-bar--untimed { display: block; }
+.step-timer-bar--untimed .step-timer-actions { max-width: 420px; margin-left: auto; }
+.boil-totals { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 14px; font-size: 12px; color: var(--color-text2-faded); }
+.boil-totals strong { display: block; font-size: 20px; color: var(--color-text2); font-variant-numeric: tabular-nums; }
+.next-addition { margin-top: 14px; padding: 8px 0; border-radius: 8px; }
+.step-timer-actions { min-width: 0; }
+.step-details, .step-notes { border: 1px solid var(--color-border3); padding: 14px 16px; border-radius: 10px; }
+.step-details summary { list-style: none; }
+.step-details[open] summary > svg { transform: rotate(180deg); }
+@media(max-width:1200px) { .step-timer-bar { grid-template-columns: minmax(0,1fr) 148px; } .step-timer-actions { grid-column: 1 / -1; } }
+@media(max-width:1023px) { .brew-workspace { display: flex; flex-direction: column; gap: 16px; } .step-workspace, .brew-step-rail { width: 100%; } .brew-step-rail { position: static; } }
+@media(max-width:640px) { .brew-sticky-header h1 { font-size: 18px; } .brew-sticky-header .phase-label { display: none; } .step-heading { font-size: 23px; } .step-timer-bar { gap: 12px; grid-template-columns: minmax(0,1fr) 128px; } .step-workspace { padding: 16px 12px; } .step-timer-clock > p { font-size: 10px; } }
+</style>
+
+<style scoped>
+@media(max-width:640px) {
+  .brew-sticky-header > .sm\:hidden { margin-top: 10px; }
+  .step-timer-bar { grid-template-columns: minmax(0,1fr) 112px; }
+  .step-timer-clock :deep([role="slider"]), .step-timer-clock :deep([role="timer"]) { width: 112px !important; height: 112px !important; }
+  .boil-totals { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 10px; }
+  .boil-totals strong { font-size: 17px; }
+  .step-timer-progress :deep(.phase-timeline > div:first-child) { font-size: 10px; }
+  .next-addition { margin-top: 8px; }
+}
+</style>

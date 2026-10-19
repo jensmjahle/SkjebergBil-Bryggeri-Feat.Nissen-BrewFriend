@@ -68,7 +68,6 @@ export function createDefaultStep(stepType) {
         ...base,
         title: "Skylling",
         temperatureC: 76,
-        durationMinutes: 20,
         data: { waterAmountL: 16 },
       };
     case "boil":
@@ -77,7 +76,7 @@ export function createDefaultStep(stepType) {
         title: "Koking",
         temperatureC: 100,
         durationMinutes: 60,
-        data: { hopSchedule: "" },
+        data: { additions: [] },
       };
     case "primary_fermentation":
       return {

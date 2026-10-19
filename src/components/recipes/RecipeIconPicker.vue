@@ -4,19 +4,21 @@
       <img
         :src="selectedIconPath"
         :alt="t('recipes.fields.icon')"
-        class="h-12 w-12 rounded-lg border border-border3 bg-white p-1 object-contain"
+        class="h-12 w-12 rounded-lg border border-border3 bg-bg4 p-1 object-contain"
       />
       <p class="text-sm opacity-80">{{ t("recipes.fields.icon") }}</p>
     </div>
 
     <div class="max-h-64 overflow-y-auto rounded-lg border border-border3 p-2">
-      <div class="grid grid-cols-6 gap-2 sm:grid-cols-8 md:grid-cols-10">
+      <div class="grid grid-cols-[repeat(auto-fit,minmax(2.5rem,1fr))] gap-2">
         <button
           v-for="icon in iconOptions"
           :key="icon.value"
           type="button"
-          class="flex h-10 w-10 items-center justify-center rounded-md border transition"
-          :class="isSelected(icon.value) ? 'border-button1-border bg-bg4' : 'border-border3 bg-white'"
+          class="flex h-10 w-10 items-center justify-center justify-self-center rounded-md border transition"
+          :aria-label="icon.label"
+          :aria-pressed="isSelected(icon.value)"
+          :class="isSelected(icon.value) ? 'border-button1-border bg-bg4' : 'border-border3 bg-bg4'"
           @click="selectIcon(icon.value)"
         >
           <img :src="icon.value" :alt="t('recipes.fields.icon')" class="h-7 w-7 object-contain" />

@@ -40,6 +40,7 @@ const toast = useToast();
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (error.config?.silentErrors) return Promise.reject(error);
     const status = error.response?.status;
     const currentRoute = router.currentRoute.value;
     const isAdmin = currentRoute.path.startsWith("/admin");

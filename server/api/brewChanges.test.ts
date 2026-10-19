@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 import { brewsRouter } from './brews.js';
 import { Brew } from '../mongo/models/Brew.js';
 import { Brewer } from '../mongo/models/Brewer.js';
+import { Recipe } from '../mongo/models/Recipe.js';
 
 test('rating CRUD, final notes and timer routes preserve historical fields', async () => {
   const brewerId = new mongoose.Types.ObjectId();
@@ -58,5 +59,68 @@ test('rating CRUD, final notes and timer routes preserve historical fields', asy
   } finally {
     Brew.findOne=originalBrew;Brewer.findOne=originalBrewer;
     await new Promise<void>(resolve=>server.close(()=>resolve()));
+  }
+});
+
+
+test('plans receive batch numbers on brew or step start, never on creation or editing', async () => {
+  const Counter: any = mongoose.models.BrewCounter;
+  const original = [Brew.findOne, Brew.create, Brewer.findOne, Recipe.findOne, Counter.findOneAndUpdate, Brew.collection.findOneAndUpdate, Brew.collection.findOne];
+  const brewerId = new mongoose.Types.ObjectId();
+  const recipeId = new mongoose.Types.ObjectId();
+  const docs = new Map<string, any>();
+  const numbers = new Map<string, number>();
+  let counter = 0;
+  const snapshot = {name:'Pils',steps:[{stepId:'mash',order:1,stepType:'mash',title:'Mash',durationMinutes:60}],ingredients:[{ingredientId:'malt',name:'Malt'}]};
+  Brewer.findOne = async () => ({_id:brewerId});
+  Recipe.findOne = async () => ({_id:recipeId, ...snapshot});
+  Brew.findOne = async (filter:any) => docs.get(String(filter._id)) || null;
+  Brew.create = async (payload:any) => {
+    const doc = new Brew(payload);
+    doc.save = async () => { await doc.validate(); doc.$isNew = false; return doc; };
+    await doc.save(); docs.set(String(doc._id), doc); return doc;
+  };
+  Counter.findOneAndUpdate = async () => ({value:++counter});
+  Brew.collection.findOneAndUpdate = async (filter:any, update:any) => {
+    const id = String(filter._id);
+    if (numbers.has(id)) return null;
+    numbers.set(id, update.$set.batchNumber);
+    return {batchNumber:numbers.get(id)};
+  };
+  Brew.collection.findOne = async (filter:any) => ({batchNumber:numbers.get(String(filter._id))});
+  const app = express(); app.use(express.json()); app.use('/api/brews',brewsRouter);
+  const server = app.listen(0,'127.0.0.1');
+  await new Promise<void>(resolve => server.on('listening', resolve));
+  const address:any = server.address();
+  const request = async (path:string, method='POST', body:any={}) => {
+    const response = await fetch(`http://127.0.0.1:${address.port}/api/brews${path}`, {method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    const data = await response.json();
+    assert.ok(response.ok, JSON.stringify(data)); return data;
+  };
+  try {
+    const plan = await request('', 'POST', {name:'Plan A',recipeSnapshot:snapshot});
+    const recipePlan = await request(`/from-recipe/${recipeId}`);
+    assert.equal(plan.batchNumber, undefined);
+    assert.equal(recipePlan.batchNumber, undefined);
+    assert.equal(counter, 0);
+    const stocked = await request(`/${plan._id}`, 'PATCH', {inventory:{availableIngredientIds:['malt','removed']}});
+    assert.deepEqual(stocked.inventory.availableIngredientIds, ['malt']);
+    const pruned = await request(`/${plan._id}`, 'PATCH', {recipeSnapshot:{ingredients:[]}});
+    assert.deepEqual(pruned.inventory.availableIngredientIds, []);
+    await request(`/${plan._id}`, 'PATCH', {name:'Renamed plan'});
+    assert.equal(counter, 0);
+    const started = await request(`/${plan._id}/start`);
+    assert.equal(started.batchNumber, 1);
+    assert.equal((await request(`/${plan._id}/start`)).batchNumber, 1);
+    assert.equal(counter, 1);
+    assert.equal((await request(`/${recipePlan._id}/steps/mash/start`)).batchNumber, 2);
+    assert.equal((await request(`/${recipePlan._id}/steps/mash/start`)).batchNumber, 2);
+    assert.equal(counter, 2);
+    const patchedPlan = await request('', 'POST', {name:'Plan C',recipeSnapshot:snapshot});
+    assert.equal((await request(`/${patchedPlan._id}`, 'PATCH', {status:'active'})).batchNumber, 3);
+    assert.equal((await request('', 'POST', {name:'Already started',status:'active',recipeSnapshot:snapshot})).batchNumber, 4);
+  } finally {
+    [Brew.findOne, Brew.create, Brewer.findOne, Recipe.findOne, Counter.findOneAndUpdate, Brew.collection.findOneAndUpdate, Brew.collection.findOne] = original;
+    await new Promise<void>(resolve => server.close(() => resolve()));
   }
 });
