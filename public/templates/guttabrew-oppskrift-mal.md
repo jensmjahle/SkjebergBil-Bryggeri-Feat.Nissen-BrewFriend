@@ -86,7 +86,7 @@ Alle `data`-feltene er valgfrie. Tekstfelt har maks. 3000 tegn. Ingen andre `dat
 | `preparation` | Forberedelser | `checklist`: tekst |
 | `mash` | Mesking | `waterAmountL`: tall i liter, minst 0; `waterToGrainRatio`: tekst, f.eks. `"3 L/kg"` |
 | `sparge` | Skylling | `waterAmountL`: tall i liter, minst 0 |
-| `boil` | Kok | `hopSchedule`: tekst med humletilsetninger og tidspunkt |
+| `boil` | Kok | `additions`: liste med tilsetninger (humle, klaringsmiddel osv.), med `additionId`, `ingredientId` eller `name`, `remainingMinutes`, eventuelt `amount` og `unit`. Tid er minutter igjen av koketiden; 0 betyr kokeslutt. Gammel `hopSchedule`-tekst støttes fortsatt. |
 | `primary_fermentation` | Gjæring | `targetGravity`: tekst som `"1.012"` |
 | `secondary_fermentation` | Sekundær gjæring | Ingen; bruk `{}` eller utelat |
 | `cold_crash` | Cold crash | Ingen; bruk `{}` eller utelat |
@@ -109,7 +109,7 @@ Del mesking opp i separate steg ved ulike temperaturer og varigheter. Sammenheng
 | `notes` | Valgfritt | Tekst, maks. 1000 tegn |
 | `stepIds` | Valgfritt | Liste med tekst-ID-er fra `steps[].stepId`, maks. 100. `[]`, `null` eller utelatt betyr ingen stegkobling |
 
-Ingredienser skal knyttes til eksisterende steg-ID-er. Det kan være flere ingredienser per steg og flere steg per ingrediens. Ved humle på forskjellige tidspunkt: bruk separate ingrediensoppføringer med unike ingredientId-er, og beskriv tidspunktet i notes eller stegets hopSchedule. Ikke skriv ingrediensnavn eller stegnummer i `stepIds`.
+Ingredienser skal knyttes til eksisterende steg-ID-er. Det kan være flere ingredienser per steg og flere steg per ingrediens. Ved humle på forskjellige tidspunkt: bruk separate ingrediensoppføringer med unike ingredientId-er, og knytt dem til kokestegets `data.additions` med `ingredientId` og `remainingMinutes`. Ikke skriv ingrediensnavn eller stegnummer i `stepIds`.
 
 ## Gyldig eksempel – erstatt med oppskriften fra kilden
 
@@ -138,7 +138,7 @@ Eksemplet nedenfor er komplett nok til å teste import, men ikke en ferdig optim
       { "stepId": "forberedelser", "stepType": "preparation", "title": "Forbered utstyr", "description": "Rengjør og klargjør utstyret.", "data": { "checklist": "Vask utstyr\nVei opp malt og humle" } },
       { "stepId": "hovedmesk", "stepType": "mash", "title": "Hovedmesk", "durationMinutes": 60, "temperatureC": 67, "data": { "waterAmountL": 15, "waterToGrainRatio": "3 L/kg" } },
       { "stepId": "skylling", "stepType": "sparge", "title": "Skyll malten", "durationMinutes": 20, "temperatureC": 76, "data": { "waterAmountL": 12 } },
-      { "stepId": "kok", "stepType": "boil", "title": "Kok vørteren", "durationMinutes": 60, "temperatureC": 100, "data": { "hopSchedule": "Tilsett 30 g Cascade ved kokestart. Tilsett 20 g når det gjenstår 10 minutter." } },
+      { "stepId": "kok", "stepType": "boil", "title": "Kok vørteren", "durationMinutes": 60, "temperatureC": 100, "data": { "additions": [{ "additionId": "bitter", "ingredientId": "bitterhumle", "remainingMinutes": 60 }, { "additionId": "aroma", "ingredientId": "aromahumle", "remainingMinutes": 10 }] } },
       { "stepId": "gjaering", "stepType": "primary_fermentation", "title": "Gjæring", "durationMinutes": 20160, "temperatureC": 20, "description": "Tilsett gjær i avkjølt vørter. Kontroller stabil FG før videre behandling.", "data": { "targetGravity": "1.010" } },
       { "stepId": "modning", "stepType": "conditioning", "title": "Modning", "durationMinutes": 20160, "temperatureC": 12 }
     ],

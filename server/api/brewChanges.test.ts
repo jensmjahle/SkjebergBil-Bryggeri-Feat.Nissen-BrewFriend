@@ -71,7 +71,7 @@ test('plans receive batch numbers on brew or step start, never on creation or ed
   const docs = new Map<string, any>();
   const numbers = new Map<string, number>();
   let counter = 0;
-  const snapshot = {name:'Pils',steps:[{stepId:'mash',order:1,stepType:'mash',title:'Mash',durationMinutes:60}]};
+  const snapshot = {name:'Pils',steps:[{stepId:'mash',order:1,stepType:'mash',title:'Mash',durationMinutes:60}],ingredients:[{ingredientId:'malt',name:'Malt'}]};
   Brewer.findOne = async () => ({_id:brewerId});
   Recipe.findOne = async () => ({_id:recipeId, ...snapshot});
   Brew.findOne = async (filter:any) => docs.get(String(filter._id)) || null;
@@ -103,6 +103,10 @@ test('plans receive batch numbers on brew or step start, never on creation or ed
     assert.equal(plan.batchNumber, undefined);
     assert.equal(recipePlan.batchNumber, undefined);
     assert.equal(counter, 0);
+    const stocked = await request(`/${plan._id}`, 'PATCH', {inventory:{availableIngredientIds:['malt','removed']}});
+    assert.deepEqual(stocked.inventory.availableIngredientIds, ['malt']);
+    const pruned = await request(`/${plan._id}`, 'PATCH', {recipeSnapshot:{ingredients:[]}});
+    assert.deepEqual(pruned.inventory.availableIngredientIds, []);
     await request(`/${plan._id}`, 'PATCH', {name:'Renamed plan'});
     assert.equal(counter, 0);
     const started = await request(`/${plan._id}/start`);

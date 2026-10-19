@@ -35,7 +35,7 @@
       placeholder="f.eks. 3.0 L/kg"
       @update:model-value="setDataField('waterToGrainRatio', $event)"
     />
-    <BaseTextarea :model-value="modelValue.description" rows="4" label="Notater" @update:model-value="setField('description', $event)" />
+    <BaseTextarea :model-value="modelValue.description" :rows="4" label="Notater" @update:model-value="setField('description', $event)" />
   </BaseCard>
 </template>
 

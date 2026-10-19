@@ -1,165 +1,152 @@
 <template>
-  <section class="mx-auto w-full max-w-5xl px-4 py-8">
-    <BaseCard>
-      <div class="mb-6">
-        <h1>{{ isNewVersionMode ? t("recipes.edit.new_version_title") : t("recipes.edit.title") }}</h1>
-        <p class="mt-2 opacity-80">
-          {{ isNewVersionMode ? t("recipes.edit.new_version_subtitle") : t("recipes.edit.subtitle") }}
-        </p>
-      </div>
-
-      <div v-if="loading" class="py-4">{{ t("common.loading") }}</div>
-      <p v-else-if="loadError" class="text-sm text-[var(--color-error-text,var(--color-danger))]">{{ loadError }}</p>
-
-      <form v-else class="space-y-6" @submit.prevent="handleSubmit">
-        <div class="grid gap-4 md:grid-cols-2">
-          <BaseInput v-model="form.name" :label="t('recipes.fields.name')" required />
-          <BaseDropdown v-model="form.beerType" :label="t('recipes.fields.beer_type')" :options="beerTypeOptions" :placeholder="t('recipes.create.select_beer_type')" />
-          <BaseInput v-model="form.color" :label="t('recipes.fields.color')" />
-          <BaseInput v-model="form.imageUrl" :label="t('recipes.fields.image_url')" />
-        </div>
-
-        <BaseInput v-model="form.sourceUrl" type="url" maxlength="2000" :label="t('recipes.import.source')" placeholder="https://" />
-
-        <div class="space-y-2 rounded-lg border border-border3 p-4">
-          <h3>{{ t("recipes.fields.icon") }}</h3>
-          <RecipeIconPicker v-model="form.iconPath" />
-        </div>
-
-        <div class="space-y-3 rounded-lg border border-border3 p-4">
-          <h3>{{ t("recipes.fields.image") }}</h3>
-          <input type="file" accept="image/*" @change="handleImageUpload" class="block w-full text-sm" />
-          <p v-if="imageUploadMessage" class="text-sm opacity-80">{{ imageUploadMessage }}</p>
-          <img v-if="resolvedImageSrc" :src="resolvedImageSrc" :alt="t('recipes.detail.image_alt')" class="max-h-56 rounded-lg border border-border3 object-cover" />
-        </div>
-
-        <div>
-          <label class="mb-1 block text-sm font-medium text-[var(--color-text1)]">{{ t("recipes.fields.flavor_profile") }}</label>
-          <textarea v-model="form.flavorProfile" rows="3" class="w-full rounded-lg border border-border4 bg-bg4 px-3 py-2 text-text4 focus:outline-none focus:ring-2 focus:ring-button1" />
-        </div>
-
-        <div class="space-y-2">
-          <h3>{{ t("recipes.fields.defaults") }}</h3>
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <BaseInput v-model="form.defaults.ogFrom" :label="t('recipes.fields.og_from')" placeholder="1.056" />
-            <BaseInput v-model="form.defaults.ogTo" :label="t('recipes.fields.og_to')" placeholder="1.062" />
-            <BaseInput v-model="form.defaults.fgFrom" :label="t('recipes.fields.fg_from')" placeholder="1.010" />
-            <BaseInput v-model="form.defaults.fgTo" :label="t('recipes.fields.fg_to')" placeholder="1.014" />
-            <BaseInput v-model.number="form.defaults.co2Volumes" :model-modifiers="{ number: true }" type="number" step="0.1" :label="t('recipes.metrics.co2')" />
-            <BaseInput v-model.number="form.defaults.ibu" :model-modifiers="{ number: true }" type="number" step="1" :label="t('recipes.metrics.ibu')" />
-            <BaseInput
-              v-model.number="form.defaults.batchSizeLiters"
-              :model-modifiers="{ number: true }"
-              type="number"
-              step="0.1"
-              :label="t('recipes.fields.batch_size_liters')"
+  <RecipeEditorForm
+    :key="route.params.recipeId"
+    :form="form"
+    :beer-type-options="beerTypeOptions"
+    :submitting="isSubmitting"
+    :image-upload-message="imageUploadMessage"
+    :error-message="errorMessage"
+    :success-message="successMessage"
+    @submit="handleSubmit"
+    @upload="handleImageUpload"
+    @invalid-step="openStep"
+    @invalid-ingredient="openIngredient"
+    :title="
+      isNewVersionMode
+        ? t('recipes.edit.new_version_title')
+        : t('recipes.edit.title')
+    "
+    :subtitle="
+      isNewVersionMode
+        ? t('recipes.edit.new_version_subtitle')
+        : t('recipes.edit.subtitle')
+    "
+    :submit-label="
+      isNewVersionMode
+        ? t('recipes.actions.save_new_version')
+        : t('recipes.actions.save')
+    "
+    :loading="loading"
+    :load-error="loadError"
+    :busy="isSubmitting || imageUploading"
+    :back-to="`/oppskrifter/${route.params.recipeId}`"
+  >
+    <template #steps>
+      <div class="space-y-3">
+        <div class="flex flex-wrap items-end gap-3">
+          <div class="w-full sm:max-w-xs">
+            <BaseDropdown
+              v-model="selectedStepType"
+              :label="t('recipes.fields.add_step_type')"
+              :options="stepTypeOptions"
+              :placeholder="t('recipes.create.select_step')"
             />
           </div>
-          <p class="text-sm opacity-80">{{ t("recipes.metrics.abv_estimated") }}: {{ abvText }}</p>
+          <BaseButton
+            type="button"
+            variant="button2"
+            :icon="Plus"
+            @click="addStepByType"
+            >{{ t("recipes.actions.add_step") }}</BaseButton
+          >
         </div>
 
-        <div class="flex">
-          <BaseToggle v-model="activeTab" :options="recipeTabOptions" />
+        <p
+          v-if="!form.steps.length"
+          class="rounded-lg border border-dashed border-border3 p-4 text-sm text-text2-faded"
+        >
+          {{ t("recipes.create.no_steps") }}
+        </p>
+        <RecipeStepEditorItem
+          v-for="(step, idx) in form.steps"
+          :key="step.stepId || idx"
+          :step="step"
+          :index="idx"
+          :total="form.steps.length"
+          :ingredients="form.ingredients"
+          :open="isStepOpen(step.stepId)"
+          :is-new="isStepNew(step.stepId)"
+          @update:step="updateStep(idx, $event)"
+          @open="openStep(step.stepId)"
+          @close="closeStep(step.stepId)"
+          @move="moveStep(idx, $event)"
+          @remove="removeStep(idx)"
+        />
+
+        <div v-if="form.steps.length" class="flex justify-end">
+          <BaseButton
+            type="button"
+            variant="button2"
+            :icon="Plus"
+            @click="addStepByType"
+            >{{ t("recipes.actions.add_step") }}</BaseButton
+          >
+        </div>
+      </div>
+    </template>
+    <template #ingredients>
+      <div class="space-y-3">
+        <div class="flex flex-wrap items-end gap-3">
+          <div class="w-full sm:max-w-xs">
+            <BaseDropdown
+              v-model="selectedIngredientCategory"
+              :label="t('recipes.fields.category')"
+              :options="ingredientCategoryOptions"
+              :placeholder="t('recipes.create.select_category')"
+            />
+          </div>
+          <BaseButton
+            type="button"
+            variant="button2"
+            :icon="Plus"
+            @click="addIngredient"
+            >{{ t("recipes.actions.add_ingredient") }}</BaseButton
+          >
         </div>
 
-        <div v-if="activeTab === 'steps'" class="space-y-3">
-          <div class="flex flex-wrap items-end gap-3">
-            <div class="w-full sm:max-w-xs">
-              <BaseDropdown v-model="selectedStepType" :label="t('recipes.fields.add_step_type')" :options="stepTypeOptions" :placeholder="t('recipes.create.select_step')" />
-            </div>
-            <BaseButton type="button" variant="button2" :icon="Plus" @click="addStepByType">{{ t("recipes.actions.add_step") }}</BaseButton>
-          </div>
+        <p
+          v-if="!form.ingredients.length"
+          class="rounded-lg border border-dashed border-border3 p-4 text-sm text-text2-faded"
+        >
+          {{ t("recipes.create.no_ingredients") }}
+        </p>
+        <RecipeIngredientEditorItem
+          v-for="(ingredient, idx) in form.ingredients"
+          :key="ingredient.ingredientId"
+          :ingredient="ingredient"
+          :steps="form.steps"
+          :open="isIngredientOpen(ingredient.ingredientId)"
+          :is-new="isIngredientNew(ingredient.ingredientId)"
+          @open="openIngredient(ingredient.ingredientId)"
+          @close="closeIngredient(ingredient.ingredientId)"
+          @remove="removeIngredient(idx)"
+        />
 
-          <RecipeStepEditorItem
-            v-for="(step, idx) in form.steps"
-            :key="step.stepId || idx"
-            :step="step"
-            :index="idx"
-            :total="form.steps.length"
-            :ingredients="form.ingredients"
-            :open="isStepOpen(step.stepId)"
-            :is-new="isStepNew(step.stepId)"
-            @update:step="updateStep(idx, $event)"
-            @open="openStep(step.stepId)"
-            @close="closeStep(step.stepId)"
-            @move="moveStep(idx, $event)"
-            @remove="removeStep(idx)"
-          />
-
-          <div v-if="form.steps.length" class="flex justify-end">
-            <BaseButton type="button" variant="button2" :icon="Plus" @click="addStepByType">{{ t("recipes.actions.add_step") }}</BaseButton>
-          </div>
+        <div v-if="form.ingredients.length" class="flex justify-end">
+          <BaseButton
+            type="button"
+            variant="button2"
+            :icon="Plus"
+            @click="addIngredient"
+            >{{ t("recipes.actions.add_ingredient") }}</BaseButton
+          >
         </div>
-
-        <div v-else class="space-y-3">
-          <div class="flex flex-wrap items-end gap-3">
-            <div class="w-full sm:max-w-xs">
-              <BaseDropdown v-model="selectedIngredientCategory" :label="t('recipes.fields.category')" :options="ingredientCategoryOptions" :placeholder="t('recipes.create.select_category')" />
-            </div>
-            <BaseButton type="button" variant="button2" :icon="Plus" @click="addIngredient">{{ t("recipes.actions.add_ingredient") }}</BaseButton>
-          </div>
-
-          <RecipeIngredientEditorItem
-            v-for="(ingredient, idx) in form.ingredients"
-            :key="ingredient.ingredientId"
-            :ingredient="ingredient"
-            :steps="form.steps"
-            :open="isIngredientOpen(ingredient.ingredientId)"
-            :is-new="isIngredientNew(ingredient.ingredientId)"
-            @open="openIngredient(ingredient.ingredientId)"
-            @close="closeIngredient(ingredient.ingredientId)"
-            @remove="removeIngredient(idx)"
-          />
-
-          <div v-if="form.ingredients.length" class="flex justify-end">
-            <BaseButton type="button" variant="button2" :icon="Plus" @click="addIngredient">{{ t("recipes.actions.add_ingredient") }}</BaseButton>
-          </div>
-
-          <div v-if="form.ingredients.length" class="rounded-lg border border-border3 p-4">
-            <h4>{{ t("recipes.detail.cost_summary") }}</h4>
-            <p class="mt-2 text-sm opacity-90">
-              {{ t("recipes.detail.total_ingredients_cost") }}:
-              <strong>{{ formatCurrency(ingredientTotalCost) }}</strong>
-            </p>
-            <p class="mt-1 text-sm opacity-90">
-              {{ t("recipes.detail.liter_price") }}:
-              <strong>{{ ingredientLiterPrice !== null ? formatCurrency(ingredientLiterPrice) : "-" }}</strong>
-            </p>
-          </div>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-3">
-          <BaseButton type="submit" :disabled="isSubmitting || !isGravityValid">
-            {{
-              isSubmitting
-                ? t("common.saving")
-                : isNewVersionMode
-                  ? t("recipes.actions.save_new_version")
-                  : t("recipes.actions.save")
-            }}
-          </BaseButton>
-          <router-link :to="`/oppskrifter/${route.params.recipeId}`">
-            <BaseButton type="button" variant="button3">{{ t("common.cancel") }}</BaseButton>
-          </router-link>
-          <p v-if="successMessage" class="text-sm text-green-600">{{ successMessage }}</p>
-          <p v-if="errorMessage" class="text-sm text-[var(--color-error-text,var(--color-danger))]">{{ errorMessage }}</p>
-        </div>
-      </form>
-    </BaseCard>
-  </section>
+      </div>
+    </template>
+  </RecipeEditorForm>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { detachBoilIngredient } from "@/utils/recipeIngredientLinks.js";
+import RecipeEditorForm from "@/components/recipes/RecipeEditorForm.vue";
+import { gravityRangeError } from "@/utils/brewPlanningSummary.js";
+
+import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
-import BaseCard from "@/components/base/BaseCard.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
-import BaseInput from "@/components/base/BaseInput.vue";
 import BaseDropdown from "@/components/base/BaseDropdown.vue";
-import BaseToggle from "@/components/base/BaseToggle.vue";
 import { Plus } from "lucide-vue-next";
-import RecipeIconPicker from "@/components/recipes/RecipeIconPicker.vue";
 import RecipeStepEditorItem from "@/components/recipes/RecipeStepEditorItem.vue";
 import RecipeIngredientEditorItem from "@/components/recipes/RecipeIngredientEditorItem.vue";
 import {
@@ -168,7 +155,10 @@ import {
   updateRecipe,
   uploadRecipeImage,
 } from "@/services/recipes.service.js";
-import { STEP_TYPE_OPTIONS, createDefaultStep } from "@/components/recipe-steps/index.js";
+import {
+  STEP_TYPE_OPTIONS,
+  createDefaultStep,
+} from "@/components/recipe-steps/index.js";
 import {
   DEFAULT_RECIPE_ICON_PATH,
   ingredientCategoryOptions as buildIngredientCategoryOptions,
@@ -176,12 +166,11 @@ import {
 
 const route = useRoute();
 const router = useRouter();
-const { t, locale } = useI18n();
+const { t } = useI18n();
 
 const isNewVersionMode = computed(
   () => String(route.query.nyVersjon || route.query.newVersion || "") === "1",
 );
-const gravityPattern = /^1\.\d{3}$/;
 
 const loading = ref(true);
 const loadError = ref("");
@@ -189,7 +178,8 @@ const isSubmitting = ref(false);
 const successMessage = ref("");
 const errorMessage = ref("");
 const imageUploadMessage = ref("");
-const activeTab = ref("steps");
+const imageUploading = ref(false);
+
 const selectedStepType = ref("mash");
 const selectedIngredientCategory = ref("fermentable");
 const openStepIds = ref([]);
@@ -209,19 +199,20 @@ const beerTypeOptions = computed(() => [
   { label: t("recipes.beer_type.other"), value: "Annet" },
 ]);
 
-const ingredientCategoryOptions = computed(() => buildIngredientCategoryOptions(t));
-
-const stepTypeOptions = computed(() =>
-  STEP_TYPE_OPTIONS.map((step) => ({ label: t(`recipes.step_types.${step.value}`), value: step.value })),
+const ingredientCategoryOptions = computed(() =>
+  buildIngredientCategoryOptions(t),
 );
 
-const recipeTabOptions = computed(() => [
-  { label: t("recipes.tabs.steps"), value: "steps" },
-  { label: t("recipes.tabs.ingredients"), value: "ingredients" },
-]);
+const stepTypeOptions = computed(() =>
+  STEP_TYPE_OPTIONS.map((step) => ({
+    label: t(`recipes.step_types.${step.value}`),
+    value: step.value,
+  })),
+);
 
 function newIngredientId() {
-  if (globalThis.crypto?.randomUUID) return `ingredient-${globalThis.crypto.randomUUID()}`;
+  if (globalThis.crypto?.randomUUID)
+    return `ingredient-${globalThis.crypto.randomUUID()}`;
   return `ingredient-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
@@ -233,76 +224,31 @@ const form = reactive({
   color: "",
   imageUrl: "",
   sourceUrl: "",
-  defaults: { ogFrom: "", ogTo: "", fgFrom: "", fgTo: "", co2Volumes: null, ibu: null, batchSizeLiters: null },
+  defaults: {
+    ogFrom: "",
+    ogTo: "",
+    fgFrom: "",
+    fgTo: "",
+    co2Volumes: null,
+    ibu: null,
+    batchSizeLiters: null,
+  },
   steps: [],
   ingredients: [],
 });
 
-const resolvedImageSrc = computed(() => {
-  if (!form.imageUrl) return "";
-  if (form.imageUrl.startsWith("http://") || form.imageUrl.startsWith("https://")) return form.imageUrl;
-  if (form.imageUrl.startsWith("/")) {
-    const base = window.env?.VITE_API_URL || "http://localhost:3000";
-    return `${base}${form.imageUrl}`;
-  }
-  return form.imageUrl;
-});
-
-function parseGravity(value) {
-  if (!value || !gravityPattern.test(value)) return null;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
-}
-
-const abvText = computed(() => {
-  const ogFrom = parseGravity(form.defaults.ogFrom);
-  const ogTo = parseGravity(form.defaults.ogTo);
-  const fgFrom = parseGravity(form.defaults.fgFrom);
-  const fgTo = parseGravity(form.defaults.fgTo);
-
-  if (ogFrom === null || ogTo === null || fgFrom === null || fgTo === null) {
-    return t("recipes.metrics.abv_missing");
-  }
-
-  const min = Math.max(0, (ogFrom - fgTo) * 131.25);
-  const max = Math.max(0, (ogTo - fgFrom) * 131.25);
-  return `${min.toFixed(2)}% - ${max.toFixed(2)}% ABV`;
-});
-
-const ingredientTotalCost = computed(() =>
-  form.ingredients.reduce((sum, ingredient) => {
-    const price = Number(ingredient?.price);
-    if (!Number.isFinite(price) || price < 0) return sum;
-    return sum + price;
-  }, 0),
+const isGravityValid = computed(
+  () =>
+    !gravityRangeError(form.defaults.ogFrom, form.defaults.ogTo) &&
+    !gravityRangeError(form.defaults.fgFrom, form.defaults.fgTo),
 );
 
-const ingredientLiterPrice = computed(() => {
-  const liters = Number(form.defaults.batchSizeLiters);
-  if (!Number.isFinite(liters) || liters <= 0) return null;
-  return ingredientTotalCost.value / liters;
-});
-
-const isGravityValid = computed(() => {
-  const fields = [form.defaults.ogFrom, form.defaults.ogTo, form.defaults.fgFrom, form.defaults.fgTo];
-  const allEmpty = fields.every((v) => !v);
-  if (allEmpty) return true;
-  return fields.every((v) => gravityPattern.test(v || ""));
-});
-
-function formatCurrency(value) {
-  const amount = Number(value);
-  if (!Number.isFinite(amount)) return "-";
-  const localeCode = locale.value === "no" ? "nb-NO" : "en-US";
-  return new Intl.NumberFormat(localeCode, {
-    style: "currency",
-    currency: "NOK",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
+function isStepOpen(stepId) {
+  return openStepIds.value.includes(stepId);
 }
-function isStepOpen(stepId) { return openStepIds.value.includes(stepId); }
-function isStepNew(stepId) { return newStepIds.value.includes(stepId); }
+function isStepNew(stepId) {
+  return newStepIds.value.includes(stepId);
+}
 function openStep(stepId) {
   if (!stepId || isStepOpen(stepId)) return;
   openStepIds.value = [...openStepIds.value, stepId];
@@ -317,7 +263,9 @@ function addStepByType() {
   openStepIds.value = [...openStepIds.value, step.stepId];
   newStepIds.value = [...newStepIds.value, step.stepId];
 }
-function updateStep(index, value) { form.steps.splice(index, 1, value); }
+function updateStep(index, value) {
+  form.steps.splice(index, 1, value);
+}
 function removeStep(index) {
   const removed = form.steps[index];
   form.steps.splice(index, 1);
@@ -336,30 +284,51 @@ function moveStep(index, direction) {
   form.steps[target] = tmp;
 }
 
-function isIngredientOpen(ingredientId) { return openIngredientIds.value.includes(ingredientId); }
-function isIngredientNew(ingredientId) { return newIngredientIds.value.includes(ingredientId); }
+function isIngredientOpen(ingredientId) {
+  return openIngredientIds.value.includes(ingredientId);
+}
+function isIngredientNew(ingredientId) {
+  return newIngredientIds.value.includes(ingredientId);
+}
 function openIngredient(ingredientId) {
   if (!ingredientId || isIngredientOpen(ingredientId)) return;
   openIngredientIds.value = [...openIngredientIds.value, ingredientId];
 }
 function closeIngredient(ingredientId) {
-  openIngredientIds.value = openIngredientIds.value.filter((id) => id !== ingredientId);
-  newIngredientIds.value = newIngredientIds.value.filter((id) => id !== ingredientId);
+  openIngredientIds.value = openIngredientIds.value.filter(
+    (id) => id !== ingredientId,
+  );
+  newIngredientIds.value = newIngredientIds.value.filter(
+    (id) => id !== ingredientId,
+  );
 }
 function addIngredient() {
-  const ingredient = { ingredientId: newIngredientId(), name: "", category: selectedIngredientCategory.value || "other", amount: "", unit: "", price: null, notes: "", stepIds: [] };
+  const ingredient = {
+    ingredientId: newIngredientId(),
+    name: "",
+    category: selectedIngredientCategory.value || "other",
+    amount: "",
+    unit: "",
+    price: null,
+    notes: "",
+    stepIds: [],
+  };
   form.ingredients.push(ingredient);
-  openIngredientIds.value = [...openIngredientIds.value, ingredient.ingredientId];
+  openIngredientIds.value = [
+    ...openIngredientIds.value,
+    ingredient.ingredientId,
+  ];
   newIngredientIds.value = [...newIngredientIds.value, ingredient.ingredientId];
 }
 function removeIngredient(index) {
   const removed = form.ingredients[index];
+  detachBoilIngredient(form.steps, removed);
   form.ingredients.splice(index, 1);
   if (removed?.ingredientId) closeIngredient(removed.ingredientId);
 }
 
 function sanitizeNumber(value) {
-  return typeof value === "number" && !Number.isNaN(value) ? value : null;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function hydrateForm(recipe) {
@@ -410,55 +379,80 @@ function hydrateForm(recipe) {
     : [];
 }
 
-async function loadRecipe() {
+let loadSequence = 0;
+onBeforeUnmount(() => { loadSequence++; });
+
+async function loadRecipe(recipeId) {
+  const sequence = ++loadSequence;
+  successMessage.value = "";
+  errorMessage.value = "";
+  imageUploadMessage.value = "";
   loading.value = true;
   loadError.value = "";
   try {
-    const recipe = await getRecipe(route.params.recipeId);
+    const recipe = await getRecipe(recipeId);
+    if (sequence !== loadSequence) return;
     hydrateForm(recipe);
   } catch (err) {
-    loadError.value = err?.response?.data?.error || err?.message || t("recipes.errors.fetch_failed");
+    if (sequence !== loadSequence) return;
+    loadError.value =
+      err?.response?.data?.error ||
+      err?.message ||
+      t("recipes.errors.fetch_failed");
   } finally {
-    loading.value = false;
+    if (sequence === loadSequence) loading.value = false;
   }
 }
 
 async function handleImageUpload(event) {
   const file = event?.target?.files?.[0];
-  if (!file) return;
+  if (!file || imageUploading.value || isSubmitting.value) return;
+  const sequence = loadSequence;
+  imageUploading.value = true;
   imageUploadMessage.value = t("recipes.create.image_uploading");
   try {
     const data = await uploadRecipeImage(file);
+    if (sequence !== loadSequence) return;
     form.imageUrl = data.url;
     imageUploadMessage.value = t("recipes.create.image_uploaded");
   } catch (err) {
-    imageUploadMessage.value = err?.response?.data?.error || err?.message || t("recipes.errors.upload_failed");
+    if (sequence !== loadSequence) return;
+    imageUploadMessage.value =
+      err?.response?.data?.error ||
+      err?.message ||
+      t("recipes.errors.upload_failed");
+  } finally {
+    imageUploading.value = false;
   }
 }
 
 async function handleSubmit() {
+  if (loading.value || loadError.value || isSubmitting.value || imageUploading.value) return;
   if (!isGravityValid.value) {
     errorMessage.value = t("recipes.errors.gravity_format");
     return;
   }
 
+  const sequence = loadSequence;
+  const recipeId = route.params.recipeId;
+  const newVersion = isNewVersionMode.value;
   isSubmitting.value = true;
   successMessage.value = "";
   errorMessage.value = "";
   try {
     const payload = {
       name: form.name.trim(),
-      beerType: form.beerType || undefined,
+      beerType: form.beerType || "",
       iconPath: form.iconPath || undefined,
-      flavorProfile: form.flavorProfile?.trim() || undefined,
-      color: form.color?.trim() || undefined,
-      imageUrl: form.imageUrl?.trim() || undefined,
-      sourceUrl: form.sourceUrl?.trim() || '',
+      flavorProfile: form.flavorProfile?.trim() || "",
+      color: form.color?.trim() || "",
+      imageUrl: form.imageUrl?.trim() || "",
+      sourceUrl: form.sourceUrl?.trim() || "",
       defaults: {
-        ogFrom: form.defaults.ogFrom?.trim() || undefined,
-        ogTo: form.defaults.ogTo?.trim() || undefined,
-        fgFrom: form.defaults.fgFrom?.trim() || undefined,
-        fgTo: form.defaults.fgTo?.trim() || undefined,
+        ogFrom: form.defaults.ogFrom?.trim() || "",
+        ogTo: form.defaults.ogTo?.trim() || "",
+        fgFrom: form.defaults.fgFrom?.trim() || "",
+        fgTo: form.defaults.fgTo?.trim() || "",
         co2Volumes: sanitizeNumber(form.defaults.co2Volumes),
         ibu: sanitizeNumber(form.defaults.ibu),
         batchSizeLiters: sanitizeNumber(form.defaults.batchSizeLiters),
@@ -486,13 +480,16 @@ async function handleSubmit() {
           unit: ing.unit?.trim() || undefined,
           price: sanitizeNumber(ing.price),
           notes: ing.notes?.trim() || undefined,
-          stepIds: (ing.stepIds || []).filter((id) => form.steps.some((s) => s.stepId === id)),
+          stepIds: (ing.stepIds || []).filter((id) =>
+            form.steps.some((s) => s.stepId === id),
+          ),
         }))
         .filter((ing) => ing.name),
     };
 
-    if (isNewVersionMode.value) {
-      const created = await createRecipeVersion(route.params.recipeId, payload);
+    if (newVersion) {
+      const created = await createRecipeVersion(recipeId, payload);
+      if (sequence !== loadSequence) return;
       successMessage.value = t("recipes.edit.version_created");
       if (created?._id) {
         await router.push(`/oppskrifter/${created._id}`);
@@ -500,9 +497,11 @@ async function handleSubmit() {
       return;
     }
 
-    await updateRecipe(route.params.recipeId, payload);
+    await updateRecipe(recipeId, payload);
+    if (sequence !== loadSequence) return;
     successMessage.value = t("recipes.edit.saved");
   } catch (err) {
+    if (sequence !== loadSequence) return;
     errorMessage.value =
       err?.response?.data?.error ||
       err?.message ||
@@ -514,5 +513,6 @@ async function handleSubmit() {
   }
 }
 
-onMounted(loadRecipe);
+watch(() => route.params.recipeId, loadRecipe, { immediate: true });
+watch(form, () => { successMessage.value = ""; }, { deep: true });
 </script>

@@ -7,7 +7,7 @@
       <BaseInput :model-value="modelValue.co2Volumes" :model-modifiers="{ number: true }" type="number" step="0.1" label="CO2 volumer" @update:model-value="setField('co2Volumes', $event)" />
       <BaseInput :model-value="modelValue.durationMinutes" :model-modifiers="{ number: true }" type="number" step="1" label="Varighet (min)" @update:model-value="setField('durationMinutes', $event)" />
     </div>
-    <BaseTextarea :model-value="modelValue.description" rows="4" label="Beskrivelse" @update:model-value="setField('description', $event)" />
+    <BaseTextarea :model-value="modelValue.description" :rows="4" label="Beskrivelse" @update:model-value="setField('description', $event)" />
   </BaseCard>
 </template>
 

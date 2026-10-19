@@ -1,6 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { brewPhase, phaseProgress, brewPriority, stepPhase } from './brewPhase.js';
+import { brewPhase, phaseProgress, brewPriority, stepPhase, stepIsPaused } from './brewPhase.js';
+test('untimed sparge stays paused without countdown values and never has timed progress', () => {
+  const step={stepId:'sparge',stepType:'sparge',durationMinutes:20};
+  const entry={stepId:'sparge',status:'pending',startedAt:new Date(1),timerDurationSeconds:1200,pausedRemainingSeconds:0};
+  assert.equal(stepIsPaused(step,entry),true);
+  assert.equal(stepIsPaused(step,{status:'pending'}),false);
+  assert.equal(stepIsPaused({stepType:'mash'},entry),true);
+  const result=phaseProgress({status:'active',recipeSnapshot:{steps:[step]},progress:{stepProgress:[entry]}},1000,'sparge');
+  assert.equal(result.total,0);assert.equal(result.elapsed,0);assert.equal(result.percent,0);
+});
 const steps = [
   { stepId:'in', stepType:'mash', title:'Innmesk', durationMinutes:20 },
   { stepId:'main', stepType:'mash', title:'Hovedmesk', durationMinutes:60 },

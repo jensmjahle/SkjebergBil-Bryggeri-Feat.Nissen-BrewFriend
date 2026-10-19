@@ -1,9 +1,10 @@
 import { PHASES } from './brewPhase.js';
+import { invalidBoilSchedule } from './boilSchedule.js';
 export const MAX_RECIPE_FILE_BYTES = 512 * 1024;
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const present = value => value !== null && value !== undefined && value !== '';
 const DATA_FIELDS = {
-  preparation:['checklist'], mash:['waterAmountL','waterToGrainRatio'], sparge:['waterAmountL'], boil:['hopSchedule'],
+  preparation:['checklist'], mash:['waterAmountL','waterToGrainRatio'], sparge:['waterAmountL'], boil:['hopSchedule','additions'],
   primary_fermentation:['targetGravity'], secondary_fermentation:[], cold_crash:[], carbonation:['method'], conditioning:[], custom:[],
 };
 function duplicateJsonKey(json) {
@@ -73,7 +74,14 @@ export function validateRecipeDocument(document) {
     if(present(step.order)&&step.order!==index+1)add(`${path}.order`,'order',{order:index+1});
     numeric(step.durationMinutes,`${path}.durationMinutes`,0,525600);numeric(step.temperatureC,`${path}.temperatureC`,-50,150);numeric(step.co2Volumes,`${path}.co2Volumes`);
     if(step.data!==undefined&&step.data!==null&&keys(step.data,DATA_FIELDS[step.stepType]||[],`${path}.data`))for(const [key,value]of Object.entries(step.data)) {
-      if(key==='waterAmountL')numeric(value,`${path}.data.${key}`);
+      if(key==='additions') {
+        if(invalidBoilSchedule(step))add(`${path}.data.additions`,'boil_schedule');
+        if(Array.isArray(value))value.forEach((item,i)=>{
+          if(!keys(item,['additionId','ingredientId','name','remainingMinutes','amount','unit'],`${path}.data.additions[${i}]`))return;
+          if(item.ingredientId&&!ingredients.some(ingredient=>ingredient.ingredientId===item.ingredientId))add(`${path}.data.additions[${i}].ingredientId`,'reference');
+        });
+      }
+      else if(key==='waterAmountL')numeric(value,`${path}.data.${key}`);
       else if(key==='targetGravity')gravity(value,`${path}.data.${key}`);
       else text(value,`${path}.data.${key}`,3000);
     }

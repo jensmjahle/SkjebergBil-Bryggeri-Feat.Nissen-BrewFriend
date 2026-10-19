@@ -56,6 +56,7 @@
           step="0.1"
           :label="t('brews.measurements.ibu')"
         />
+        <BaseInput v-for="field in volumeFields" :key="field.key" v-model.number="form[field.key]" :model-modifiers="{ number: true }" type="number" :step="field.step" :min="field.min" :max="field.max" :label="t(`brews.readings.${field.label}`)" />
         <BaseInput v-model="form.note" class="col-span-2" :label="t('recipes.fields.notes')" />
       </div>
 
@@ -77,6 +78,7 @@ import { useI18n } from "vue-i18n";
 import { X } from "lucide-vue-next";
 import BaseInput from "@/components/base/BaseInput.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
+import { readingFields } from '@/utils/stepReadings.js';
 
 const props = defineProps({
   open: {
@@ -110,7 +112,9 @@ const form = reactive({
 // Gravity covers what OG, FG and SG used to be split across, so the form only
 // asks for gravity. The older fields are left out of the payload entirely, so
 // measurements that still carry them are not wiped when edited.
-const numericFields = ["gravity", "temperatureC", "ph", "co2Volumes", "ibu"];
+const additionalKeys = ['preBoilVolumeLiters', 'postBoilVolumeLiters', 'waterVolumeLiters', 'volumeLiters', 'preBoilGravity'];
+const volumeFields = computed(() => additionalKeys.filter(key => key === 'volumeLiters' || props.measurement?.[key] != null).map(key => ({key, ...readingFields[key]})));
+const numericFields = ["gravity", "temperatureC", "ph", "co2Volumes", "ibu", ...additionalKeys];
 
 const isEditing = computed(() => Boolean(props.measurement));
 

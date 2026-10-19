@@ -1,5 +1,7 @@
+import { stepHasCountdown } from './brewPhase.js';
 export const MAX_TIMER_SECONDS = 365 * 86400;
 export function seekTimer(entry, step, remainingSeconds, now = Date.now()) {
+  if (!stepHasCountdown(step)) throw new RangeError('This step has no countdown');
   if (!Number.isFinite(remainingSeconds) || remainingSeconds < 0 || remainingSeconds > MAX_TIMER_SECONDS) throw new RangeError('Invalid timer value');
   if (entry.status === 'completed') throw new RangeError('Completed timers cannot be changed');
   const remaining = Math.round(remainingSeconds);

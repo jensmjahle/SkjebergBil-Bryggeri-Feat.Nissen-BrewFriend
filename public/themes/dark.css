@@ -1,4 +1,7 @@
 :root {
+  --color-timer-progress: var(--color-status-completed-border);
+  --color-timer-warning: var(--color-status-in-review-border);
+  --color-timer-overdue: var(--color-status-rejected-border);
   /* Text Colors */
   --color-text1: #fdf6e3; /* main text - light ivory */
   --color-text1-faded: #e0d7c2;

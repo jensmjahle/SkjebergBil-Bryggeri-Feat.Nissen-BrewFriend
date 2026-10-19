@@ -6,6 +6,11 @@ import {
 } from "./floatingBrewTimers.js";
 
 const now = Date.parse("2026-10-15T12:00:00Z");
+test('sparge never floats a countdown, including legacy recipes with saved durations', () => {
+  const doc = brew({status:'active',startedAt:new Date(now-60000).toISOString(),timerEndsAt:new Date(now+60000).toISOString(),timerDurationSeconds:1200});
+  doc.recipeSnapshot.steps[0].stepType = 'sparge';
+  assert.deepEqual(floatingBrewTimers(doc,now),[]);
+});
 function brew(entry = {}, status = "active") {
   return {
     _id: "brew",
@@ -27,6 +32,15 @@ function brew(entry = {}, status = "active") {
   };
 }
 const started = "2026-10-15T11:30:00Z";
+
+test('floating boil clocks target the next unconfirmed addition and then flameout',()=>{
+  const doc=brew({status:'pending',startedAt:started,pausedRemainingSeconds:1800});
+  doc.recipeSnapshot.steps[0]={stepId:'mash',title:'Boil',stepType:'boil',durationMinutes:60,data:{additions:[{additionId:'a',name:'Whirlfloc',remainingMinutes:10}]}};
+  const [timer]=floatingBrewTimers(doc,now);
+  assert.equal(timer.remaining,1200);assert.match(timer.title,/Whirlfloc/);
+  doc.progress.stepProgress[0].completedAdditionIds=['a'];
+  assert.equal(floatingBrewTimers(doc,now)[0].remaining,1800);
+});
 
 test("unstarted and merely adjusted timers do not float", () => {
   assert.deepEqual(floatingBrewTimers(brew(), now), []);

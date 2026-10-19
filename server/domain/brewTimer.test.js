@@ -1,6 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { seekTimer } from './brewTimer.js';
+test('sparge cannot acquire a countdown through timer adjustments',()=>{
+  const entry={status:'active'};
+  assert.throws(()=>seekTimer(entry,{stepType:'sparge',durationMinutes:20},120),RangeError);
+  assert.equal(entry.timerEndsAt,undefined);
+});
 test('seeking a running timer preserves actual elapsed time and start date',()=>{
   const entry={status:'active',startedAt:new Date(1),activeSinceAt:new Date(1000),accumulatedActiveSeconds:123,timerDurationSeconds:3600,timerEndsAt:new Date(1800000)};
   seekTimer(entry,{durationMinutes:60},600,0);

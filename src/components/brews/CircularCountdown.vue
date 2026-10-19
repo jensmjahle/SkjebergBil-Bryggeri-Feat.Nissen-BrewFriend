@@ -104,9 +104,9 @@ const progressRatio = computed(() => normalizedRemaining.value / normalizedTotal
 const dashOffset = computed(() => circumference * (1 - progressRatio.value));
 
 const strokeColor = computed(() => {
-  if (rawRemaining.value <= 0) return "var(--color-error-text, #dc2626)";
-  if (progressRatio.value <= props.warningRatio) return "#eab308";
-  return "#10b981";
+  if (rawRemaining.value <= 0) return "var(--color-timer-overdue, var(--color-danger-border))";
+  if (progressRatio.value <= props.warningRatio) return "var(--color-timer-warning, var(--color-button2-border))";
+  return "var(--color-timer-progress, var(--color-success-border))";
 });
 
 const formattedRemaining = computed(() => {
@@ -131,8 +131,8 @@ const formattedRemaining = computed(() => {
 
 const timeStyle = computed(() => ({
   color: strokeColor.value,
-  ...(props.compact ? {
-    fontSize: `${Math.min(props.showDays ? 13 : 16, props.size * .72 / (formattedRemaining.value.length * .62))}px`,
-  } : {}),
+  fontSize: `${props.compact
+    ? Math.min(props.showDays ? 13 : 16, props.size * .72 / (formattedRemaining.value.length * .62))
+    : Math.min(30, props.size * .62 / (formattedRemaining.value.length * .62))}px`,
 }));
 </script>

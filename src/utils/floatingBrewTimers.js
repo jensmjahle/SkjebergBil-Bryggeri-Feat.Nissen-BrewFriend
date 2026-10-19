@@ -1,4 +1,5 @@
-import { stepPhase } from "./brewPhase.js";
+import { stepPhase, stepHasCountdown } from "./brewPhase.js";
+import { boilScheduleState } from './boilSchedule.js';
 
 const dayPhases = [
   "primary_fermentation",
@@ -14,6 +15,7 @@ export function floatingBrewTimers(brew, now = Date.now()) {
     (brew.progress?.stepProgress || []).map((entry) => [entry.stepId, entry]),
   );
   return (brew.recipeSnapshot?.steps || []).flatMap((step) => {
+    if (!stepHasCountdown(step)) return [];
     const entry = progress.get(step.stepId);
     if (!entry || !["active", "pending", "paused"].includes(entry.status))
       return [];
@@ -37,6 +39,7 @@ export function floatingBrewTimers(brew, now = Date.now()) {
       (paused && entry.pausedRemainingSeconds == null)
     )
       return [];
+    const boil = stepPhase(step) === 'boil' ? boilScheduleState(step, entry, remaining, brew.recipeSnapshot?.ingredients) : null;
     return [
       {
         key: JSON.stringify([
@@ -46,10 +49,10 @@ export function floatingBrewTimers(brew, now = Date.now()) {
         ]),
         brewId: String(brew._id),
         stepId: step.stepId,
-        title: step.title,
+        title: boil?.nextGroup.length ? `${step.title} · ${boil.nextGroup.map(item => item.name).join(' · ')}` : step.title,
         brewName: brew.name || brew.recipeSnapshot?.name || "",
-        total,
-        remaining,
+        total: boil ? boil.total : total,
+        remaining: boil ? boil.remaining : remaining,
         paused,
         showDays: dayPhases.includes(stepPhase(step)),
       },

@@ -2,11 +2,10 @@
   <div class="brew-row cursor-pointer" :data-phase="phase" @click="router.push(brewRoute)">
     <div class="min-w-0 space-y-1.5">
       <router-link :to="brewRoute"><h3 class="text-lg break-words">{{ brewTitle(brew) }}</h3></router-link>
-      <BrewRecipeLink :brew="brew" />
       <p v-if="brew.recipeSnapshot?.beerType" class="text-sm opacity-70">{{ brew.recipeSnapshot.beerType }}</p>
       <p class="text-xs opacity-80 break-words">{{ t('brews.fields.brew_date') }}: {{ brewDate }}<span v-if="brew.brewers?.length"> · {{ t('brews.fields.brewers') }}: {{ brew.brewers.join(', ') }}</span></p>
     </div>
-    <div class="min-w-0 space-y-2"><span class="phase-label">{{ phaseLabel(phase, t) }}</span><PhaseTimeline :brew="effectiveBrew" @updated="localBrew=$event" /></div>
+    <div class="min-w-0 space-y-2"><span class="phase-label">{{ phaseLabel(phase, t) }}</span><PhaseTimeline :brew="effectiveBrew" @updated="localBrew=$event; $emit('updated', $event)" /></div>
     <div class="flex items-center justify-end gap-3">
       <router-link :to="brewRoute" class="brew-row-action">{{ brew.status === 'planned' ? t('brews.actions.open_plan') : t('brews.actions.open_brew') }} <ArrowRight :size="18" aria-hidden="true" /></router-link>
       <DeletePlannedBrewButton :brew="brew" @deleted="$emit('deleted', $event)" />
@@ -21,9 +20,8 @@ import { ArrowRight } from 'lucide-vue-next';
 import { brewPhase, phaseLabel, brewTitle } from '@/utils/brewPhase.js';
 import PhaseTimeline from './PhaseTimeline.vue';
 import DeletePlannedBrewButton from './DeletePlannedBrewButton.vue';
-import BrewRecipeLink from './BrewRecipeLink.vue';
 const props = defineProps({ brew: { type: Object, required: true } });
-defineEmits(['deleted']);
+defineEmits(['deleted', 'updated']);
 const { t, locale } = useI18n();
 const router=useRouter();
 const localBrew=ref(null);

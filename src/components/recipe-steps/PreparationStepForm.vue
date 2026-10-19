@@ -8,7 +8,7 @@
     />
     <BaseTextarea
       :model-value="modelValue.description"
-      rows="4"
+      :rows="4"
       label="Beskrivelse"
       @update:model-value="setField('description', $event)"
     />
