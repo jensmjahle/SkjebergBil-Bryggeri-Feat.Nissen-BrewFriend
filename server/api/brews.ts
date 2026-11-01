@@ -10,6 +10,7 @@ import { nextBatchNumber, ensureBatchNumber } from "../mongo/batchNumbers.js";
 import { brewPriority, PHASES, stepPhase, stepHasCountdown } from "../domain/brewPhase.js";
 import { brewRatings, prepareRatings, syncEvaluation } from "../domain/brewRatings.js";
 import { seekTimer, MAX_TIMER_SECONDS } from "../domain/brewTimer.js";
+import { mashRests } from "../domain/mashRests.js";
 import { boilAdditions, invalidBoilSchedule } from "../domain/boilSchedule.js";
 import { STEP_MEASUREMENT_FIELDS, stepMeasurementError } from "../domain/stepMeasurements.js";
 
@@ -340,6 +341,7 @@ function buildStepProgress(steps: any[] = [], existing: any[] = []) {
       actualDurationSeconds: toNumberOrUndefined(previous.actualDurationSeconds),
       note: toStringOrUndefined(previous.note),
       completedAdditionIds: [...new Set((previous.completedAdditionIds || []).filter((id: any) => typeof id === 'string' && id.length <= 80))],
+      restReachedAt: (Array.isArray(previous.restReachedAt) ? previous.restReachedAt : []).filter((r: any) => r && typeof r.restId === 'string' && r.restId.length <= 80 && toDateOrUndefined(r.at)).map((r: any) => ({ restId: r.restId, at: toDateOrUndefined(r.at) })),
     };
   });
 }
@@ -1101,6 +1103,25 @@ brewsRouter.patch("/:id/steps/:stepId/additions/:additionId", async (req: any, r
   } catch (err: any) { return res.status(500).json({ error: err?.message || 'Failed to record addition' }); }
 });
 
+brewsRouter.patch("/:id/steps/:stepId/rests/:restId", async (req: any, res) => {
+  try {
+    const brewerId = await resolveBrewerId(req);
+    if (typeof req.body?.reached !== 'boolean') return res.status(400).json({ error: 'reached must be a boolean' });
+    const brew = await Brew.findOne({ _id: req.params.id, brewerId });
+    if (!brew) return res.status(404).json({ error: 'Brew not found' });
+    if (['completed', 'archived', 'planned'].includes(brew.status)) return res.status(400).json({ error: 'Only ongoing brews can record mash rests' });
+    const step = brew.recipeSnapshot?.steps?.find((item: any) => item.stepId === req.params.stepId);
+    if (!step || stepPhase(step) !== 'mash' || !mashRests(step).some((item: any) => item.restId === req.params.restId)) return res.status(404).json({ error: 'Mash rest not found' });
+    const entry: any = brew.progress?.stepProgress?.find((item: any) => item.stepId === req.params.stepId);
+    if (!entry || entry.status === 'completed') return res.status(400).json({ error: 'Step is already completed or unavailable' });
+    const others = (entry.restReachedAt || []).filter((item: any) => item.restId !== req.params.restId);
+    entry.restReachedAt = req.body.reached ? [...others, { restId: req.params.restId, at: new Date() }] : others;
+    await brew.save();
+    notifyBrewUpdated(brew);
+    return res.json(attachComputedFields(brew));
+  } catch (err: any) { return res.status(500).json({ error: err?.message || 'Failed to record mash rest' }); }
+});
+
 brewsRouter.post("/:id/steps/:stepId/pause", async (req: any, res) => {
   try {
     const brewerId = await resolveBrewerId(req);
@@ -1256,6 +1277,7 @@ brewsRouter.post("/:id/steps/:stepId/reset", async (req: any, res) => {
     entry.accumulatedActiveSeconds = 0;
     entry.actualDurationSeconds = undefined;
     entry.completedAdditionIds = [];
+    entry.restReachedAt = [];
 
     brew.progress.stepProgress = progressEntries;
 

@@ -157,6 +157,8 @@
 
           <BoilTimeline v-if="isBoilStep" :step="currentStep" :ingredients="ingredients" :progress="currentStepProgress" :remaining-seconds="timerRemainingSeconds" :saving-ids="savingAdditionIds" :disabled="!!inlineDraft || currentStepProgress?.status === 'completed'" :readonly="isCompleted" :error="additionError" @edit="beginInlineEdit('steps', currentStep)" @toggle="recordBoilAddition" />
 
+          <MashTimeline v-if="isMashStep && hasMashRests" :step="currentStep" :progress="currentStepProgress" :saving-ids="savingRestIds" :disabled="!!inlineDraft" :readonly="isCompleted" :error="restError" @reached="recordMashRest" />
+
           <details class="step-details space-y-3" :open="editingCurrentStep || stepInstructionsOpen" @toggle="stepInstructionsOpen = $event.currentTarget.open">
             <summary class="flex cursor-pointer items-center justify-between gap-2"><ChevronDown class="h-4 w-4 shrink-0" aria-hidden="true" />
               <p class="flex-1 text-sm font-semibold">{{ t("brews.readings.instructions") }}</p>
@@ -460,6 +462,8 @@ import BaseButton from "@/components/base/BaseButton.vue";
 import BaseInput from "@/components/base/BaseInput.vue";
 import BaseToggle from "@/components/base/BaseToggle.vue";
 import CircularCountdown from "@/components/brews/CircularCountdown.vue";
+import MashTimeline from '@/components/brews/MashTimeline.vue';
+import { mashRests } from '@/utils/mashRests.js';
 import BoilTimeline from '@/components/brews/BoilTimeline.vue';
 import BoilScheduleEditor from '@/components/recipe-steps/BoilScheduleEditor.vue';
 import { boilScheduleState, formatBoilClock, invalidBoilSchedule } from '@/utils/boilSchedule.js';
@@ -490,6 +494,7 @@ import {
   updateBrew,
   seekBrewTimer,
   setBrewAdditionCompleted,
+  setBrewMashRestReached,
 } from "@/services/brews.service.js";
 import {
   connectBrewLive,
@@ -697,6 +702,21 @@ const roundTimerTotal = computed(() => isBoilStep.value ? boilState.value.total 
 const savingAdditionIds = ref([]);
 const additionError = ref('');
 function seekRoundTimer(value) { return seekCurrentTimer(value + (isBoilStep.value ? boilState.value.target : 0)); }
+const savingRestIds = ref([]), restError = ref('');
+const isMashStep = computed(() => stepPhase(currentStep.value) === 'mash');
+const hasMashRests = computed(() => mashRests(currentStep.value).length > 0);
+async function recordMashRest(id, reached) {
+  if (savingRestIds.value.includes(id) || !currentStep.value || isCompleted.value) return;
+  savingRestIds.value = [...savingRestIds.value, id];
+  restError.value = '';
+  try {
+    const updated = await setBrewMashRestReached(brew.value._id, currentStep.value.stepId, id, reached);
+    const entry = brew.value.progress.stepProgress.find(item => item.stepId === currentStep.value.stepId);
+    const fresh = updated.progress?.stepProgress?.find(item => item.stepId === currentStep.value.stepId);
+    if (entry && fresh) entry.restReachedAt = fresh.restReachedAt || [];
+  } catch (err) { restError.value = err?.response?.data?.error || t('brews.boil.save_failed'); }
+  finally { savingRestIds.value = savingRestIds.value.filter(value => value !== id); }
+}
 async function recordBoilAddition(id, completed) {
   if (savingAdditionIds.value.includes(id) || !currentStep.value || isCompleted.value) return;
   const stepId = currentStep.value.stepId;

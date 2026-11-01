@@ -567,6 +567,23 @@
       "saved": "Timer adjusted.",
       "help": "Drag right to fast-forward, left to add time."
     },
+    "mash": {
+      "rests": "Mash rests",
+      "rests_help": "Add rests in order: heat to the temperature, then hold it for the given time.",
+      "temp_c": "Temperature °C",
+      "minutes": "Minutes",
+      "add_rest": "Add rest",
+      "remove_rest": "Remove rest",
+      "raise_to": "Raise the temperature to {temp} °C",
+      "then_hold": "Then hold for {minutes} min",
+      "hold": "Hold for {minutes} min",
+      "rest_at": "{temp} °C for {minutes} min",
+      "remaining": "Remaining",
+      "done": "Done",
+      "reached": "Done",
+      "undo": "Undo",
+      "start_first": "Start the step to use the mash rests."
+    },
     "boil": {
       "additions": "Additions",
       "schedule_help": "Times show minutes remaining in the boil. 0 min means flameout.",
