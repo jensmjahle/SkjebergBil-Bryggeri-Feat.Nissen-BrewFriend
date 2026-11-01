@@ -93,8 +93,15 @@ jobs:
             branch="claude/issue-${ISSUE_NUMBER}${slug:+-$slug}"
           fi
 
-          echo "Mode: $mode, branch: $branch, PR: ${pr_number:-none}"
+          # Commit the branch starts from in this run (used to see what this run changed).
+          if [ "$mode" = existing ]; then
+            start_sha=$(git ls-remote --heads origin "refs/heads/$branch" | cut -f1)
+          fi
+          start_sha="${start_sha:-$(git rev-parse "origin/${{ github.event.repository.default_branch }}")}"
+
+          echo "Mode: $mode, branch: $branch, PR: ${pr_number:-none}, start: $start_sha"
           {
+            echo "start_sha=$start_sha"
             echo "mode=$mode"
             echo "branch=$branch"
             echo "pr_number=$pr_number"
@@ -107,6 +114,8 @@ jobs:
           cache: npm
 
       - name: Install dependencies and Playwright (for screenshots)
+        env:
+          CYPRESS_INSTALL_BINARY: "0"
         run: |
           npm ci
           npm install --no-save playwright
@@ -162,7 +171,7 @@ jobs:
                instead), then stop. Do not push anything.
             4. Otherwise improve it with new commits on the same branch and push. If no PR exists yet,
                open one as described below. If a PR exists, update its description if needed and add a
-               comment listing what you changed, with screenshots for UI changes.
+               comment listing what you changed, with the screenshots embedded (see below).
 
             ## Mode "new"
             1. Create the branch from the latest default branch:
@@ -173,26 +182,38 @@ jobs:
                `npm run test:brews`, and `npx vitest run` for touched front-end code. Fix what you broke.
             4. Commit with clear messages that reference #${{ github.event.issue.number }}, then push.
 
-            ## Screenshots for UI changes
-            If the change affects anything visible in the UI, take before/after screenshots:
-            - Start the app: `npm run dev:server` (port 3000) and `npm run dev:client` (port 4173) in
-              the background, and wait until both answer. MONGODB_URI etc. are already set in the env.
-            - If a login is needed, use SCREENSHOT_USERNAME / SCREENSHOT_PASSWORD from the env when they
-              are set; otherwise register a throwaway user through POST /api/auth/register on the local
-              server. Create whatever sample data the page needs through the API.
-            - Use Playwright (already installed; `node` script with `require('playwright')`, chromium)
-              to capture the affected pages at desktop width (1280px) and, if the issue concerns layout,
-              mobile width (390px).
-            - "Before" = the default branch (or the PR's state before your commits); "after" = your branch.
-              Use `git stash`/`git worktree add` to capture the "before" state; do not commit screenshots
-              to the issue branch.
-            - Store screenshots on the shared `claude-screenshots` branch (create it as an orphan branch if
-              it does not exist; otherwise check it out in a separate worktree and add files on top) under
-              `issue-${{ github.event.issue.number }}/run-${{ github.run_id }}/`. Commit and push that branch
-              (same no-force rules).
-            - Embed them with
-              `![before](${{ github.server_url }}/${{ github.repository }}/blob/claude-screenshots/issue-${{ github.event.issue.number }}/run-${{ github.run_id }}/<file>.png?raw=true)`
-            - Make sure no screenshot shows a password, token or other secret.
+            ## Screenshots (required for UI changes)
+            The owner wants to SEE the result in the PR. If your commits touch anything that renders
+            (src/**/*.vue, src/views, src/components, src/layouts, src/assets, CSS, tailwind.config.js,
+            index.html, public/), screenshots are mandatory. A later workflow step checks this and FAILS
+            the run if they are missing, so do not skip it or decide it is unnecessary.
+
+            Helpers (already on disk, use them):
+            - `.github/scripts/start-app.sh [dir]` starts API :3000 + client :4173 from a checkout and waits
+              until both answer. MongoDB (a throwaway local instance) is configured in the env.
+            - `.github/scripts/stop-app.sh` stops it.
+            - `node .github/scripts/screenshot.mjs /tmp/screenshots <before|after> <path> [path ...]` logs in
+              (test user from secrets, or registers a throwaway one), and saves desktop (1280px) and mobile
+              (390px) full-page shots. It writes the JWT to /tmp/screenshot-token so you can create sample
+              data through the API first (`Authorization: Bearer $(cat /tmp/screenshot-token)`), e.g. a
+              recipe or brew so the page you changed actually shows content. Pages with real content are
+              required; an empty page or an error toast does not count.
+
+            Steps:
+            1. Before: `git worktree add /tmp/before <start commit>` where the start commit is
+               ${{ steps.existing.outputs.start_sha }}, then `.github/scripts/start-app.sh /tmp/before`,
+               create sample data, run screenshot.mjs with prefix `before` for every page you changed,
+               then `.github/scripts/stop-app.sh`.
+            2. After: `.github/scripts/start-app.sh .` on your branch, run screenshot.mjs with prefix `after`
+               for the same pages (same database, so the sample data is still there), then stop the app.
+            3. Open the PNGs with the Read tool and check they show the change. Retake if not.
+            4. Leave the files in /tmp/screenshots/ (file names only, no subfolders). Do NOT commit them
+               anywhere; a workflow step publishes them right after you finish, at
+               `${{ github.server_url }}/${{ github.repository }}/blob/claude-screenshots/issue-${{ github.event.issue.number }}/run-${{ github.run_id }}/<file>.png?raw=true`
+            5. Embed them with that URL in the PR body (or, for an existing PR, in your PR comment) as a
+               table with Before | After columns, desktop first, then mobile. The images will show up a
+               minute after the run publishes them.
+            Make sure no screenshot shows a password, token or other secret.
 
             ## Opening the PR (required, do not skip)
             Every run that pushes commits must end with an open PR. Write the PR body to
@@ -214,11 +235,50 @@ jobs:
             If the issue is unclear or blocked, do not guess at a large change. Comment on the issue
             explaining what is missing or what you tried, and stop.
 
-      - name: Make sure the pushed branch has a PR
+      - name: Publish screenshots
+        if: always() && steps.existing.outcome == 'success'
+        env:
+          DEST: issue-${{ github.event.issue.number }}/run-${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(/tmp/screenshots/*.png)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No screenshots to publish."
+            exit 0
+          fi
+          wt=/tmp/screenshots-branch
+          rm -rf "$wt"
+          git worktree prune
+          if git fetch --quiet origin claude-screenshots 2>/dev/null; then
+            git worktree add --force -B claude-screenshots "$wt" FETCH_HEAD
+          else
+            git worktree add --force --detach "$wt"
+            git -C "$wt" checkout --orphan claude-screenshots
+            git -C "$wt" rm -rfq .
+            printf '# Screenshots\n\nBefore/after screenshots for PRs opened by the Claude issue worker.\n' > "$wt/README.md"
+          fi
+          mkdir -p "$wt/$DEST"
+          cp "${files[@]}" "$wt/$DEST/"
+          git -C "$wt" add -A
+          git -C "$wt" -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -qm "Screenshots for #${ISSUE_NUMBER} (run ${{ github.run_id }})"
+          for i in 1 2 3; do
+            git -C "$wt" push -q origin claude-screenshots && break
+            git -C "$wt" -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              pull -q --no-rebase --no-edit origin claude-screenshots
+          done
+          echo "Published ${#files[@]} screenshots to claude-screenshots/$DEST"
+
+      - name: Check screenshots and make sure the pushed branch has a PR
         if: success()
         env:
           DETECTED_BRANCH: ${{ steps.existing.outputs.branch }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          START_SHA: ${{ steps.existing.outputs.start_sha }}
+          SHOTS_PATH: claude-screenshots/issue-${{ github.event.issue.number }}/run-${{ github.run_id }}/
         run: |
           set -euo pipefail
           git fetch --quiet origin
@@ -242,6 +302,25 @@ jobs:
           fi
 
           pr=$(gh pr list --head "$branch" --state open --json url --jq '.[0].url // empty')
+
+          # UI changes made in this run must come with screenshots that are embedded in the PR.
+          ui_files=$(git diff --name-only "$START_SHA" "origin/$branch" \
+            | grep -E '^(src/.*\.(vue|css|scss)$|src/(views|components|layouts|assets)/|index\.html$|tailwind\.config\.js$|public/)' || true)
+          if [ -n "$ui_files" ]; then
+            echo "UI files changed in this run:"; echo "$ui_files"
+            shots=$(ls /tmp/screenshots/after-*.png 2>/dev/null | wc -l)
+            text=""
+            [ -f /tmp/pr-body.md ] && text=$(cat /tmp/pr-body.md)
+            if [ -n "$pr" ]; then
+              text="$text $(gh pr view "$pr" --json body,comments --jq '.body + " " + ([.comments[].body] | join(" "))')"
+            fi
+            if [ "$shots" -eq 0 ] || ! grep -qF "$SHOTS_PATH" <<<"$text"; then
+              gh issue comment "$ISSUE_NUMBER" --body "This run changed UI files but did not produce and embed before/after screenshots (found ${shots} \"after\" screenshots). The code is on \`$branch\`. Add \`ai-todo\` again to retry; the next run reuses the branch and adds the screenshots."
+              echo "::error::UI change without screenshots embedded in the PR"
+              exit 1
+            fi
+          fi
+
           if [ -n "$pr" ]; then
             echo "PR already open: $pr"
             exit 0
