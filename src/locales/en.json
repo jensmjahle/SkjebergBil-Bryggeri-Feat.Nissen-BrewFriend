@@ -454,6 +454,7 @@
     },
     "current": {
       "progress_tab": "Progress",
+      "ingredients_tab": "Ingredients",
       "recipe_tab": "Recipe",
       "measurements_tab": "Measurements",
       "menu": "Menu",
