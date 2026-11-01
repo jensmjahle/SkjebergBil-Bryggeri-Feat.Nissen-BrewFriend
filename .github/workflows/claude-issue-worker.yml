@@ -194,9 +194,11 @@ jobs:
               `![before](${{ github.server_url }}/${{ github.repository }}/blob/claude-screenshots/issue-${{ github.event.issue.number }}/run-${{ github.run_id }}/<file>.png?raw=true)`
             - Make sure no screenshot shows a password, token or other secret.
 
-            ## Opening the PR
-            `gh pr create --base ${{ github.event.repository.default_branch }} --head <branch> --assignee ${{ github.repository_owner }}`
-            with a clear title and a body that contains:
+            ## Opening the PR (required, do not skip)
+            Every run that pushes commits must end with an open PR. Write the PR body to
+            `/tmp/pr-body.md` and the title to `/tmp/pr-title.txt` first, then run
+            `gh pr create --base ${{ github.event.repository.default_branch }} --head <branch> --assignee ${{ github.repository_owner }} --title "$(cat /tmp/pr-title.txt)" --body-file /tmp/pr-body.md`
+            The PR body must contain:
             - a short summary of the change and why,
             - a list of the main changes,
             - how you tested it (commands you ran and the result),
@@ -204,10 +206,62 @@ jobs:
             - the line `Closes #${{ github.event.issue.number }}`.
             Then comment the PR link on the issue:
             `gh issue comment ${{ github.event.issue.number }} --body "Opened <PR URL> for this issue."`
+            If `gh pr create` fails, do NOT post a "create a PR yourself" link on the issue. Leave
+            /tmp/pr-title.txt and /tmp/pr-body.md in place and stop: a later workflow step opens the
+            PR from them and reports any error.
 
             ## If you cannot finish
             If the issue is unclear or blocked, do not guess at a large change. Comment on the issue
             explaining what is missing or what you tried, and stop.
+
+      - name: Make sure the pushed branch has a PR
+        if: success()
+        env:
+          DETECTED_BRANCH: ${{ steps.existing.outputs.branch }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          git fetch --quiet origin
+          heads=$(git ls-remote --heads origin | awk '{sub("refs/heads/","",$2); print $2}')
+
+          # The branch Claude pushed: the detected one, or any claude/issue-N branch.
+          branch=""
+          if grep -qxF "$DETECTED_BRANCH" <<<"$heads"; then
+            branch="$DETECTED_BRANCH"
+          else
+            branch=$(grep -E "^claude/issue-${ISSUE_NUMBER}(-|$)" <<<"$heads" | head -n1 || true)
+          fi
+          if [ -z "$branch" ]; then
+            echo "No branch was pushed for this issue, so there is no PR to open."
+            exit 0
+          fi
+
+          if [ "$(git rev-list --count "origin/$DEFAULT_BRANCH..origin/$branch")" = "0" ]; then
+            echo "Branch $branch has no commits ahead of $DEFAULT_BRANCH."
+            exit 0
+          fi
+
+          pr=$(gh pr list --head "$branch" --state open --json url --jq '.[0].url // empty')
+          if [ -n "$pr" ]; then
+            echo "PR already open: $pr"
+            exit 0
+          fi
+
+          title="$ISSUE_TITLE"
+          [ -s /tmp/pr-title.txt ] && title=$(head -n1 /tmp/pr-title.txt)
+          if [ ! -s /tmp/pr-body.md ]; then
+            printf 'Automated change for #%s.\n\nCloses #%s\n' "$ISSUE_NUMBER" "$ISSUE_NUMBER" > /tmp/pr-body.md
+          fi
+          grep -q "Closes #${ISSUE_NUMBER}" /tmp/pr-body.md || printf '\nCloses #%s\n' "$ISSUE_NUMBER" >> /tmp/pr-body.md
+
+          if pr=$(gh pr create --base "$DEFAULT_BRANCH" --head "$branch" \
+                --assignee "$OWNER_LOGIN" --title "$title" --body-file /tmp/pr-body.md); then
+            echo "Opened $pr"
+            gh issue comment "$ISSUE_NUMBER" --body "Opened $pr for this issue."
+          else
+            gh issue comment "$ISSUE_NUMBER" --body "The work is pushed to \`$branch\`, but the workflow could not open the PR. Most likely **Settings → Actions → General → Workflow permissions → Allow GitHub Actions to create and approve pull requests** is off. Turn it on and add \`ai-todo\` again; the next run will reuse the branch and open the PR."
+            exit 1
+          fi
 
       - name: Clear in-progress label
         if: success()
