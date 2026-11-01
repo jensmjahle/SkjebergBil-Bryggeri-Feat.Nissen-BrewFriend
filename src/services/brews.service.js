@@ -161,3 +161,8 @@ export async function getBrewGraph(brewId, metric = "gravity") {
 export async function deleteBrew(brewId) {
   await api.delete(`${BASE}/${encodeURIComponent(brewId)}`);
 }
+
+export async function setBrewMashRestReached(brewId, stepId, restId, reached) {
+  const { data } = await api.patch(`${BASE}/${encodeURIComponent(brewId)}/steps/${encodeURIComponent(stepId)}/rests/${encodeURIComponent(restId)}`, { reached }, { silentErrors: true });
+  return data;
+}

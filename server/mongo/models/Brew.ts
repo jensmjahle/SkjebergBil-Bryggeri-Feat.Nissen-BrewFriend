@@ -87,6 +87,7 @@ const stepProgressSchema = new mongoose.Schema(
     actualDurationSeconds: { type: Number, min: 0 },
     note: { type: String, trim: true, maxlength: 2000 },
     completedAdditionIds: { type: [String], default: [] },
+    restReachedAt: { type: [new mongoose.Schema({ restId: { type: String, maxlength: 80 }, at: { type: Date } }, { _id: false })], default: [] },
   },
   { _id: false },
 );

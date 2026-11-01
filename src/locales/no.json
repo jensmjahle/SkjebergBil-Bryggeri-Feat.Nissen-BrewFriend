@@ -567,6 +567,23 @@
       "saved": "Timeren er justert.",
       "help": "Dra mot høyre for å spole frem, mot venstre for å legge til tid."
     },
+    "mash": {
+      "rests": "Mesketrinn",
+      "rests_help": "Legg til trinn i rekkefølge: varm opp til temperaturen, og hold den så i angitt tid.",
+      "temp_c": "Temperatur °C",
+      "minutes": "Minutter",
+      "add_rest": "Legg til trinn",
+      "remove_rest": "Fjern trinn",
+      "raise_to": "Øk temperaturen til {temp} °C",
+      "then_hold": "Deretter hold i {minutes} min",
+      "hold": "Hold i {minutes} min",
+      "rest_at": "{temp} °C i {minutes} min",
+      "remaining": "Gjenstår",
+      "done": "Ferdig",
+      "reached": "Gjort",
+      "undo": "Angre",
+      "start_first": "Start steget for å bruke mesketrinnene."
+    },
     "boil": {
       "additions": "Tilsetninger",
       "schedule_help": "Tidspunktene viser minutter igjen av koketiden. 0 min betyr ved kokeslutt.",
