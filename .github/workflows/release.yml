@@ -1,0 +1,86 @@
+name: Ny release
+
+# Start manually from Actions -> "Ny release" -> "Run workflow".
+# Picks the next semver tag from the latest vX.Y.Z tag, creates a GitHub
+# release for it, and builds/pushes the Docker images for that tag.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Versjonstype (patch = feilretting, minor = ny funksjon, major = store endringer)"
+        type: choice
+        required: true
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+
+# Never run two releases at once, so two runs can't pick the same tag.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute next version
+        id: version
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          set -euo pipefail
+          git fetch --tags --force --quiet
+          latest=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)
+          latest=${latest:-v0.0.0}
+          IFS=. read -r major minor patch <<<"${latest#v}"
+          case "$BUMP" in
+            major) major=$((major + 1)); minor=0; patch=0 ;;
+            minor) minor=$((minor + 1)); patch=0 ;;
+            patch) patch=$((patch + 1)) ;;
+            *) echo "Unknown bump: $BUMP" >&2; exit 1 ;;
+          esac
+          next="v${major}.${minor}.${patch}"
+          if git rev-parse -q --verify "refs/tags/$next" >/dev/null; then
+            echo "Tag $next already exists" >&2; exit 1
+          fi
+          echo "Latest: $latest -> next: $next ($BUMP)"
+          echo "tag=$next" >> "$GITHUB_OUTPUT"
+          echo "previous=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag and GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          PREVIOUS: ${{ steps.version.outputs.previous }}
+        run: |
+          set -euo pipefail
+          args=(--repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$TAG" --generate-notes)
+          if [ "$PREVIOUS" != "v0.0.0" ]; then
+            args+=(--notes-start-tag "$PREVIOUS")
+          fi
+          gh release create "$TAG" "${args[@]}"
+          echo "### Released $TAG" >> "$GITHUB_STEP_SUMMARY"
+
+  # A release created with GITHUB_TOKEN does not trigger other workflows,
+  # so the image build is called directly here instead of via the
+  # "release: published" event.
+  build:
+    needs: release
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/publish-images.yml
+    with:
+      tag: ${{ needs.release.outputs.tag }}

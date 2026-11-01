@@ -1,5 +1,10 @@
 # Beer Exchange
 
+<p>
+  <a href="https://github.com/jensmjahle/SkjebergBil-Bryggeri-Feat.Nissen-BrewFriend/releases/latest"><img alt="Gjeldende versjon" src="https://img.shields.io/github/v/release/jensmjahle/SkjebergBil-Bryggeri-Feat.Nissen-BrewFriend?style=for-the-badge&label=versjon&labelColor=3b1c0f&color=65a30d&logo=github&logoColor=fdf6e3" /></a>
+  <a href="https://github.com/jensmjahle/SkjebergBil-Bryggeri-Feat.Nissen-BrewFriend/actions/workflows/release.yml"><img alt="Ny release" src="https://img.shields.io/badge/%F0%9F%8D%BA%20Ny%20release-65a30d?style=for-the-badge&labelColor=3b1c0f&logo=githubactions&logoColor=fdf6e3" /></a>
+</p>
+
 Introduction here yes, very nice great success.
 
 # Maintainers
@@ -39,6 +44,10 @@ npm run dev:client
 # or
 yarn dev:client
 ```
+
+## Ny release
+
+Trykk på **Ny release**-knappen øverst (eller Actions → *Ny release* → *Run workflow*), velg `patch`, `minor` eller `major` og kjør. Workflowen finner siste `vX.Y.Z`-tag, lager neste tag og en GitHub-release med automatiske release notes, og bygger og publiserer Docker-imagene til GHCR med den nye taggen.
 
 ## Run in Production Mode (Docker)
 

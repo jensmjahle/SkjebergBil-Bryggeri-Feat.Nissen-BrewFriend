@@ -3,10 +3,19 @@ name: Publish Docker images (GHCR)
 on:
   release:
     types: [published]
+  # Called by the "Ny release" workflow (release.yml).
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag to build, e.g. v1.2.0"
+        type: string
+        required: true
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
     permissions:
       contents: read
       packages: write
@@ -16,7 +25,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           # Build the exact commit referenced by the release tag.
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ env.TAG }}
 
       - name: Set up QEMU (multi-arch)
         uses: docker/setup-qemu-action@v3
@@ -41,7 +50,7 @@ jobs:
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/beer-friend-backend:${{ github.event.release.tag_name }}
+            ghcr.io/${{ github.repository_owner }}/beer-friend-backend:${{ env.TAG }}
 
       - name: Build & push frontend
         uses: docker/build-push-action@v5
@@ -53,4 +62,4 @@ jobs:
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/beer-friend-frontend:${{ github.event.release.tag_name }}
+            ghcr.io/${{ github.repository_owner }}/beer-friend-frontend:${{ env.TAG }}
