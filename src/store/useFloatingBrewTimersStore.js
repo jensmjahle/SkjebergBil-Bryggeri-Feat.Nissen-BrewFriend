@@ -33,6 +33,12 @@ export const useFloatingBrewTimersStore = defineStore(
         ? saved.dismissed.filter((key) => typeof key === "string").slice(-100)
         : [],
     );
+    // Timers only float once their step has been opened in this session.
+    const visited = ref(
+      Array.isArray(saved.visited)
+        ? saved.visited.filter((key) => typeof key === "string").slice(-100)
+        : [],
+    );
     const positions = ref(
       Object.fromEntries(
         Object.entries(saved.positions || {})
@@ -62,6 +68,7 @@ export const useFloatingBrewTimersStore = defineStore(
     const visibleTimers = computed(() =>
       timers.value.filter(
         (timer) =>
+          visited.value.includes(timer.key) &&
           !dismissed.value.includes(timer.key) &&
           !(
             mainTimer.value?.brewId === timer.brewId &&
@@ -77,6 +84,7 @@ export const useFloatingBrewTimersStore = defineStore(
           JSON.stringify({
             trackedIds: trackedIds.value,
             dismissed: dismissed.value.slice(-100),
+            visited: visited.value.slice(-100),
             positions: positions.value,
           }),
         );
@@ -152,8 +160,13 @@ export const useFloatingBrewTimersStore = defineStore(
         const main = mainTimer.value;
         if (!main?.stepId) return;
         for (const timer of timers.value) {
-          if (timer.brewId === main.brewId && timer.stepId === main.stepId)
+          if (timer.brewId === main.brewId && timer.stepId === main.stepId) {
+            if (!visited.value.includes(timer.key)) {
+              visited.value = [...visited.value, timer.key].slice(-100);
+              persist();
+            }
             restore(timer.key);
+          }
         }
       },
       { flush: "sync" },

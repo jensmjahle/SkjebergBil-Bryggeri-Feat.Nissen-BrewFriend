@@ -27,6 +27,11 @@ after(() => {
   else delete globalThis.sessionStorage;
 });
 
+function visit(store, stepId = "mash") {
+  store.mainTimer = { brewId: "brew", stepId };
+  store.mainTimer = null;
+}
+
 function brew() {
   return {
     _id: "brew",
@@ -53,6 +58,8 @@ test("dismissal lasts while away; visiting the main timer makes it return on lea
   const store = useFloatingBrewTimersStore();
   const input = brew();
   store.updateBrew(input);
+  assert.equal(store.visibleTimers.length, 0, "hidden until step is visited");
+  visit(store);
   const key = store.visibleTimers[0].key;
   store.dismiss(key);
   store.updateBrew({ ...input, updatedAt: "2026-10-15T12:01:00Z" });
@@ -72,6 +79,7 @@ test("dismissal lasts while away; visiting the main timer makes it return on lea
 test("opening a dismissed main clock before data loads also restores it", () => {
   const first = useFloatingBrewTimersStore();
   first.updateBrew(brew());
+  visit(first);
   const key = first.visibleTimers[0].key;
   first.dismiss(key);
   setActivePinia(createPinia());
@@ -89,6 +97,7 @@ test("undo restores only the miniature and preserves paused timer state", () => 
   const input = brew();
   const original = structuredClone(input);
   store.updateBrew(input);
+  visit(store);
   const key = store.visibleTimers[0].key;
   store.dismiss(key);
   assert.equal(store.canRestore(key), true);
@@ -101,6 +110,7 @@ test("undo restores only the miniature and preserves paused timer state", () => 
 test("stale updates and responses arriving after deletion cannot resurrect a clock", () => {
   const store = useFloatingBrewTimersStore();
   store.updateBrew(brew());
+  visit(store);
   store.updateBrew({
     ...brew(),
     status: "completed",
@@ -127,6 +137,7 @@ test("malformed stored preferences never prevent the app from mounting", () => {
     setActivePinia(createPinia());
     const store = useFloatingBrewTimersStore();
     store.updateBrew(brew());
+    visit(store);
     assert.equal(store.visibleTimers.length, 1);
   }
 });
