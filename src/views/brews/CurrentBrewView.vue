@@ -18,12 +18,6 @@
 
           <div class="flex flex-wrap items-center justify-end gap-2">
             <span class="phase-label rounded-lg border border-border3 px-3 py-2" :data-phase="brewPhase(brew)">{{ phaseLabel(brewPhase(brew), t) }}</span>
-            <BaseToggle
-              class="hidden sm:flex"
-              :model-value="activePanel"
-              :options="panelToggleOptions"
-              @update:model-value="setActivePanel"
-            />
 
             <div ref="headerMenuRoot" class="relative">
               <BaseButton
@@ -64,14 +58,9 @@
             </div>
           </div>
         </div>
-        <BaseToggle
-          class="sm:hidden"
-          :model-value="activePanel"
-          :options="panelToggleOptions"
-          :full-width="true"
-          @update:model-value="setActivePanel"
-        />
       </div>
+
+      <BrewTabs :model-value="activePanel" :options="panelToggleOptions" @update:model-value="setActivePanel" />
 
       <div class="brew-context">
             <BrewRecipeLink class="mt-2" :brew="brew" />
@@ -152,36 +141,19 @@
 
               <p v-if="timerMessage" class="text-sm" role="status">{{ timerMessage }}</p>
             </div>
-            <div class="step-timer-actions">          <div class="space-y-2">
-            <div class="grid grid-cols-3 gap-2">
-              <BaseButton type="button" variant="button3" :disabled="currentStepIndex <= 0" @click="previousStep">
-                {{ t("brews.actions.previous_step") }}
-              </BaseButton>
-              <BaseButton type="button" variant="button3" :disabled="currentStepIndex >= steps.length - 1" @click="nextStep">
-                {{ t("brews.actions.next_step") }}
-              </BaseButton>
-              <BaseButton type="button" variant="button4" @click="resetCurrentStepAction">
-                {{ t("brews.actions.reset_step") }}
-              </BaseButton>
-            </div>
+          </div>
 
-            <div class="grid grid-cols-2 gap-2">
-              <BaseButton
-                type="button"
-                :variant="isCurrentStepActive ? 'button4' : 'button2'"
-                @click="toggleCurrentStepRunning"
-              >
-                {{ currentStepActionLabel }}
-              </BaseButton>
-              <BaseButton type="button" variant="button1" @click="completeCurrentStepAction">
-                {{ t("brews.actions.complete_step") }}
-              </BaseButton>
-            </div>
+          <div class="step-action-bar" role="toolbar" :aria-label="t('brews.current.step_label', { current: currentStepIndex + 1, total: steps.length })">
+            <button type="button" class="step-action" :disabled="currentStepIndex <= 0" @click="previousStep"><ChevronLeft class="h-5 w-5" aria-hidden="true" /><span>{{ t("brews.actions.previous_step") }}</span></button>
+            <button type="button" class="step-action" :disabled="currentStepIndex >= steps.length - 1" @click="nextStep"><ChevronRight class="h-5 w-5" aria-hidden="true" /><span>{{ t("brews.actions.next_step") }}</span></button>
+            <button type="button" class="step-action" @click="resetCurrentStepAction"><RotateCcw class="h-5 w-5" aria-hidden="true" /><span>{{ t("brews.actions.reset_step") }}</span></button>
+            <button type="button" class="step-action step-action--primary" @click="toggleCurrentStepRunning"><component :is="isCurrentStepActive ? Pause : Play" class="h-5 w-5" aria-hidden="true" /><span>{{ currentStepActionLabel }}</span></button>
+            <button type="button" class="step-action step-action--done" @click="completeCurrentStepAction"><CheckCircle2 class="h-5 w-5" aria-hidden="true" /><span>{{ t("brews.actions.complete_step") }}</span></button>
           </div>
-</div>
-          </div>
+
+          <div class="step-columns">
+          <div class="step-col-main space-y-5">
           <details v-if="showRoundTimer && !isCompleted" class="timer-help text-xs text-text2-faded"><summary class="cursor-pointer">{{ t('brews.timer.seek') }}</summary><p class="mt-2">{{ t(isBoilStep ? 'brews.boil.timer_help' : 'brews.timer.help') }}</p></details>
-          <BrewStepReadings :key="`${brew._id}-${currentStep.stepId}`" :brew="brew" :step="currentStep" :readonly="isCompleted || brew.status === 'archived'" @saved="mergeStepMeasurement" />
 
           <BoilTimeline v-if="isBoilStep" :step="currentStep" :ingredients="ingredients" :progress="currentStepProgress" :remaining-seconds="timerRemainingSeconds" :saving-ids="savingAdditionIds" :disabled="!!inlineDraft || currentStepProgress?.status === 'completed'" :readonly="isCompleted" :error="additionError" @edit="beginInlineEdit('steps', currentStep)" @toggle="recordBoilAddition" />
 
@@ -222,6 +194,9 @@
 
 
 
+          </div>
+          <div class="step-col-side space-y-5">
+          <BrewStepReadings :key="`${brew._id}-${currentStep.stepId}`" :brew="brew" :step="currentStep" :readonly="isCompleted || brew.status === 'archived'" @saved="mergeStepMeasurement" />
           <details class="step-notes space-y-3">
             <summary class="cursor-pointer text-sm font-semibold">{{ t("brews.readings.notes") }}</summary>
             <label class="sr-only" for="active-step-note">{{ t("brews.current.step_note_label") }}</label>
@@ -244,6 +219,8 @@
               <p v-if="stepNoteMessage" class="text-sm opacity-80">{{ stepNoteMessage }}</p>
             </div>
           </details>
+          </div>
+          </div>
 
           </div>
 
@@ -285,6 +262,21 @@
           />
         </BaseCard>
 
+
+        <BaseCard>
+          <h3>{{ t("recipes.detail.steps") }}</h3>
+          <div class="mt-3 space-y-3">
+            <RecipeStepItem
+              v-for="step in steps"
+              :key="`${step.stepId}-${step.order}`"
+              :step="step"
+              :ingredients="ingredients"
+            />
+          </div>
+        </BaseCard>
+      </template>
+
+      <template v-else-if="activePanel === 'ingredients'">
         <BaseCard>
           <div class="flex items-center justify-between gap-2">
             <h3>{{ t("recipes.detail.ingredients") }}</h3>
@@ -300,19 +292,8 @@
             </div>
           </div>
         </BaseCard>
-
-        <BaseCard>
-          <h3>{{ t("recipes.detail.steps") }}</h3>
-          <div class="mt-3 space-y-3">
-            <RecipeStepItem
-              v-for="step in steps"
-              :key="`${step.stepId}-${step.order}`"
-              :step="step"
-              :ingredients="ingredients"
-            />
-          </div>
-        </BaseCard>
       </template>
+
 
       <template v-else>
         <BaseCard class="space-y-4">
@@ -472,7 +453,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { useFloatingBrewTimersStore } from '@/store/useFloatingBrewTimersStore.js';
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { EllipsisVertical, Pencil, Trash2, ChevronDown, Flame, Droplets, Wheat, Thermometer, Beer, Snowflake } from "lucide-vue-next";
+import { EllipsisVertical, Pencil, Trash2, ChevronDown, Flame, Droplets, Wheat, Thermometer, Beer, Snowflake, BookOpen, LineChart, ListChecks, ClipboardList, ChevronLeft, ChevronRight, RotateCcw, Play, Pause, CheckCircle2 } from "lucide-vue-next";
+import BrewTabs from "@/components/brews/BrewTabs.vue";
 import BaseCard from "@/components/base/BaseCard.vue";
 import BaseButton from "@/components/base/BaseButton.vue";
 import BaseInput from "@/components/base/BaseInput.vue";
@@ -796,10 +778,11 @@ const measurementSeries = computed(() =>
 
 const latestMeasurements = computed(() => [...measurementSeries.value].reverse().slice(0, 8));
 const panelToggleOptions = computed(() => [
-  ...(isCompleted.value ? [{ label:t('brews.overview.tab'), value:'overview' }] : []),
-  { label: t("brews.current.progress_tab"), value: "progress" },
-  { label: t("brews.current.recipe_tab"), value: "recipe" },
-  { label: t("brews.current.measurements_tab"), value: "measurements" },
+  ...(isCompleted.value ? [{ label:t('brews.overview.tab'), value:'overview', icon: ClipboardList }] : []),
+  { label: t("brews.current.progress_tab"), value: "progress", icon: ListChecks },
+  { label: t("brews.current.recipe_tab"), value: "recipe", icon: BookOpen },
+  { label: t("brews.current.ingredients_tab"), value: "ingredients", icon: Wheat },
+  { label: t("brews.current.measurements_tab"), value: "measurements", icon: LineChart },
 ]);
 
 const measurementSeriesToggleOptions = computed(() => [
@@ -1368,8 +1351,8 @@ function toggleMeasurementSeries(seriesKey) {
 
 function setActivePanel(value) {
   if (value === 'overview' && isCompleted.value) { activePanel.value='overview'; return; }
-  if (value === "recipe") {
-    activePanel.value = "recipe";
+  if (value === "recipe" || value === "ingredients") {
+    activePanel.value = value;
     return;
   }
   if (value === "measurements") {
@@ -1758,6 +1741,24 @@ onBeforeUnmount(() => {
 </script>
 <style scoped>
 .brew-page { max-width: 1600px; }
+.step-columns { display: grid; gap: 20px; }
+.step-col-main, .step-col-side { min-width: 0; }
+.step-action-bar { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+.step-action { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 12px; font-size: 14px; font-weight: 600; border: 1px solid var(--color-border3); border-radius: 12px; background: var(--color-bg4); color: var(--color-text4); transition: transform .12s, background-color .15s; }
+.step-action:hover:not(:disabled) { transform: translateY(-1px); }
+.step-action:disabled { opacity: .4; cursor: not-allowed; }
+.step-action--primary { background: var(--color-button2); color: var(--color-button2-meta, var(--color-text4)); border-color: transparent; }
+.step-action--done { background: var(--color-button1); color: var(--color-button1-meta); border-color: transparent; }
+@media(min-width:1024px) {
+  .brew-page { padding-bottom: 104px; }
+  .step-columns { grid-template-columns: minmax(0,3fr) minmax(300px,2fr); align-items: start; }
+  .step-col-side { position: sticky; top: 190px; }
+  .step-action-bar { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 30; display: flex; gap: 6px; padding: 8px 10px; border-radius: 18px; border: 1px solid var(--color-border3); background: color-mix(in srgb, var(--color-bg1) 92%, transparent); backdrop-filter: blur(8px); box-shadow: 0 10px 30px rgba(0,0,0,.28); }
+  .step-action { flex-direction: column; gap: 2px; min-width: 88px; padding: 8px 12px; font-size: 12px; border-color: transparent; background: transparent; }
+  .step-action:hover:not(:disabled) { background: var(--color-bg2); }
+  .step-action--primary, .step-action--done { background: var(--color-button1); color: var(--color-button1-meta); }
+  .step-action--primary { background: var(--color-button2); color: var(--color-button2-meta, var(--color-text4)); }
+}
 .brew-sticky-header { position: sticky; top: 57px; z-index: 20; padding: 12px 0; background: var(--color-bg1); border-bottom: 1px solid var(--color-border3); }
 .brew-context { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; padding: 0 4px 8px; color: var(--color-text2-faded); }
 .brew-context > div:last-child { display: flex; flex-wrap: wrap; gap: 4px 12px; }
@@ -1766,18 +1767,18 @@ onBeforeUnmount(() => {
 .step-workspace { grid-column: 2; grid-row: 1; min-width: 0; box-shadow: none; border-color: var(--color-border3); background: var(--color-bg1); }
 .brew-step-rail { grid-column: 1; grid-row: 1; position: sticky; top: 136px; min-width: 0; box-shadow: none; border-color: var(--color-border3); background: var(--color-bg1); }
 .step-heading { display: flex; align-items: center; gap: 12px; font-size: 26px; }
-.step-timer-bar { display: grid; grid-template-columns: minmax(0,1fr) 148px minmax(210px,240px); align-items: center; gap: 20px; padding-bottom: 8px; }
+.step-timer-bar { display: grid; grid-template-columns: minmax(0,1fr) 148px; align-items: center; gap: 20px; padding-bottom: 8px; }
 .step-timer-progress { min-width: 0; }
 .step-timer-bar--untimed { display: block; }
-.step-timer-bar--untimed .step-timer-actions { max-width: 420px; margin-left: auto; }
+.step-timer-bar--untimed 
 .boil-totals { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 14px; font-size: 12px; color: var(--color-text2-faded); }
 .boil-totals strong { display: block; font-size: 20px; color: var(--color-text2); font-variant-numeric: tabular-nums; }
 .next-addition { margin-top: 14px; padding: 8px 0; border-radius: 8px; }
-.step-timer-actions { min-width: 0; }
+
 .step-details, .step-notes { border: 1px solid var(--color-border3); padding: 14px 16px; border-radius: 10px; }
 .step-details summary { list-style: none; }
 .step-details[open] summary > svg { transform: rotate(180deg); }
-@media(max-width:1200px) { .step-timer-bar { grid-template-columns: minmax(0,1fr) 148px; } .step-timer-actions { grid-column: 1 / -1; } }
+@media(max-width:1200px) { .step-timer-bar { grid-template-columns: minmax(0,1fr) 148px; }  }
 @media(max-width:1023px) { .brew-workspace { display: flex; flex-direction: column; gap: 16px; } .step-workspace, .brew-step-rail { width: 100%; } .brew-step-rail { position: static; } }
 @media(max-width:640px) { .brew-sticky-header h1 { font-size: 18px; } .brew-sticky-header .phase-label { display: none; } .step-heading { font-size: 23px; } .step-timer-bar { gap: 12px; grid-template-columns: minmax(0,1fr) 128px; } .step-workspace { padding: 16px 12px; } .step-timer-clock > p { font-size: 10px; } }
 </style>
